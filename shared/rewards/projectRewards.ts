@@ -1,4 +1,4 @@
-import { activeGrants, isActive, planGrant, planReversal, RewardBook, RewardEntry } from './book';
+import { PlannedEntry, reconcile, RewardBook, RewardCause } from './book';
 import { dayKey, DEFAULT_TIME_ZONE } from '../time';
 
 // Projects: no monthly limit, at most 120 each. Exactly three designated
@@ -12,7 +12,6 @@ export const milestoneKey = (projectId: string, subTaskId: string) => `project:$
 export const closeKey = (projectId: string) => `project:${projectId}:close`;
 
 export interface RewardProject {
-    id: string;
     createdAt: Date;
     closedAt?: Date | null; // when every subtask became completed; cleared when reopened
     subTasks: { id: string; completed: boolean }[];
@@ -37,35 +36,23 @@ export const projectEligible = (project: RewardProject) =>
     project.subTasks.length >= MIN_SUBTASKS && project.milestoneIds.length === MILESTONE_COUNT;
 
 /**
- * Compare the project's current state with the book and return the grants and
- * reversals needed to match it. Pass `project = null` once it is deleted.
- * Already-paid rewards stay while their cause remains true, so designating a
- * replacement milestone never claws back the other two.
+ * Return the grants and reversals that bring the book in line with the project's
+ * current state. Pass `project = null` once it is deleted. Eligibility gates only
+ * new payments, so designating a replacement milestone never claws back the
+ * other two.
  */
-export function reconcileProject(book: RewardBook, projectId: string, project: RewardProject | null, at: Date, timeZone = DEFAULT_TIME_ZONE): RewardEntry[] {
-    const day = dayKey(at, timeZone);
-    const desired = new Map<string, { amount: number; reason: string }>();
+export function reconcileProject(book: RewardBook, projectId: string, project: RewardProject | null, at: Date, timeZone = DEFAULT_TIME_ZONE): PlannedEntry[] {
+    const causes: RewardCause[] = [];
     if (project) {
         const eligible = projectEligible(project);
+        const completed = new Set(project.subTasks.filter(s => s.completed).map(s => s.id));
         for (const id of project.milestoneIds) {
-            const sub = project.subTasks.find(s => s.id === id);
-            const key = milestoneKey(projectId, id);
-            if (sub?.completed && (eligible || isActive(book, key))) desired.set(key, { amount: MILESTONE_REWARD, reason: '專案里程碑' });
+            if (completed.has(id)) causes.push({ sourceKey: milestoneKey(projectId, id), amount: MILESTONE_REWARD, reason: '專案里程碑', mayStart: eligible });
         }
-        const allDone = project.subTasks.length > 0 && project.subTasks.every(s => s.completed);
-        const key = closeKey(projectId);
         const closedLater = !!project.closedAt && dayKey(project.closedAt, timeZone) > dayKey(project.createdAt, timeZone);
-        if (allDone && (isActive(book, key) || (eligible && closedLater))) desired.set(key, { amount: CLOSE_REWARD, reason: '專案結案' });
-    }
-    const entries: RewardEntry[] = [];
-    for (const granted of activeGrants(book, `project:${projectId}:`)) {
-        if (!desired.has(granted.sourceKey)) {
-            entries.push(planReversal(book, granted.sourceKey, day, at, project ? '專案獎勵條件不再成立' : '刪除專案', entries.length)!);
+        if (project.subTasks.length > 0 && completed.size === project.subTasks.length) {
+            causes.push({ sourceKey: closeKey(projectId), amount: CLOSE_REWARD, reason: '專案結案', mayStart: eligible && closedLater });
         }
     }
-    for (const [sourceKey, { amount, reason }] of desired) {
-        const entry = planGrant(book, { sourceKey, amount, day, at, reason }, entries.length);
-        if (entry) entries.push(entry);
-    }
-    return entries;
+    return reconcile(book, `project:${projectId}:`, causes, dayKey(at, timeZone), at, project ? '專案獎勵條件不再成立' : '刪除專案');
 }

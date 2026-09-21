@@ -5,7 +5,7 @@ const r = loadTs('shared/rewards/index.ts');
 
 // Asia/Taipei is UTC+8 with no DST: 2026-09-21 08:59 local = 00:59Z.
 const taipei = (day, time = '12:00') => new Date(`${day}T${time}:00+08:00`);
-const apply = (book, ...entries) => r.append(book, ...entries);
+const apply = r.append;
 
 test('book: grants are idempotent, reversals net to zero, balance is the sum', () => {
     let book = r.emptyBook();
@@ -103,7 +103,7 @@ test('daily core: +10 only for a committed task completed on its day, once', () 
 });
 
 const project = (over = {}) => ({
-    id: 'p1', createdAt: taipei('2026-09-20'), closedAt: null, milestoneIds: ['s1', 's2', 's3'],
+    createdAt: taipei('2026-09-20'), closedAt: null, milestoneIds: ['s1', 's2', 's3'],
     subTasks: ['s1', 's2', 's3', 's4'].map(id => ({ id, completed: false })), ...over,
 });
 const done = (p, ids, closedAt = null) => ({ ...p, closedAt, subTasks: p.subTasks.map(s => ({ ...s, completed: s.completed || ids.includes(s.id) })) });

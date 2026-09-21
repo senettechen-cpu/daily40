@@ -1,4 +1,4 @@
-import { planGrant, RewardBook, RewardEntry } from './book';
+import { planGrant, PlannedEntry, RewardBook } from './book';
 import { addDays, dayKey, DEFAULT_TIME_ZONE, minutesOfDay } from '../time';
 
 // Daily core outcomes: up to three committed tasks, +10 each on completion.
@@ -34,18 +34,18 @@ export function corePhase(day: string, now: Date, timeZone = DEFAULT_TIME_ZONE):
     return day === addDays(today, 1) ? 'upcoming' : 'too-early';
 }
 
-/** How many cores the plan may hold right now. */
-export function coreCap(plan: CorePlan, now: Date, timeZone = DEFAULT_TIME_ZONE): number {
-    return corePhase(plan.day, now, timeZone) === 'locked' ? plan.lockedCap ?? plan.taskIds.length : CORE_MAX;
-}
+const capFor = (plan: CorePlan, phase: CorePhase) => phase === 'locked' ? plan.lockedCap ?? plan.taskIds.length : CORE_MAX;
 
-function editable(plan: CorePlan, ctx: CoreContext): { plan: CorePlan } | { error: string } {
+/** How many cores the plan may hold right now. */
+export const coreCap = (plan: CorePlan, now: Date, timeZone = DEFAULT_TIME_ZONE) => capFor(plan, corePhase(plan.day, now, timeZone));
+
+function editable(plan: CorePlan, ctx: CoreContext): { plan: CorePlan; phase: CorePhase } | { error: string } {
     const phase = corePhase(plan.day, ctx.now, ctx.timeZone);
     if (phase === 'past') return { error: '這一天已經結束，核心不能再修改。' };
     if (phase === 'too-early') return { error: '只能提前設定隔天的核心。' };
     // Freeze the 09:00 count before the first post-cutoff change alters the list.
-    if (phase === 'locked' && plan.lockedCap === undefined) return { plan: { ...plan, lockedCap: plan.taskIds.length } };
-    return { plan };
+    if (phase === 'locked' && plan.lockedCap === undefined) return { plan: { ...plan, lockedCap: plan.taskIds.length }, phase };
+    return { plan, phase };
 }
 
 export function addCore(plan: CorePlan, taskId: string, ctx: CoreContext): CoreResult {
@@ -54,11 +54,10 @@ export function addCore(plan: CorePlan, taskId: string, ctx: CoreContext): CoreR
     const current = ready.plan;
     if (current.taskIds.includes(taskId)) return { plan };
     if (ctx.isCompleted(taskId)) return { error: '已完成的任務不能再設為核心。' };
-    const cap = coreCap(current, ctx.now, ctx.timeZone);
+    // Only the locked phase can lower the cap below CORE_MAX.
+    const cap = capFor(current, ready.phase);
     if (current.taskIds.length >= cap) {
-        return { error: cap < CORE_MAX && corePhase(plan.day, ctx.now, ctx.timeZone) === 'locked'
-            ? `已過 09:00，今天的核心數量鎖定為 ${cap} 個，只能替換。`
-            : `核心最多 ${CORE_MAX} 個。` };
+        return { error: cap < CORE_MAX ? `已過 09:00，今天的核心數量鎖定為 ${cap} 個，只能替換。` : `核心最多 ${CORE_MAX} 個。` };
     }
     return { plan: { ...current, taskIds: [...current.taskIds, taskId] } };
 }
@@ -79,7 +78,7 @@ export function replaceCore(plan: CorePlan, oldTaskId: string, newTaskId: string
     return addCore(removed.plan, newTaskId, ctx);
 }
 
-export function onTaskCompleted(book: RewardBook, plan: CorePlan, taskId: string, completedAt: Date, timeZone = DEFAULT_TIME_ZONE): RewardEntry | null {
+export function onTaskCompleted(book: RewardBook, plan: CorePlan, taskId: string, completedAt: Date, timeZone = DEFAULT_TIME_ZONE): PlannedEntry | null {
     const day = dayKey(completedAt, timeZone);
     if (day !== plan.day || !plan.taskIds.includes(taskId)) return null;
     return planGrant(book, { sourceKey: coreKey(day, taskId), amount: CORE_REWARD, day, at: completedAt, reason: '完成今日核心' });

@@ -1,10 +1,16 @@
 // Calendar helpers evaluated in the user's time zone, never the device clock's zone.
 export const DEFAULT_TIME_ZONE = 'Asia/Taipei';
 
+const formats = new Map<string, Intl.DateTimeFormat>();
+
 function parts(at: Date, timeZone: string) {
-    const format = new Intl.DateTimeFormat('en-CA', {
-        timeZone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
-    });
+    let format = formats.get(timeZone);
+    if (!format) {
+        format = new Intl.DateTimeFormat('en-CA', {
+            timeZone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+        });
+        formats.set(timeZone, format);
+    }
     return Object.fromEntries(format.formatToParts(at).map(p => [p.type, p.value])) as Record<string, string>;
 }
 

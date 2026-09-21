@@ -10,7 +10,7 @@ function loadTs(file) {
     const box = { exports: {}, require(id) {
         if (!id.startsWith('.')) return require(id);
         const base = path.resolve(path.dirname(file), id);
-        const target = [base + '.ts', base + '.tsx', path.join(base, 'index.ts')].find(p => fs.existsSync(p));
+        const target = [base + '.ts', path.join(base, 'index.ts')].find(p => fs.existsSync(p));
         return loadTs(target);
     } };
     box.module = { exports: box.exports };
