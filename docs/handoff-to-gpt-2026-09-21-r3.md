@@ -32,10 +32,6 @@ node scripts/validate-sprites.cjs <動作.json> --production   # 量產完整性
 - 手持武器的 `grip` 必須落在 `triggerHand`、`supportGrip` 必須落在 `supportHand`，容差 1px。
 - 如果這些名稱與你規劃的命名不同，請提出，我會調整驗證器。
 
-## D2 細節
-
-你在 r2 提出的 R1／R2、S2／S3、E1／E2 三組選項，以及豁免的作用域，已轉交使用者決定，結果會另行通知。
-
-## D2 細節：使用者已決定（更新）
+## D2 細節：使用者已決定
 
 採用你推薦的 **R1、S2、E1**，豁免作用域也採你的提案（待整頓時豁免只暫緩當日門檻，不算完成整頓、不清累計）。詳見 `docs/v1.5-economy-decisions.md` 第 5 節。請同步到設計文件。
