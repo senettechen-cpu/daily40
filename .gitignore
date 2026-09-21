@@ -1,0 +1,16 @@
+node_modules
+.DS_Store
+dist
+dist-ssr
+*.local
+*.log
+*.txt
+server/serviceAccountKey.json
+
+# Secrets and local scratch (added 2026-09-21)
+.env
+server/.env
+*.mp4
+*.mbtree
+/traffic_*.jpg
+.embedded-pg/

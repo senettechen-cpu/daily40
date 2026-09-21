@@ -1,0 +1,235 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: 'Share Tech Mono';
+  src: url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+}
+
+body {
+  margin: 0;
+  background-color: #000;
+  font-family: 'Share Tech Mono', monospace;
+  overflow: hidden;
+}
+
+.device-font {
+  font-family: 'Share Tech Mono', monospace;
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #111;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #fbbf24;
+  border-radius: 3px;
+}
+
+/* Global Scanline Effect */
+.scanline {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  background: linear-gradient(to bottom,
+      rgba(255, 255, 255, 0),
+      rgba(255, 255, 255, 0) 50%,
+      rgba(0, 0, 0, 0.2) 50%,
+      rgba(0, 0, 0, 0.2));
+  background-size: 100% 4px;
+  animation: scanline 0.2s linear infinite;
+  z-index: 50;
+  opacity: 0.1;
+}
+
+@keyframes scanline {
+  0% {
+    transform: translateY(0);
+  }
+
+  100% {
+    transform: translateY(4px);
+  }
+}
+
+/* Glitch Effect */
+.glitch-container {
+  animation: shake 0.2s infinite;
+  filter: hue-rotate(90deg) blur(0.5px);
+}
+
+@keyframes shake {
+  0% {
+    transform: translate(1px, 1px) rotate(0deg);
+  }
+
+  10% {
+    transform: translate(-1px, -2px) rotate(-1deg);
+  }
+
+  20% {
+    transform: translate(-3px, 0px) rotate(1deg);
+  }
+
+  30% {
+    transform: translate(3px, 2px) rotate(0deg);
+  }
+
+  40% {
+    transform: translate(1px, -1px) rotate(1deg);
+  }
+
+  50% {
+    transform: translate(-1px, 2px) rotate(-1deg);
+  }
+
+  60% {
+    transform: translate(-3px, 1px) rotate(0deg);
+  }
+
+  70% {
+    transform: translate(3px, 1px) rotate(-1deg);
+  }
+
+  80% {
+    transform: translate(-1px, -1px) rotate(1deg);
+  }
+
+  90% {
+    transform: translate(1px, 2px) rotate(0deg);
+  }
+
+  100% {
+    transform: translate(1px, -2px) rotate(-1deg);
+  }
+}
+
+@keyframes pulse-fast {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.animate-pulse-fast {
+  animation: pulse-fast 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes hologram-flicker {
+  0% { opacity: 0.9; }
+  5% { opacity: 0.8; }
+  10% { opacity: 0.9; }
+  15% { opacity: 0.4; }
+  20% { opacity: 0.9; }
+  40% { opacity: 0.9; }
+  45% { opacity: 0.6; }
+  50% { opacity: 0.9; }
+  100% { opacity: 0.9; }
+}
+
+.animate-hologram {
+  animation: hologram-flicker 4s infinite;
+}
+
+/* Glassmorphism Utilities */
+.glass-panel {
+  background: rgba(10, 15, 13, 0.85); 
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(251, 191, 36, 0.3); /* Imperial Gold / 30% */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.glass-panel-hover:hover {
+  background: rgba(10, 15, 13, 0.95);
+  border-color: rgba(251, 191, 36, 0.8);
+  box-shadow: 0 0 15px rgba(251, 191, 36, 0.2);
+}
+
+
+.glitch-text {
+  position: relative;
+}
+
+.glitch-text::before,
+.glitch-text::after {
+  content: "EXTERMINATUS";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.glitch-text::before {
+  left: 2px;
+  text-shadow: -1px 0 #00ffff;
+  clip: rect(44px, 450px, 56px, 0);
+  animation: glitch-anim 5s infinite linear alternate-reverse;
+}
+
+.glitch-text::after {
+  left: -2px;
+  text-shadow: -1px 0 #ff00ff;
+  clip: rect(44px, 450px, 56px, 0);
+  animation: glitch-anim2 5s infinite linear alternate-reverse;
+}
+
+@keyframes glitch-anim {
+  0% {
+    clip: rect(11px, 9999px, 81px, 0);
+  }
+
+  20% {
+    clip: rect(87px, 9999px, 96px, 0);
+  }
+
+  40% {
+    clip: rect(31px, 9999px, 11px, 0);
+  }
+
+  60% {
+    clip: rect(59px, 9999px, 63px, 0);
+  }
+
+  80% {
+    clip: rect(2px, 9999px, 27px, 0);
+  }
+
+  100% {
+    clip: rect(48px, 9999px, 6px, 0);
+  }
+}
+
+@keyframes glitch-anim2 {
+  0% {
+    clip: rect(69px, 9999px, 83px, 0);
+  }
+
+  20% {
+    clip: rect(16px, 9999px, 2px, 0);
+  }
+
+  40% {
+    clip: rect(93px, 9999px, 66px, 0);
+  }
+
+  60% {
+    clip: rect(21px, 9999px, 86px, 0);
+  }
+
+  80% {
+    clip: rect(54px, 9999px, 37px, 0);
+  }
+
+  100% {
+    clip: rect(3px, 9999px, 72px, 0);
+  }
+}
