@@ -1,0 +1,613 @@
+{
+  "schemaVersion": "1.0.0",
+  "designVersion": "ascension-handoff-20260921-v1",
+  "status": "design_handoff_not_runtime_data",
+  "baselineProfile": "complete_set_firstborn_reference",
+  "chapterSelection": "pending_user_choice",
+  "candidateNarrativeMode": "pending_user_choice",
+  "notes": [
+    "中文是本專案工作譯名；英文與穩定 ID 作對照。",
+    "19 類標準植入物；原鑄追加 3 類，原鑄內容此版不啟用。",
+    "gameRequires 是遊戲關卡依賴，不是醫療手術指南。",
+    "本檔僅新資料夾交付，未替換現有程式與存檔。"
+  ],
+  "sources": {
+    "L1": "https://wh40k.lexicanum.com/wiki/Creation_of_a_Space_Marine",
+    "O1": "https://www.warhammer-community.com/en-gb/articles/Du2wvip7/the-anatomy-of-power-armour/",
+    "O2": "https://www.warhammer-community.com/en-gb/articles/0FpZAUHj/details-you-might-have-missed-in-the-armouring-of-a-space-marine/"
+  },
+  "rules": {
+    "dailyGrowthCap": 2,
+    "activeCandidateCount": 1,
+    "minimumDomainsPerStage": 2,
+    "domainCapFraction": 0.75,
+    "requiresConsecutiveDays": false,
+    "organCurrencyPrice": null,
+    "grantMode": "bound_stage_bundle",
+    "extraPerOrganStatBonuses": false
+  },
+  "stages": [
+    {
+      "stage": 1,
+      "name": "身體基礎",
+      "records": 12,
+      "hp": 110,
+      "mission": "適應評估",
+      "ids": [
+        "secondary-heart",
+        "ossmodula",
+        "biscopea"
+      ],
+      "previousStage": null,
+      "maximumOneDomainRecords": 9,
+      "hpPolicy": "replace_base_not_add",
+      "grantsUnits": 0,
+      "grantsCurrency": 0
+    },
+    {
+      "stage": 2,
+      "name": "生理穩定",
+      "records": 16,
+      "hp": 120,
+      "mission": "生理穩定評估",
+      "ids": [
+        "haemastamen",
+        "larramans-organ",
+        "catalepsean-node"
+      ],
+      "previousStage": 1,
+      "maximumOneDomainRecords": 12,
+      "hpPolicy": "replace_base_not_add",
+      "grantsUnits": 0,
+      "grantsCurrency": 0
+    },
+    {
+      "stage": 3,
+      "name": "感官整合",
+      "records": 20,
+      "hp": 130,
+      "mission": "感官與射界訓練",
+      "ids": [
+        "preomnor",
+        "omophagea",
+        "multi-lung",
+        "occulobe",
+        "lymans-ear"
+      ],
+      "previousStage": 2,
+      "maximumOneDomainRecords": 15,
+      "hpPolicy": "replace_base_not_add",
+      "grantsUnits": 0,
+      "grantsCurrency": 0
+    },
+    {
+      "stage": 4,
+      "name": "綜合適應",
+      "records": 24,
+      "hp": 130,
+      "mission": "環境適應與救援演練",
+      "ids": [
+        "sus-an-membrane",
+        "melanchromic",
+        "oolitic-kidney",
+        "neuroglottis",
+        "mucranoid",
+        "betchers-gland",
+        "progenoids"
+      ],
+      "previousStage": 3,
+      "maximumOneDomainRecords": 18,
+      "hpPolicy": "replace_base_not_add",
+      "grantsUnits": 0,
+      "grantsCurrency": 0
+    },
+    {
+      "stage": 5,
+      "name": "介面與授銜",
+      "records": 28,
+      "hp": 160,
+      "mission": "裝甲介面訓練與授銜審核",
+      "ids": [
+        "black-carapace"
+      ],
+      "previousStage": 4,
+      "maximumOneDomainRecords": 21,
+      "hpPolicy": "replace_base_not_add",
+      "grantsUnits": 0,
+      "grantsCurrency": 0
+    }
+  ],
+  "implants": [
+    {
+      "id": "secondary-heart",
+      "labelZh": "第二心臟",
+      "labelEn": "Secondary Heart",
+      "canonicalPhase": 1,
+      "canonicalPhaseNote": null,
+      "profile": "firstborn_core",
+      "enabledInBaseline": true,
+      "gameStage": 1,
+      "gameRequires": [
+        "eligible_candidate",
+        "chapter_authorization"
+      ],
+      "additionalTraining": null,
+      "loreFunctionShort": "心臟支援",
+      "effectMode": "stage_completion_only",
+      "individualStatDelta": 0,
+      "asset": "images/organs/secondary-heart.png",
+      "sourceIds": [
+        "L1"
+      ],
+      "legacyId": "secondary-heart"
+    },
+    {
+      "id": "ossmodula",
+      "labelZh": "骨化器",
+      "labelEn": "Ossmodula",
+      "canonicalPhase": 2,
+      "canonicalPhaseNote": null,
+      "profile": "firstborn_core",
+      "enabledInBaseline": true,
+      "gameStage": 1,
+      "gameRequires": [
+        "eligible_candidate",
+        "chapter_authorization"
+      ],
+      "additionalTraining": null,
+      "loreFunctionShort": "骨骼成長",
+      "effectMode": "stage_completion_only",
+      "individualStatDelta": 0,
+      "asset": "images/organs/ossmodula.png",
+      "sourceIds": [
+        "L1"
+      ],
+      "legacyId": "ossmodula"
+    },
+    {
+      "id": "biscopea",
+      "labelZh": "肌肉增生器",
+      "labelEn": "Biscopea",
+      "canonicalPhase": 3,
+      "canonicalPhaseNote": null,
+      "profile": "firstborn_core",
+      "enabledInBaseline": true,
+      "gameStage": 1,
+      "gameRequires": [
+        "eligible_candidate",
+        "chapter_authorization"
+      ],
+      "additionalTraining": null,
+      "loreFunctionShort": "肌肉成長",
+      "effectMode": "stage_completion_only",
+      "individualStatDelta": 0,
+      "asset": "images/organs/biscopea.png",
+      "sourceIds": [
+        "L1"
+      ],
+      "legacyId": "biscopea"
+    },
+    {
+      "id": "haemastamen",
+      "labelZh": "血液調節器",
+      "labelEn": "Haemastamen",
+      "canonicalPhase": 4,
+      "canonicalPhaseNote": null,
+      "profile": "firstborn_core",
+      "enabledInBaseline": true,
+      "gameStage": 2,
+      "gameRequires": [
+        "stage_1_completed"
+      ],
+      "additionalTraining": null,
+      "loreFunctionShort": "血液調節",
+      "effectMode": "stage_completion_only",
+      "individualStatDelta": 0,
+      "asset": "images/organs/haemastamen.png",
+      "sourceIds": [
+        "L1"
+      ],
+      "legacyId": "haemastamen"
+    },
+    {
+      "id": "larramans-organ",
+      "labelZh": "拉瑞曼器官",
+      "labelEn": "Larraman’s Organ",
+      "canonicalPhase": 5,
+      "canonicalPhaseNote": null,
+      "profile": "firstborn_core",
+      "enabledInBaseline": true,
+      "gameStage": 2,
+      "gameRequires": [
+        "stage_1_completed"
+      ],
+      "additionalTraining": null,
+      "loreFunctionShort": "凝血",
+      "effectMode": "stage_completion_only",
+      "individualStatDelta": 0,
+      "asset": "images/organs/larramans-organ.png",
+      "sourceIds": [
+        "L1"
+      ],
+      "legacyId": "larramans-organ"
+    },
+    {
+      "id": "catalepsean-node",
+      "labelZh": "休眠節點",
+      "labelEn": "Catalepsean Node",
+      "canonicalPhase": 6,
+      "canonicalPhaseNote": null,
+      "profile": "firstborn_core",
+      "enabledInBaseline": true,
+      "gameStage": 2,
+      "gameRequires": [
+        "stage_1_completed"
+      ],
+      "additionalTraining": "conditioning_in_stage_mission",
+      "loreFunctionShort": "休眠調節",
+      "effectMode": "stage_completion_only",
+      "individualStatDelta": 0,
+      "asset": "images/organs/catalepsean-node.png",
+      "sourceIds": [
+        "L1"
+      ],
+      "legacyId": "catalepsean-node"
+    },
+    {
+      "id": "preomnor",
+      "labelZh": "預胃",
+      "labelEn": "Preomnor",
+      "canonicalPhase": 7,
+      "canonicalPhaseNote": null,
+      "profile": "firstborn_core",
+      "enabledInBaseline": true,
+      "gameStage": 3,
+      "gameRequires": [
+        "stage_2_completed"
+      ],
+      "additionalTraining": null,
+      "loreFunctionShort": "預胃處理",
+      "effectMode": "stage_completion_only",
+      "individualStatDelta": 0,
+      "asset": "images/organs/preomnor.png",
+      "sourceIds": [
+        "L1"
+      ],
+      "legacyId": "preomnor"
+    },
+    {
+      "id": "omophagea",
+      "labelZh": "食憶器",
+      "labelEn": "Omophagea",
+      "canonicalPhase": 8,
+      "canonicalPhaseNote": null,
+      "profile": "firstborn_core",
+      "enabledInBaseline": true,
+      "gameStage": 3,
+      "gameRequires": [
+        "stage_2_completed"
+      ],
+      "additionalTraining": null,
+      "loreFunctionShort": "食憶",
+      "effectMode": "stage_completion_only",
+      "individualStatDelta": 0,
+      "asset": "images/organs/omophagea.png",
+      "sourceIds": [
+        "L1"
+      ],
+      "legacyId": "omophagea"
+    },
+    {
+      "id": "multi-lung",
+      "labelZh": "多肺器",
+      "labelEn": "Multi-lung",
+      "canonicalPhase": 9,
+      "canonicalPhaseNote": null,
+      "profile": "firstborn_core",
+      "enabledInBaseline": true,
+      "gameStage": 3,
+      "gameRequires": [
+        "stage_2_completed"
+      ],
+      "additionalTraining": null,
+      "loreFunctionShort": "呼吸適應",
+      "effectMode": "stage_completion_only",
+      "individualStatDelta": 0,
+      "asset": "images/organs/multi-lung.png",
+      "sourceIds": [
+        "O1",
+        "L1"
+      ],
+      "legacyId": "multi-lung"
+    },
+    {
+      "id": "occulobe",
+      "labelZh": "視覺增強葉",
+      "labelEn": "Occulobe",
+      "canonicalPhase": 10,
+      "canonicalPhaseNote": null,
+      "profile": "firstborn_core",
+      "enabledInBaseline": true,
+      "gameStage": 3,
+      "gameRequires": [
+        "stage_2_completed"
+      ],
+      "additionalTraining": null,
+      "loreFunctionShort": "視覺調節",
+      "effectMode": "stage_completion_only",
+      "individualStatDelta": 0,
+      "asset": "images/organs/occulobe.png",
+      "sourceIds": [
+        "L1"
+      ],
+      "legacyId": "occulobe"
+    },
+    {
+      "id": "lymans-ear",
+      "labelZh": "萊曼之耳",
+      "labelEn": "Lyman’s Ear",
+      "canonicalPhase": 11,
+      "canonicalPhaseNote": null,
+      "profile": "firstborn_core",
+      "enabledInBaseline": true,
+      "gameStage": 3,
+      "gameRequires": [
+        "stage_2_completed"
+      ],
+      "additionalTraining": null,
+      "loreFunctionShort": "聽覺平衡",
+      "effectMode": "stage_completion_only",
+      "individualStatDelta": 0,
+      "asset": "images/organs/lymans-ear.png",
+      "sourceIds": [
+        "L1"
+      ],
+      "legacyId": "lymans-ear"
+    },
+    {
+      "id": "sus-an-membrane",
+      "labelZh": "懸生膜",
+      "labelEn": "Sus-an Membrane",
+      "canonicalPhase": 12,
+      "canonicalPhaseNote": null,
+      "profile": "firstborn_core",
+      "enabledInBaseline": true,
+      "gameStage": 4,
+      "gameRequires": [
+        "stage_3_completed"
+      ],
+      "additionalTraining": "conditioning_in_stage_mission",
+      "loreFunctionShort": "懸生",
+      "effectMode": "stage_completion_only",
+      "individualStatDelta": 0,
+      "asset": "images/organs/sus-an-membrane.png",
+      "sourceIds": [
+        "L1"
+      ],
+      "legacyId": "sus-an-membrane"
+    },
+    {
+      "id": "melanchromic",
+      "labelZh": "黑色素器官",
+      "labelEn": "Melanchromic Organ",
+      "canonicalPhase": 13,
+      "canonicalPhaseNote": null,
+      "profile": "firstborn_core",
+      "enabledInBaseline": true,
+      "gameStage": 4,
+      "gameRequires": [
+        "stage_3_completed"
+      ],
+      "additionalTraining": null,
+      "loreFunctionShort": "色素調節",
+      "effectMode": "stage_completion_only",
+      "individualStatDelta": 0,
+      "asset": "images/organs/melanchromic.png",
+      "sourceIds": [
+        "L1"
+      ],
+      "legacyId": "melanchromic"
+    },
+    {
+      "id": "oolitic-kidney",
+      "labelZh": "卵石腎",
+      "labelEn": "Oolitic Kidney",
+      "canonicalPhase": 14,
+      "canonicalPhaseNote": null,
+      "profile": "firstborn_core",
+      "enabledInBaseline": true,
+      "gameStage": 4,
+      "gameRequires": [
+        "stage_3_completed"
+      ],
+      "additionalTraining": null,
+      "loreFunctionShort": "過濾",
+      "effectMode": "stage_completion_only",
+      "individualStatDelta": 0,
+      "asset": "images/organs/oolitic-kidney.png",
+      "sourceIds": [
+        "L1"
+      ],
+      "legacyId": "oolitic-kidney"
+    },
+    {
+      "id": "neuroglottis",
+      "labelZh": "神經舌",
+      "labelEn": "Neuroglottis",
+      "canonicalPhase": 15,
+      "canonicalPhaseNote": null,
+      "profile": "firstborn_core",
+      "enabledInBaseline": true,
+      "gameStage": 4,
+      "gameRequires": [
+        "stage_3_completed"
+      ],
+      "additionalTraining": null,
+      "loreFunctionShort": "味覺辨識",
+      "effectMode": "stage_completion_only",
+      "individualStatDelta": 0,
+      "asset": "images/organs/neuroglottis.png",
+      "sourceIds": [
+        "L1"
+      ],
+      "legacyId": "neuroglottis"
+    },
+    {
+      "id": "mucranoid",
+      "labelZh": "黏液腺",
+      "labelEn": "Mucranoid",
+      "canonicalPhase": 16,
+      "canonicalPhaseNote": null,
+      "profile": "firstborn_core",
+      "enabledInBaseline": true,
+      "gameStage": 4,
+      "gameRequires": [
+        "stage_3_completed"
+      ],
+      "additionalTraining": null,
+      "loreFunctionShort": "保護分泌",
+      "effectMode": "stage_completion_only",
+      "individualStatDelta": 0,
+      "asset": "images/organs/mucranoid.png",
+      "sourceIds": [
+        "L1"
+      ],
+      "legacyId": "mucranoid"
+    },
+    {
+      "id": "betchers-gland",
+      "labelZh": "貝切爾腺",
+      "labelEn": "Betcher’s Gland",
+      "canonicalPhase": 17,
+      "canonicalPhaseNote": null,
+      "profile": "firstborn_core",
+      "enabledInBaseline": true,
+      "gameStage": 4,
+      "gameRequires": [
+        "stage_3_completed"
+      ],
+      "additionalTraining": null,
+      "loreFunctionShort": "酸液分泌",
+      "effectMode": "stage_completion_only",
+      "individualStatDelta": 0,
+      "asset": "images/organs/betchers-gland.png",
+      "sourceIds": [
+        "O1",
+        "L1"
+      ],
+      "legacyId": "betchers-gland"
+    },
+    {
+      "id": "progenoids",
+      "labelZh": "基因種子腺",
+      "labelEn": "Progenoids",
+      "canonicalPhase": 18,
+      "canonicalPhaseNote": null,
+      "profile": "firstborn_core",
+      "enabledInBaseline": true,
+      "gameStage": 4,
+      "gameRequires": [
+        "stage_3_completed"
+      ],
+      "additionalTraining": null,
+      "loreFunctionShort": "基因種子保存",
+      "effectMode": "stage_completion_only",
+      "individualStatDelta": 0,
+      "asset": "images/organs/progenoids.png",
+      "sourceIds": [
+        "L1"
+      ],
+      "legacyId": "progenoids"
+    },
+    {
+      "id": "black-carapace",
+      "labelZh": "黑色甲殼",
+      "labelEn": "Black Carapace",
+      "canonicalPhase": 19,
+      "canonicalPhaseNote": null,
+      "profile": "firstborn_core",
+      "enabledInBaseline": true,
+      "gameStage": 5,
+      "gameRequires": [
+        "stage_4_completed"
+      ],
+      "additionalTraining": "power_armour_interface_training",
+      "loreFunctionShort": "裝甲神經介面",
+      "effectMode": "unlock_compatible_equipment_qualification",
+      "individualStatDelta": 0,
+      "asset": "images/organs/black-carapace.png",
+      "sourceIds": [
+        "O1",
+        "O2",
+        "L1"
+      ],
+      "legacyId": "black-carapace"
+    },
+    {
+      "id": "sinew-coils",
+      "labelZh": "肌腱線圈",
+      "labelEn": "Sinew Coils",
+      "canonicalPhase": null,
+      "canonicalPhaseNote": "3 Alpha",
+      "profile": "primaris_extension",
+      "enabledInBaseline": false,
+      "gameStage": null,
+      "gameRequires": [
+        "primaris_profile_specification_and_user_approval"
+      ],
+      "additionalTraining": null,
+      "loreFunctionShort": "肌腱強化",
+      "effectMode": "reserved_not_enabled",
+      "individualStatDelta": 0,
+      "asset": "images/organs/sinew-coils.png",
+      "sourceIds": [
+        "L1"
+      ],
+      "legacyId": null
+    },
+    {
+      "id": "magnificat",
+      "labelZh": "增幅器",
+      "labelEn": "Magnificat",
+      "canonicalPhase": null,
+      "canonicalPhaseNote": "3 Beta",
+      "profile": "primaris_extension",
+      "enabledInBaseline": false,
+      "gameStage": null,
+      "gameRequires": [
+        "primaris_profile_specification_and_user_approval"
+      ],
+      "additionalTraining": null,
+      "loreFunctionShort": "成長增幅",
+      "effectMode": "reserved_not_enabled",
+      "individualStatDelta": 0,
+      "asset": "images/organs/magnificat.png",
+      "sourceIds": [
+        "L1"
+      ],
+      "legacyId": null
+    },
+    {
+      "id": "belisarian-furnace",
+      "labelZh": "貝利撒留熔爐",
+      "labelEn": "Belisarian Furnace",
+      "canonicalPhase": null,
+      "canonicalPhaseNote": "not_fixed_by_this_handoff",
+      "profile": "primaris_extension",
+      "enabledInBaseline": false,
+      "gameStage": null,
+      "gameRequires": [
+        "primaris_profile_specification_and_user_approval"
+      ],
+      "additionalTraining": null,
+      "loreFunctionShort": "創傷應急",
+      "effectMode": "reserved_not_enabled",
+      "individualStatDelta": 0,
+      "asset": "images/organs/belisarian-furnace.png",
+      "sourceIds": [
+        "L1"
+      ],
+      "legacyId": null
+    }
+  ]
+}
