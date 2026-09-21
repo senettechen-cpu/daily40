@@ -1,15 +1,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const vm = require('node:vm');
-const ts = require('typescript');
-function load(path) {
-    const box = { exports: {} };
-    vm.runInNewContext(ts.transpileModule(fs.readFileSync(path, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, box);
-    return box.exports;
-}
-const e = load('src/expedition/engine.ts');
-const p = load('src/expedition/presentation.ts');
+const { loadTs } = require('./helpers/load-ts.cjs');
+const e = loadTs('src/expedition/engine.ts');
+const p = loadTs('src/expedition/presentation.ts');
 test('guard sprite atlas exists as the expected four-cell RGBA asset', () => {
     const png = fs.readFileSync('public/expedition/cadian-poses-v1.png');
     assert.equal(png.readUInt32BE(16), 1254); assert.equal(png.readUInt32BE(20), 1254);

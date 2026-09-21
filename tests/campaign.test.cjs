@@ -1,12 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const ts = require('typescript');
-const fs = require('node:fs');
-const vm = require('node:vm');
-const source = fs.readFileSync('src/game/campaign.ts', 'utf8');
-const sandbox = { exports: {}, require };
-vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, sandbox);
-const { freshCampaign, earnAction, attack, previewAttack, normalizeCampaign, tacticAvailable } = sandbox.exports;
+const { loadTs } = require('./helpers/load-ts.cjs');
+const { freshCampaign, earnAction, attack, previewAttack, normalizeCampaign, tacticAvailable } = loadTs('src/game/campaign.ts');
 const empty = { reserves: {}, garrisons: {}, totalActivePower: 0 };
 const army = { ...empty, reserves: { guardsmen: 1, dreadnought: 1, custodes: 1 } };
 test('completion events are idempotent; recurring events can earn on another day', () => {

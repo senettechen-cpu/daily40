@@ -2,14 +2,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const vm = require('node:vm');
-const ts = require('typescript');
+const { loadTs } = require('./helpers/load-ts.cjs');
 const root = path.resolve(__dirname, '..');
-const source = fs.readFileSync(path.join(root, 'src/data/unitVisuals.ts'), 'utf8');
-const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
-const context = { exports: {} };
-vm.runInNewContext(compiled, context);
-const { UNIT_COSTS, UNIT_POWER, UNIT_VISUALS, getRecruitmentCost, getGarrisonPower } = context.exports;
+const { UNIT_COSTS, UNIT_POWER, UNIT_VISUALS, getRecruitmentCost, getGarrisonPower } = loadTs(path.join(root, 'src/data/unitVisuals.ts'));
 
 test('recruitment preserves existing engine prices, including hive discount', () => {
     assert.equal(getRecruitmentCost('guardsmen', false), 300);

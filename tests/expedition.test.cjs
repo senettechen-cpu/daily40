@@ -1,11 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const vm = require('node:vm');
-const ts = require('typescript');
-const sandbox = { exports: {} };
-vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/expedition/engine.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, sandbox);
-const e = sandbox.exports;
+const { loadTs } = require('./helpers/load-ts.cjs');
+const e = loadTs('src/expedition/engine.ts');
 const finish = (squad = e.DEFAULT_SQUAD, seed = 40126) => { let s = e.createBattle(squad, seed); while (s.status === 'running') s = e.stepBattle(s); return s; };
 test('equipment permissions, unique items and deployment slots are enforced', () => {
     assert.equal(e.validateSquad(e.DEFAULT_SQUAD), '');
