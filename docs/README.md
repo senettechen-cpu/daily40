@@ -23,6 +23,7 @@
 | [cultist-sidearm-revision.md](cultist-sidearm-revision.md) | 邪教徒與副武器修訂 | 歷史工程參考 |
 | [weapon-readability-revision.md](weapon-readability-revision.md) | 武器辨識與射程修訂 | 歷史工程參考 |
 | [visual-refresh.md](visual-refresh.md)、[campaign.md](campaign.md) | 原有視覺與戰役文件 | 保留，不自動套用為新 RPG 規則 |
+| [cover-animation-tech-plan.md](cover-animation-tech-plan.md) | 回應 GPT 掩體／動作美術 v4：座標核對、可沿用渲染層、素材介面提案、驗收截圖 | Claude 技術提案，待使用者確認素材介面 |
 | [archive/expedition-rpg-design-v0.1.md](archive/expedition-rpg-design-v0.1.md) | 舊行商浪人／四人隊伍方案 | 已封存，不作新開發依據 |
 
 ## 交給 Claude 的工作提示
