@@ -122,6 +122,36 @@ const initDb = async () => {
         // Corruption Engine: track last tick for offline catch-up
         await pool.query('ALTER TABLE game_state ADD COLUMN IF NOT EXISTS last_corruption_tick TIMESTAMP WITH TIME ZONE');
 
+        // v1.5 requisition ledger: append-only; balance is the sum of amounts.
+        await pool.query(`CREATE TABLE IF NOT EXISTS reward_entries (
+            id SERIAL PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            seq INTEGER NOT NULL,
+            source_key TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            amount INTEGER NOT NULL,
+            day TEXT NOT NULL,
+            at TIMESTAMP WITH TIME ZONE NOT NULL,
+            reason TEXT NOT NULL,
+            UNIQUE (user_id, seq)
+        )`);
+        await pool.query('CREATE INDEX IF NOT EXISTS idx_reward_entries_user_key ON reward_entries(user_id, source_key)');
+
+        // Ledger quick menu: pinned presets and dismissed suggestions.
+        await pool.query(`CREATE TABLE IF NOT EXISTS ledger_presets (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            category TEXT NOT NULL,
+            item_name TEXT NOT NULL,
+            payment_method TEXT NOT NULL,
+            amount INTEGER,
+            pinned BOOLEAN NOT NULL DEFAULT FALSE,
+            hidden BOOLEAN NOT NULL DEFAULT FALSE,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            UNIQUE (user_id, category, item_name, payment_method)
+        )`);
+        await pool.query('CREATE INDEX IF NOT EXISTS idx_expenses_user_created ON expenses(user_id, created_at)');
+
         console.log('Migrations applied.');
 
         // Initialize default game state if not exists

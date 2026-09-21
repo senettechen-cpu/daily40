@@ -1,13 +1,17 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { Button, Input, Select, List, Empty } from 'antd';
-import { Trash2, PieChart, AlertTriangle, FileText, BarChart3, Calendar, List as ListIcon, X } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Button, Input, Select, List, Empty, message } from 'antd';
+import type { InputRef } from 'antd';
+import { Trash2, PieChart, AlertTriangle, FileText, BarChart3, Calendar, List as ListIcon, X, Pin } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { Expense, ExpenseCategory, PaymentMethod } from '../types/ledger';
 import { EXPENSE_CATEGORIES, PAYMENT_METHODS } from '../constants/ledger';
 import { useAuth } from '../contexts/AuthContext';
 import { useGame } from '../contexts/GameContext';
 import dayjs from 'dayjs';
+import { LedgerQuickMenu } from './ledger/LedgerQuickMenu';
+import type { LedgerQuickMenuData } from '../services/api';
+import type { LedgerPreset, PresetFields, Suggestion } from '../../shared/ledger/presets';
 
 interface RequisitionFormProps {
     visible: boolean;
@@ -27,6 +31,11 @@ export const RequisitionForm: React.FC<RequisitionFormProps> = ({ visible, onClo
     const [itemName, setItemName] = useState<string>('');
     const [amount, setAmount] = useState<number>(0);
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("Cash");
+    const amountRef = useRef<InputRef>(null);
+
+    // Quick menu
+    const [quickMenu, setQuickMenu] = useState<LedgerQuickMenuData>({ pinned: [], suggestions: [] });
+    const [quickBusy, setQuickBusy] = useState(false);
 
     // View State
     const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -51,8 +60,16 @@ export const RequisitionForm: React.FC<RequisitionFormProps> = ({ visible, onClo
         }
     };
 
+    const loadQuickMenu = async () => {
+        const token = await getToken();
+        if (!token) return;
+        import('../services/api').then(m => m.api.getLedgerQuickMenu(token))
+            .then(setQuickMenu)
+            .catch(err => console.error("Failed to load quick menu:", err));
+    };
+
     useEffect(() => {
-        if (visible) loadExpenses();
+        if (visible) { loadExpenses(); loadQuickMenu(); }
     }, [visible]);
 
     // Helpers
@@ -113,43 +130,74 @@ export const RequisitionForm: React.FC<RequisitionFormProps> = ({ visible, onClo
 
 
     // Handlers
-    const handleSubmit = async () => {
-        if (!itemName || amount <= 0) return;
-        console.log("Submitting Requisition...");
-
-        const newExpense: Expense = {
-            id: Date.now().toString(),
-            date: new Date(date),
-            category,
-            itemName,
-            amount,
-            paymentMethod
-        };
-
+    /** Saves one expense; returns its id, or null when it failed. */
+    const recordExpense = async (fields: Omit<Expense, 'id'>): Promise<string | null> => {
+        const newExpense: Expense = { id: Date.now().toString(), ...fields };
         try {
             const token = await getToken();
             if (!token) throw new Error("Offline");
 
             await import('../services/api').then(m => m.api.addExpense(newExpense, token));
-            console.log("Expense API success. Updating resources...");
+            // Legacy reward: stays until the v1.5 economy launch replaces it with the server ledger.
             modifyResources(0, 50, "Requisition Filed");
-            console.log("Resources updated locally.");
 
-            // Play Sound
             const audio = new Audio('/sounds/deploy.mp3');
             audio.play().catch(() => { });
 
             loadExpenses();
-            setItemName('');
-            setAmount(0);
-
-            // Simple Feedback
-            console.log("Expense Added");
+            loadQuickMenu();
+            return newExpense.id;
         } catch (e) {
             console.error("Requisition Failed:", e);
             alert("Requisition Failed: " + e); // Explicit feedback
+            return null;
         }
     };
+
+    const handleSubmit = async () => {
+        if (!itemName || amount <= 0) return;
+        const id = await recordExpense({ date: new Date(date), category, itemName, amount, paymentMethod });
+        if (id) { setItemName(''); setAmount(0); }
+    };
+
+    const withQuickBusy = async (work: () => Promise<void>) => {
+        setQuickBusy(true);
+        try { await work(); } finally { setQuickBusy(false); }
+    };
+
+    // A remembered amount records immediately (undo for 5 s); otherwise prefill and ask for the amount.
+    const handleQuickUse = (item: PresetFields & { amount: number | null }) => withQuickBusy(async () => {
+        if (!item.amount) {
+            setCategory(item.category as ExpenseCategory);
+            setItemName(item.itemName);
+            setPaymentMethod(item.paymentMethod as PaymentMethod);
+            setAmount(0);
+            setTimeout(() => amountRef.current?.focus(), 0);
+            return;
+        }
+        const id = await recordExpense({ date: new Date(dayjs().format('YYYY-MM-DD')), category: item.category as ExpenseCategory, itemName: item.itemName, amount: item.amount, paymentMethod: item.paymentMethod as PaymentMethod });
+        if (!id) return;
+        const key = `quick-${id}`;
+        message.open({
+            key, duration: 5, type: 'success',
+            content: <span>已記錄 {item.itemName} ₮{item.amount.toLocaleString()} <Button size="small" type="link" onClick={() => { message.destroy(key); handleDelete(id); }}>復原</Button></span>,
+        });
+    });
+
+    const quickApi = async <T,>(call: (api: typeof import('../services/api').api, token: string) => Promise<T>) => {
+        const token = await getToken();
+        if (!token) return;
+        const { api } = await import('../services/api');
+        await call(api, token);
+        await loadQuickMenu();
+    };
+
+    const handlePin = (item: Suggestion) => withQuickBusy(() => quickApi((api, token) => api.pinLedgerPreset({ ...item, amount: null }, token)).catch(e => { message.error(String(e.message || e)); }));
+    const handleUnpin = (preset: LedgerPreset) => withQuickBusy(() => quickApi((api, token) => api.unpinLedgerPreset(preset.id, token)).catch(() => { message.error('取消釘選失敗'); }));
+    const handleHide = (item: Suggestion) => withQuickBusy(() => quickApi((api, token) => api.hideLedgerSuggestion(item, token)).catch(() => { message.error('操作失敗'); }));
+    const handlePinCurrent = () => withQuickBusy(() => quickApi((api, token) => api.pinLedgerPreset({ category, itemName, paymentMethod, amount: amount > 0 ? Math.round(amount) : null }, token))
+        .then(() => { message.success(amount > 0 ? `已釘選「${itemName}」，之後一鍵記錄 ₮${Math.round(amount)}` : `已釘選「${itemName}」`); })
+        .catch(e => { message.error(String(e.message || e)); }));
 
     const handleDelete = async (id: string) => {
         try {
@@ -281,6 +329,8 @@ export const RequisitionForm: React.FC<RequisitionFormProps> = ({ visible, onClo
                             <FileText size={18} /> REQUISITION PROTOCOL
                         </h2>
 
+                        <LedgerQuickMenu {...quickMenu} busy={quickBusy} onUse={handleQuickUse} onPin={handlePin} onUnpin={handleUnpin} onHide={handleHide} />
+
                         {/* Date */}
                         <div className="space-y-1">
                             <label className="text-[#33ff00]/60 text-xs uppercase">Date Request</label>
@@ -327,6 +377,7 @@ export const RequisitionForm: React.FC<RequisitionFormProps> = ({ visible, onClo
                         <div className="space-y-1">
                             <label className="text-[#33ff00]/60 text-xs uppercase">Cost Allocation</label>
                             <Input
+                                ref={amountRef}
                                 type="number"
                                 inputMode="decimal"
                                 value={amount}
@@ -357,6 +408,14 @@ export const RequisitionForm: React.FC<RequisitionFormProps> = ({ visible, onClo
                             className="mt-4 !bg-[#c5a059] !text-black !border-[#c5a059] font-mono font-bold tracking-widest hover:!bg-[#e6c278] hover:!text-black h-14 text-lg w-full shadow-[0_0_15px_rgba(197,160,89,0.3)]"
                         >
                             批准徵用 (AUTHORIZE)
+                        </Button>
+                        <Button
+                            onClick={handlePinCurrent}
+                            disabled={!itemName.trim() || quickBusy}
+                            icon={<Pin size={14} />}
+                            className="!bg-transparent !text-[#c5a059] !border-[#c5a059]/60 hover:!text-[#33ff00] font-mono tracking-widest h-11 w-full"
+                        >
+                            釘選到快速記帳{amount > 0 ? `（記住 ₮${Math.round(amount).toLocaleString()}）` : ''}
                         </Button>
                     </div>
                 </div>

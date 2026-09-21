@@ -1,5 +1,8 @@
 
 import { Task, Project, ArmyStrength, SectorHistory, Resources } from '../types';
+import type { LedgerPreset, PresetFields, Suggestion } from '../../shared/ledger/presets';
+
+export interface LedgerQuickMenuData { pinned: LedgerPreset[]; suggestions: Suggestion[] }
 
 const fallbackUrl = import.meta.env.PROD ? window.location.origin : 'http://localhost:3001';
 const RAW_URL = import.meta.env.VITE_API_URL || fallbackUrl;
@@ -163,6 +166,29 @@ export const api = {
             headers: getHeaders(token)
         });
         if (!response.ok) throw new Error('Failed to delete expense');
+    },
+
+    // Ledger quick menu
+    getLedgerQuickMenu: async (token?: string): Promise<LedgerQuickMenuData> => {
+        const response = await fetch(`${API_URL}/ledger/presets`, { headers: getHeaders(token) });
+        if (!response.ok) throw new Error('Failed to fetch quick menu');
+        return response.json();
+    },
+
+    pinLedgerPreset: async (preset: PresetFields & { amount: number | null }, token?: string): Promise<LedgerPreset> => {
+        const response = await fetch(`${API_URL}/ledger/presets`, { method: 'POST', headers: getHeaders(token), body: JSON.stringify(preset) });
+        if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || 'Failed to pin preset');
+        return response.json();
+    },
+
+    hideLedgerSuggestion: async (fields: PresetFields, token?: string): Promise<void> => {
+        const response = await fetch(`${API_URL}/ledger/presets/hide`, { method: 'POST', headers: getHeaders(token), body: JSON.stringify(fields) });
+        if (!response.ok) throw new Error('Failed to hide suggestion');
+    },
+
+    unpinLedgerPreset: async (id: string, token?: string): Promise<void> => {
+        const response = await fetch(`${API_URL}/ledger/presets/${encodeURIComponent(id)}`, { method: 'DELETE', headers: getHeaders(token) });
+        if (!response.ok) throw new Error('Failed to unpin preset');
     },
 
     archiveExpenses: async (token?: string): Promise<void> => {
