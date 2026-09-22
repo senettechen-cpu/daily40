@@ -21,6 +21,7 @@ import { useAuth } from './contexts/AuthContext'
 import { LineCallback } from './pages/LineCallback'
 import { AdminDashboard } from './pages/AdminDashboard'
 import { useLocalNotifications } from './hooks/useLocalNotifications'
+import { LEGACY_PENALTIES_FROZEN } from './game/legacyFreeze'
 import './App.css'
 import './command-deck.css'
 import { ResourceDisplay, CorruptionGauge } from './components/ResourceDisplay'
@@ -206,7 +207,7 @@ const MainDashboard = ({ currentUser, onLogout }: { currentUser: any, onLogout: 
     }
   };
 
-  if (isPenitentMode) {
+  if (isPenitentMode && !LEGACY_PENALTIES_FROZEN) {
     return (
       <div className="min-h-screen bg-black flex flex-col items-center justify-center text-red-600 font-mono p-8 animate-pulse relative overflow-hidden">
         <div className="absolute inset-0 bg-red-950/50 z-0 glitch" />

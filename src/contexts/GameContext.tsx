@@ -5,6 +5,7 @@ import { api } from '../services/api';
 import { RITUAL_ACTIVITIES } from '../data/astartesData';
 import { getRecruitmentCost, UNIT_POWER } from '../data/unitVisuals';
 import { useCampaign } from '../game/useCampaign';
+import { isArmoryItem, LEGACY_PENALTIES_FROZEN } from '../game/legacyFreeze';
 import { localDay, type CampaignState, type Site, type Tactic } from '../game/campaign';
 
 
@@ -415,8 +416,9 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Corruption Engine — runs every minute while the tab is open, AND on first
     // load it retroactively catches up using `lastCorruptionTick` for any time
     // the user was offline. Damage scales with real elapsed minutes.
+    // Frozen: see LEGACY_PENALTIES_FROZEN (no corruption growth, no attrition).
     useEffect(() => {
-        if (!initialized) return;
+        if (!initialized || LEGACY_PENALTIES_FROZEN) return;
 
         // Local helpers that read fresh data via the ref so this effect can
         // stay mounted (deps = [initialized]) without going stale.
@@ -572,11 +574,16 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return () => clearInterval(timer);
     }, [initialized]);
 
-    // Penitent Mode Trigger
+    // Penitent Mode Trigger. While legacy penalties are frozen it never locks the app,
+    // and a user already locked out is released (and the release is synced).
     useEffect(() => {
+        if (LEGACY_PENALTIES_FROZEN) {
+            if (isPenitentMode) { isDirty.current = true; setIsPenitentMode(false); }
+            return;
+        }
         if (corruption >= 1000) setIsPenitentMode(true);
         else if (corruption < 800 && isPenitentMode) setIsPenitentMode(false);
-    }, [corruption]);
+    }, [corruption, isPenitentMode]);
 
     // Actions
     const addTask = async (title: string, faction: Faction, difficulty: number, dueDate: Date, isRecurring: boolean = false, dueTime?: string, ascensionCategory?: AscensionCategory, subCategory?: string) => {
@@ -799,6 +806,11 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     const purchaseItem = (cost: number, type: string) => {
+        // Unknown or retired items (e.g. the servo skull) are refused before any RP is spent.
+        if (!isArmoryItem(type)) {
+            console.warn(`Armory item not available: ${type}`);
+            return;
+        }
         if (resources.rp < cost) {
             console.warn("Insufficient RP");
             return;
@@ -807,23 +819,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         modifyResources(-cost, 0, `Armory Purchase: ${type}`);
 
         // Execute Effects
-        if (type === 'servo_skull') {
-            setTasks(prev => {
-                const orkTasks = prev.filter(t => t.status === 'active' && t.faction === 'orks');
-                if (orkTasks.length === 0) return prev;
-                const ransomIdx = Math.floor(Math.random() * orkTasks.length);
-                const target = orkTasks[ransomIdx];
-
-                // Sync effect
-                // Sync effect
-                getToken().then(token => {
-                    if (token) api.updateTask(target.id, { status: 'completed' }, token).catch(e => console.error(e));
-                });
-
-                return prev.map(t => t.id === target.id ? { ...t, status: 'completed' } : t);
-            });
-        }
-        else if (type === 'theme_khorne') {
+        if (type === 'theme_khorne') {
             setRadarTheme('red');
         }
         else if (type === 'theme_gold') {

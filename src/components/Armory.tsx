@@ -1,11 +1,11 @@
 import { Drawer, Button, Tabs, message } from 'antd';
-import { Skull, Zap, ShieldCheck, Sparkles } from 'lucide-react';
+import { Zap, ShieldCheck, Sparkles } from 'lucide-react';
 import { useGame } from '../contexts/GameContext';
 import { RecruitmentRoster } from './RecruitmentRoster';
 import { ResourceDisplay } from './ResourceDisplay';
 
+// The servo skull is retired (see src/game/legacyFreeze.ts): the game never completes real tasks.
 const ITEMS = [
-    { id: 'servo_skull', name: '伺服骷髏', cost: 30, desc: '自動完成一個進行中的歐克獸人任務。', Icon: Skull, color: '#b9c8cc', code: 'SERVO / 01' },
     { id: 'theme_khorne', name: '恐虐紅塗裝', cost: 50, desc: '將戰術雷達切換為嗜血紅色。', Icon: Zap, color: '#d98b76', code: 'LIVERY / 02' },
     { id: 'rosarius', name: '免死金牌', cost: 80, desc: '立即消除 50 點腐化值。', Icon: ShieldCheck, color: '#dfbc72', code: 'RELIC / 03' },
     { id: 'theme_gold', name: '黃金王座塗裝', cost: 100, desc: '將戰術雷達切換為神聖金色。', Icon: Sparkles, color: '#e9d399', code: 'LIVERY / 04' },
