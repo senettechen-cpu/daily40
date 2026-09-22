@@ -1,0 +1,1528 @@
+{
+  "schemaVersion": "1.0.0",
+  "sampleKind": "raster_animation",
+  "productionReady": false,
+  "completeAction": true,
+  "assetId": "traitor-reload-NW-modular-v1",
+  "faction": "traitor-guard",
+  "action": "reload",
+  "direction": "NW",
+  "canvas": {
+    "width": 192,
+    "height": 192
+  },
+  "ground": [
+    96,
+    176
+  ],
+  "forwardScreen": [
+    -30,
+    -15
+  ],
+  "coordinateSystem": {
+    "origin": "top-left",
+    "unit": "pixel",
+    "anchors": "untrimmed-local",
+    "rotation": "clockwise-degrees",
+    "flipAllowed": false
+  },
+  "timing": {
+    "mode": "engine-action",
+    "loop": false,
+    "nominalDurationMs": 1700,
+    "durationWeights": [
+      0.125,
+      0.125,
+      0.125,
+      0.125,
+      0.125,
+      0.125,
+      0.125,
+      0.125
+    ]
+  },
+  "frameCount": 8,
+  "productionActionFrameCount": 8,
+  "assets": [
+    {
+      "id": "farArm",
+      "path": "images/reload-farArm.png",
+      "width": 1536,
+      "height": 192
+    },
+    {
+      "id": "body",
+      "path": "images/reload-body.png",
+      "width": 1536,
+      "height": 192
+    },
+    {
+      "id": "nearHand",
+      "path": "images/reload-nearHand.png",
+      "width": 1536,
+      "height": 192
+    },
+    {
+      "id": "powerPack",
+      "path": "images/reload-powerPack.png",
+      "width": 1536,
+      "height": 192
+    },
+    {
+      "id": "rifle",
+      "path": "images/rifle.png",
+      "width": 80,
+      "height": 31
+    },
+    {
+      "id": "rifle-transition",
+      "path": "images/rifle-transition.png",
+      "width": 56,
+      "height": 42
+    },
+    {
+      "id": "rifle-slung",
+      "path": "images/rifle-slung.png",
+      "width": 26,
+      "height": 71
+    },
+    {
+      "id": "rifle-reload",
+      "path": "images/rifle-reload.png",
+      "width": 70,
+      "height": 43
+    },
+    {
+      "id": "pistol",
+      "path": "images/pistol.png",
+      "width": 35,
+      "height": 24
+    },
+    {
+      "id": "pistol-transition",
+      "path": "images/pistol-transition.png",
+      "width": 28,
+      "height": 32
+    },
+    {
+      "id": "pistol-holstered",
+      "path": "images/pistol-holstered.png",
+      "width": 21,
+      "height": 34
+    }
+  ],
+  "weaponViews": [
+    {
+      "id": "rifle",
+      "weaponId": "lasgun",
+      "assetId": "rifle",
+      "viewKind": "held",
+      "direction": "NW",
+      "originalSize": {
+        "width": 80,
+        "height": 31
+      },
+      "trimOffset": {
+        "x": 0,
+        "y": 0
+      },
+      "sourceRect": {
+        "x": 0,
+        "y": 0,
+        "width": 80,
+        "height": 31
+      },
+      "anchors": {
+        "grip": [
+          59,
+          23
+        ],
+        "supportGrip": [
+          26,
+          14
+        ],
+        "muzzle": [
+          2,
+          10
+        ],
+        "slingAttach": [
+          65,
+          9
+        ]
+      }
+    },
+    {
+      "id": "rifle-transition",
+      "weaponId": "lasgun",
+      "assetId": "rifle-transition",
+      "viewKind": "transition",
+      "direction": "NW",
+      "originalSize": {
+        "width": 56,
+        "height": 42
+      },
+      "trimOffset": {
+        "x": 0,
+        "y": 0
+      },
+      "sourceRect": {
+        "x": 0,
+        "y": 0,
+        "width": 56,
+        "height": 42
+      },
+      "anchors": {
+        "grip": [
+          44,
+          27
+        ],
+        "supportGrip": null,
+        "muzzle": [
+          3,
+          38
+        ],
+        "slingAttach": [
+          51,
+          12
+        ]
+      }
+    },
+    {
+      "id": "rifle-slung",
+      "weaponId": "lasgun",
+      "assetId": "rifle-slung",
+      "viewKind": "slung",
+      "direction": "NW",
+      "originalSize": {
+        "width": 26,
+        "height": 71
+      },
+      "trimOffset": {
+        "x": 0,
+        "y": 0
+      },
+      "sourceRect": {
+        "x": 0,
+        "y": 0,
+        "width": 26,
+        "height": 71
+      },
+      "anchors": {
+        "grip": [
+          19,
+          35
+        ],
+        "supportGrip": null,
+        "muzzle": [
+          9,
+          69
+        ],
+        "slingAttach": [
+          10,
+          9
+        ]
+      }
+    },
+    {
+      "id": "rifle-reload",
+      "weaponId": "lasgun",
+      "assetId": "rifle-reload",
+      "viewKind": "transition",
+      "direction": "NW",
+      "originalSize": {
+        "width": 70,
+        "height": 43
+      },
+      "trimOffset": {
+        "x": 0,
+        "y": 0
+      },
+      "sourceRect": {
+        "x": 0,
+        "y": 0,
+        "width": 70,
+        "height": 43
+      },
+      "anchors": {
+        "grip": [
+          50,
+          34
+        ],
+        "supportGrip": null,
+        "muzzle": [
+          3,
+          5
+        ],
+        "slingAttach": [
+          59,
+          29
+        ]
+      }
+    },
+    {
+      "id": "pistol",
+      "weaponId": "laspistol",
+      "assetId": "pistol",
+      "viewKind": "held",
+      "direction": "NW",
+      "originalSize": {
+        "width": 35,
+        "height": 24
+      },
+      "trimOffset": {
+        "x": 0,
+        "y": 0
+      },
+      "sourceRect": {
+        "x": 0,
+        "y": 0,
+        "width": 35,
+        "height": 24
+      },
+      "anchors": {
+        "grip": [
+          28,
+          17
+        ],
+        "supportGrip": null,
+        "muzzle": [
+          1,
+          7
+        ],
+        "slingAttach": [
+          28,
+          7
+        ]
+      }
+    },
+    {
+      "id": "pistol-transition",
+      "weaponId": "laspistol",
+      "assetId": "pistol-transition",
+      "viewKind": "transition",
+      "direction": "NW",
+      "originalSize": {
+        "width": 28,
+        "height": 32
+      },
+      "trimOffset": {
+        "x": 0,
+        "y": 0
+      },
+      "sourceRect": {
+        "x": 0,
+        "y": 0,
+        "width": 28,
+        "height": 32
+      },
+      "anchors": {
+        "grip": [
+          21,
+          22
+        ],
+        "supportGrip": null,
+        "muzzle": [
+          3,
+          5
+        ],
+        "slingAttach": [
+          23,
+          13
+        ]
+      }
+    },
+    {
+      "id": "pistol-holstered",
+      "weaponId": "laspistol",
+      "assetId": "pistol-holstered",
+      "viewKind": "holstered",
+      "direction": "NW",
+      "originalSize": {
+        "width": 21,
+        "height": 34
+      },
+      "trimOffset": {
+        "x": 0,
+        "y": 0
+      },
+      "sourceRect": {
+        "x": 0,
+        "y": 0,
+        "width": 21,
+        "height": 34
+      },
+      "anchors": {
+        "grip": [
+          15,
+          8
+        ],
+        "supportGrip": null,
+        "muzzle": null,
+        "slingAttach": [
+          13,
+          4
+        ]
+      }
+    }
+  ],
+  "frames": [
+    {
+      "index": 0,
+      "keyPose": "reload-0",
+      "anchors": {
+        "ground": [
+          96,
+          176
+        ],
+        "shoulder": [
+          112,
+          87
+        ],
+        "triggerHand": [
+          96,
+          105
+        ],
+        "supportHand": [
+          63,
+          96
+        ],
+        "holster": [
+          118,
+          125
+        ],
+        "sling": [
+          116,
+          88
+        ],
+        "hitPoint": [
+          100,
+          101
+        ]
+      },
+      "layers": {
+        "farArm": {
+          "assetId": "farArm",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 0,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        },
+        "body": {
+          "assetId": "body",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 0,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        },
+        "nearHand": {
+          "assetId": "nearHand",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 0,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        },
+        "powerPack": {
+          "assetId": "powerPack",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 0,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        }
+      },
+      "weapons": {
+        "held": {
+          "equipmentSlot": "primary",
+          "weaponId": "lasgun",
+          "viewId": "rifle",
+          "visible": true,
+          "originAnchor": "grip",
+          "position": [
+            96,
+            105
+          ],
+          "rotationDeg": 0,
+          "scale": 1,
+          "flipX": false,
+          "flipY": false
+        },
+        "stowed": [
+          {
+            "equipmentSlot": "secondary",
+            "weaponId": "laspistol",
+            "viewId": "pistol-holstered",
+            "visible": true,
+            "originAnchor": "grip",
+            "position": [
+              118,
+              125
+            ],
+            "rotationDeg": 0,
+            "scale": 1,
+            "flipX": false,
+            "flipY": false
+          }
+        ]
+      },
+      "drawOrder": [
+        "layer:farArm",
+        "layer:body",
+        "weapon:stowed:0",
+        "weapon:held",
+        "layer:powerPack",
+        "layer:nearHand"
+      ],
+      "markers": []
+    },
+    {
+      "index": 1,
+      "keyPose": "reload-1",
+      "anchors": {
+        "ground": [
+          96,
+          176
+        ],
+        "shoulder": [
+          112,
+          87
+        ],
+        "triggerHand": [
+          104,
+          107
+        ],
+        "supportHand": null,
+        "holster": [
+          118,
+          125
+        ],
+        "sling": [
+          116,
+          88
+        ],
+        "hitPoint": [
+          100,
+          101
+        ]
+      },
+      "layers": {
+        "farArm": {
+          "assetId": "farArm",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 192,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        },
+        "body": {
+          "assetId": "body",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 192,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        },
+        "nearHand": {
+          "assetId": "nearHand",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 192,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        },
+        "powerPack": {
+          "assetId": "powerPack",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 192,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        }
+      },
+      "weapons": {
+        "held": {
+          "equipmentSlot": "primary",
+          "weaponId": "lasgun",
+          "viewId": "rifle-reload",
+          "visible": true,
+          "originAnchor": "grip",
+          "position": [
+            104,
+            107
+          ],
+          "rotationDeg": 0,
+          "scale": 1,
+          "flipX": false,
+          "flipY": false
+        },
+        "stowed": [
+          {
+            "equipmentSlot": "secondary",
+            "weaponId": "laspistol",
+            "viewId": "pistol-holstered",
+            "visible": true,
+            "originAnchor": "grip",
+            "position": [
+              118,
+              125
+            ],
+            "rotationDeg": 0,
+            "scale": 1,
+            "flipX": false,
+            "flipY": false
+          }
+        ]
+      },
+      "drawOrder": [
+        "layer:farArm",
+        "layer:body",
+        "weapon:stowed:0",
+        "weapon:held",
+        "layer:powerPack",
+        "layer:nearHand"
+      ],
+      "markers": []
+    },
+    {
+      "index": 2,
+      "keyPose": "reload-2",
+      "anchors": {
+        "ground": [
+          96,
+          176
+        ],
+        "shoulder": [
+          112,
+          87
+        ],
+        "triggerHand": [
+          104,
+          107
+        ],
+        "supportHand": null,
+        "holster": [
+          118,
+          125
+        ],
+        "sling": [
+          116,
+          88
+        ],
+        "hitPoint": [
+          100,
+          101
+        ]
+      },
+      "layers": {
+        "farArm": {
+          "assetId": "farArm",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 384,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        },
+        "body": {
+          "assetId": "body",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 384,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        },
+        "nearHand": {
+          "assetId": "nearHand",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 384,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        },
+        "powerPack": {
+          "assetId": "powerPack",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 384,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        }
+      },
+      "weapons": {
+        "held": {
+          "equipmentSlot": "primary",
+          "weaponId": "lasgun",
+          "viewId": "rifle-reload",
+          "visible": true,
+          "originAnchor": "grip",
+          "position": [
+            104,
+            107
+          ],
+          "rotationDeg": 0,
+          "scale": 1,
+          "flipX": false,
+          "flipY": false
+        },
+        "stowed": [
+          {
+            "equipmentSlot": "secondary",
+            "weaponId": "laspistol",
+            "viewId": "pistol-holstered",
+            "visible": true,
+            "originAnchor": "grip",
+            "position": [
+              118,
+              125
+            ],
+            "rotationDeg": 0,
+            "scale": 1,
+            "flipX": false,
+            "flipY": false
+          }
+        ]
+      },
+      "drawOrder": [
+        "layer:farArm",
+        "layer:body",
+        "weapon:stowed:0",
+        "weapon:held",
+        "layer:powerPack",
+        "layer:nearHand"
+      ],
+      "markers": []
+    },
+    {
+      "index": 3,
+      "keyPose": "reload-3",
+      "anchors": {
+        "ground": [
+          96,
+          176
+        ],
+        "shoulder": [
+          112,
+          87
+        ],
+        "triggerHand": [
+          104,
+          107
+        ],
+        "supportHand": null,
+        "holster": [
+          118,
+          125
+        ],
+        "sling": [
+          116,
+          88
+        ],
+        "hitPoint": [
+          100,
+          101
+        ]
+      },
+      "layers": {
+        "farArm": {
+          "assetId": "farArm",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 576,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        },
+        "body": {
+          "assetId": "body",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 576,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        },
+        "nearHand": {
+          "assetId": "nearHand",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 576,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        },
+        "powerPack": {
+          "assetId": "powerPack",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 576,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        }
+      },
+      "weapons": {
+        "held": {
+          "equipmentSlot": "primary",
+          "weaponId": "lasgun",
+          "viewId": "rifle-reload",
+          "visible": true,
+          "originAnchor": "grip",
+          "position": [
+            104,
+            107
+          ],
+          "rotationDeg": 0,
+          "scale": 1,
+          "flipX": false,
+          "flipY": false
+        },
+        "stowed": [
+          {
+            "equipmentSlot": "secondary",
+            "weaponId": "laspistol",
+            "viewId": "pistol-holstered",
+            "visible": true,
+            "originAnchor": "grip",
+            "position": [
+              118,
+              125
+            ],
+            "rotationDeg": 0,
+            "scale": 1,
+            "flipX": false,
+            "flipY": false
+          }
+        ]
+      },
+      "drawOrder": [
+        "layer:farArm",
+        "layer:body",
+        "weapon:stowed:0",
+        "weapon:held",
+        "layer:powerPack",
+        "layer:nearHand"
+      ],
+      "markers": []
+    },
+    {
+      "index": 4,
+      "keyPose": "reload-4",
+      "anchors": {
+        "ground": [
+          96,
+          176
+        ],
+        "shoulder": [
+          112,
+          87
+        ],
+        "triggerHand": [
+          104,
+          107
+        ],
+        "supportHand": null,
+        "holster": [
+          118,
+          125
+        ],
+        "sling": [
+          116,
+          88
+        ],
+        "hitPoint": [
+          100,
+          101
+        ]
+      },
+      "layers": {
+        "farArm": {
+          "assetId": "farArm",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 768,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        },
+        "body": {
+          "assetId": "body",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 768,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        },
+        "nearHand": {
+          "assetId": "nearHand",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 768,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        },
+        "powerPack": {
+          "assetId": "powerPack",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 768,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        }
+      },
+      "weapons": {
+        "held": {
+          "equipmentSlot": "primary",
+          "weaponId": "lasgun",
+          "viewId": "rifle-reload",
+          "visible": true,
+          "originAnchor": "grip",
+          "position": [
+            104,
+            107
+          ],
+          "rotationDeg": 0,
+          "scale": 1,
+          "flipX": false,
+          "flipY": false
+        },
+        "stowed": [
+          {
+            "equipmentSlot": "secondary",
+            "weaponId": "laspistol",
+            "viewId": "pistol-holstered",
+            "visible": true,
+            "originAnchor": "grip",
+            "position": [
+              118,
+              125
+            ],
+            "rotationDeg": 0,
+            "scale": 1,
+            "flipX": false,
+            "flipY": false
+          }
+        ]
+      },
+      "drawOrder": [
+        "layer:farArm",
+        "layer:body",
+        "weapon:stowed:0",
+        "weapon:held",
+        "layer:powerPack",
+        "layer:nearHand"
+      ],
+      "markers": []
+    },
+    {
+      "index": 5,
+      "keyPose": "reload-5",
+      "anchors": {
+        "ground": [
+          96,
+          176
+        ],
+        "shoulder": [
+          112,
+          87
+        ],
+        "triggerHand": [
+          104,
+          107
+        ],
+        "supportHand": null,
+        "holster": [
+          118,
+          125
+        ],
+        "sling": [
+          116,
+          88
+        ],
+        "hitPoint": [
+          100,
+          101
+        ]
+      },
+      "layers": {
+        "farArm": {
+          "assetId": "farArm",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 960,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        },
+        "body": {
+          "assetId": "body",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 960,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        },
+        "nearHand": {
+          "assetId": "nearHand",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 960,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        },
+        "powerPack": {
+          "assetId": "powerPack",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 960,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        }
+      },
+      "weapons": {
+        "held": {
+          "equipmentSlot": "primary",
+          "weaponId": "lasgun",
+          "viewId": "rifle-reload",
+          "visible": true,
+          "originAnchor": "grip",
+          "position": [
+            104,
+            107
+          ],
+          "rotationDeg": 0,
+          "scale": 1,
+          "flipX": false,
+          "flipY": false
+        },
+        "stowed": [
+          {
+            "equipmentSlot": "secondary",
+            "weaponId": "laspistol",
+            "viewId": "pistol-holstered",
+            "visible": true,
+            "originAnchor": "grip",
+            "position": [
+              118,
+              125
+            ],
+            "rotationDeg": 0,
+            "scale": 1,
+            "flipX": false,
+            "flipY": false
+          }
+        ]
+      },
+      "drawOrder": [
+        "layer:farArm",
+        "layer:body",
+        "weapon:stowed:0",
+        "weapon:held",
+        "layer:powerPack",
+        "layer:nearHand"
+      ],
+      "markers": []
+    },
+    {
+      "index": 6,
+      "keyPose": "reload-6",
+      "anchors": {
+        "ground": [
+          96,
+          176
+        ],
+        "shoulder": [
+          112,
+          87
+        ],
+        "triggerHand": [
+          104,
+          107
+        ],
+        "supportHand": null,
+        "holster": [
+          118,
+          125
+        ],
+        "sling": [
+          116,
+          88
+        ],
+        "hitPoint": [
+          100,
+          101
+        ]
+      },
+      "layers": {
+        "farArm": {
+          "assetId": "farArm",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 1152,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        },
+        "body": {
+          "assetId": "body",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 1152,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        },
+        "nearHand": {
+          "assetId": "nearHand",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 1152,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        },
+        "powerPack": {
+          "assetId": "powerPack",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 1152,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        }
+      },
+      "weapons": {
+        "held": {
+          "equipmentSlot": "primary",
+          "weaponId": "lasgun",
+          "viewId": "rifle-reload",
+          "visible": true,
+          "originAnchor": "grip",
+          "position": [
+            104,
+            107
+          ],
+          "rotationDeg": 0,
+          "scale": 1,
+          "flipX": false,
+          "flipY": false
+        },
+        "stowed": [
+          {
+            "equipmentSlot": "secondary",
+            "weaponId": "laspistol",
+            "viewId": "pistol-holstered",
+            "visible": true,
+            "originAnchor": "grip",
+            "position": [
+              118,
+              125
+            ],
+            "rotationDeg": 0,
+            "scale": 1,
+            "flipX": false,
+            "flipY": false
+          }
+        ]
+      },
+      "drawOrder": [
+        "layer:farArm",
+        "layer:body",
+        "weapon:stowed:0",
+        "weapon:held",
+        "layer:powerPack",
+        "layer:nearHand"
+      ],
+      "markers": []
+    },
+    {
+      "index": 7,
+      "keyPose": "reload-7",
+      "anchors": {
+        "ground": [
+          96,
+          176
+        ],
+        "shoulder": [
+          112,
+          87
+        ],
+        "triggerHand": [
+          96,
+          105
+        ],
+        "supportHand": [
+          63,
+          96
+        ],
+        "holster": [
+          118,
+          125
+        ],
+        "sling": [
+          116,
+          88
+        ],
+        "hitPoint": [
+          100,
+          101
+        ]
+      },
+      "layers": {
+        "farArm": {
+          "assetId": "farArm",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 1344,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        },
+        "body": {
+          "assetId": "body",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 1344,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        },
+        "nearHand": {
+          "assetId": "nearHand",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 1344,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        },
+        "powerPack": {
+          "assetId": "powerPack",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 1344,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        }
+      },
+      "weapons": {
+        "held": {
+          "equipmentSlot": "primary",
+          "weaponId": "lasgun",
+          "viewId": "rifle",
+          "visible": true,
+          "originAnchor": "grip",
+          "position": [
+            96,
+            105
+          ],
+          "rotationDeg": 0,
+          "scale": 1,
+          "flipX": false,
+          "flipY": false
+        },
+        "stowed": [
+          {
+            "equipmentSlot": "secondary",
+            "weaponId": "laspistol",
+            "viewId": "pistol-holstered",
+            "visible": true,
+            "originAnchor": "grip",
+            "position": [
+              118,
+              125
+            ],
+            "rotationDeg": 0,
+            "scale": 1,
+            "flipX": false,
+            "flipY": false
+          }
+        ]
+      },
+      "drawOrder": [
+        "layer:farArm",
+        "layer:body",
+        "weapon:stowed:0",
+        "weapon:held",
+        "layer:powerPack",
+        "layer:nearHand"
+      ],
+      "markers": []
+    }
+  ]
+}

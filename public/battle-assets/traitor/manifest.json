@@ -1,0 +1,68 @@
+{
+  "id": "traitor-NW-modular-v1",
+  "productionReady": false,
+  "direction": "NW",
+  "frameCount": 59,
+  "actions": [
+    {
+      "action": "idle",
+      "frames": 4,
+      "path": "idle.json"
+    },
+    {
+      "action": "move",
+      "frames": 8,
+      "path": "move.json"
+    },
+    {
+      "action": "enter-cover",
+      "frames": 4,
+      "path": "enter-cover.json"
+    },
+    {
+      "action": "peek",
+      "frames": 4,
+      "path": "peek.json"
+    },
+    {
+      "action": "fire",
+      "frames": 3,
+      "path": "fire.json"
+    },
+    {
+      "action": "exit-cover",
+      "frames": 4,
+      "path": "exit-cover.json"
+    },
+    {
+      "action": "reload",
+      "frames": 8,
+      "path": "reload.json"
+    },
+    {
+      "action": "swap-to-secondary",
+      "frames": 6,
+      "path": "swap-to-secondary.json"
+    },
+    {
+      "action": "swap-to-primary",
+      "frames": 6,
+      "path": "swap-to-primary.json"
+    },
+    {
+      "action": "pistol-fire",
+      "frames": 3,
+      "path": "pistol-fire.json"
+    },
+    {
+      "action": "hit",
+      "frames": 3,
+      "path": "hit.json"
+    },
+    {
+      "action": "down",
+      "frames": 6,
+      "path": "down.json"
+    }
+  ]
+}

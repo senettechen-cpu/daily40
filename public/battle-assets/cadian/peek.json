@@ -1,0 +1,1560 @@
+{
+  "schemaVersion": "1.0.0",
+  "sampleKind": "raster_animation",
+  "productionReady": false,
+  "completeAction": true,
+  "assetId": "cadian-peek-SE-seam-v3",
+  "faction": "cadian",
+  "action": "peek",
+  "direction": "SE",
+  "canvas": {
+    "width": 192,
+    "height": 192
+  },
+  "ground": [
+    96,
+    176
+  ],
+  "forwardScreen": [
+    30,
+    15
+  ],
+  "coordinateSystem": {
+    "origin": "top-left",
+    "unit": "pixel",
+    "anchors": "untrimmed-local",
+    "rotation": "clockwise-degrees",
+    "flipAllowed": false
+  },
+  "timing": {
+    "mode": "engine-action",
+    "loop": false,
+    "nominalDurationMs": 420,
+    "durationWeights": [
+      0.25,
+      0.25,
+      0.25,
+      0.25
+    ]
+  },
+  "frameCount": 4,
+  "productionActionFrameCount": 4,
+  "assets": [
+    {
+      "id": "peek--farArm",
+      "path": "images/peek--peek-farArm.png",
+      "width": 768,
+      "height": 192
+    },
+    {
+      "id": "peek--body",
+      "path": "images/peek--peek-body.png",
+      "width": 768,
+      "height": 192
+    },
+    {
+      "id": "peek--nearHand",
+      "path": "images/peek--peek-nearHand.png",
+      "width": 768,
+      "height": 192
+    },
+    {
+      "id": "peek--lasgun-transition-SE",
+      "path": "images/peek--lasgun-transition-SE.png",
+      "width": 70,
+      "height": 80
+    },
+    {
+      "id": "peek--lasgun-slung-SE",
+      "path": "images/peek--lasgun-slung-SE.png",
+      "width": 29,
+      "height": 80
+    },
+    {
+      "id": "peek--lasgun-reload-SE",
+      "path": "images/peek--lasgun-reload-SE.png",
+      "width": 80,
+      "height": 43
+    },
+    {
+      "id": "peek--pistol-held-SE",
+      "path": "images/peek--pistol-held-SE.png",
+      "width": 36,
+      "height": 25
+    },
+    {
+      "id": "peek--pistol-transition-SE",
+      "path": "images/peek--pistol-transition-SE.png",
+      "width": 25,
+      "height": 32
+    },
+    {
+      "id": "peek--pistol-holstered-SE",
+      "path": "images/peek--pistol-holstered-SE.png",
+      "width": 20,
+      "height": 28
+    },
+    {
+      "id": "peek--lasgun-ground-SE",
+      "path": "images/peek--lasgun-ground-SE.png",
+      "width": 80,
+      "height": 46
+    },
+    {
+      "id": "peek--lasgun-held-SE",
+      "path": "images/peek--lasgun-held-SE.png",
+      "width": 80,
+      "height": 54
+    },
+    {
+      "id": "fire--farArm",
+      "path": "images/fire--fire-farArm.png",
+      "width": 576,
+      "height": 192
+    },
+    {
+      "id": "fire--body",
+      "path": "images/fire--fire-body.png",
+      "width": 576,
+      "height": 192
+    },
+    {
+      "id": "fire--nearHand",
+      "path": "images/fire--fire-nearHand.png",
+      "width": 576,
+      "height": 192
+    },
+    {
+      "id": "fire--lasgun-transition-SE",
+      "path": "images/fire--lasgun-transition-SE.png",
+      "width": 70,
+      "height": 80
+    },
+    {
+      "id": "fire--lasgun-slung-SE",
+      "path": "images/fire--lasgun-slung-SE.png",
+      "width": 29,
+      "height": 80
+    },
+    {
+      "id": "fire--lasgun-reload-SE",
+      "path": "images/fire--lasgun-reload-SE.png",
+      "width": 80,
+      "height": 43
+    },
+    {
+      "id": "fire--pistol-held-SE",
+      "path": "images/fire--pistol-held-SE.png",
+      "width": 36,
+      "height": 25
+    },
+    {
+      "id": "fire--pistol-transition-SE",
+      "path": "images/fire--pistol-transition-SE.png",
+      "width": 25,
+      "height": 32
+    },
+    {
+      "id": "fire--pistol-holstered-SE",
+      "path": "images/fire--pistol-holstered-SE.png",
+      "width": 20,
+      "height": 28
+    },
+    {
+      "id": "fire--lasgun-ground-SE",
+      "path": "images/fire--lasgun-ground-SE.png",
+      "width": 80,
+      "height": 46
+    },
+    {
+      "id": "fire--lasgun-held-SE",
+      "path": "images/fire--lasgun-held-SE.png",
+      "width": 80,
+      "height": 54
+    }
+  ],
+  "weaponViews": [
+    {
+      "id": "peek--lasgun-transition-SE",
+      "weaponId": "lasgun",
+      "assetId": "peek--lasgun-transition-SE",
+      "viewKind": "transition",
+      "direction": "SE",
+      "originalSize": {
+        "width": 70,
+        "height": 80
+      },
+      "trimOffset": {
+        "x": 0,
+        "y": 0
+      },
+      "sourceRect": {
+        "x": 0,
+        "y": 0,
+        "width": 70,
+        "height": 80
+      },
+      "anchors": {
+        "grip": [
+          22,
+          35
+        ],
+        "supportGrip": null,
+        "muzzle": [
+          67,
+          77
+        ],
+        "slingAttach": [
+          13,
+          19
+        ]
+      }
+    },
+    {
+      "id": "peek--lasgun-slung-SE",
+      "weaponId": "lasgun",
+      "assetId": "peek--lasgun-slung-SE",
+      "viewKind": "slung",
+      "direction": "SE",
+      "originalSize": {
+        "width": 29,
+        "height": 80
+      },
+      "trimOffset": {
+        "x": 0,
+        "y": 0
+      },
+      "sourceRect": {
+        "x": 0,
+        "y": 0,
+        "width": 29,
+        "height": 80
+      },
+      "anchors": {
+        "grip": [
+          22,
+          27
+        ],
+        "supportGrip": null,
+        "muzzle": [
+          15,
+          77
+        ],
+        "slingAttach": [
+          10,
+          7
+        ]
+      }
+    },
+    {
+      "id": "peek--lasgun-reload-SE",
+      "weaponId": "lasgun",
+      "assetId": "peek--lasgun-reload-SE",
+      "viewKind": "transition",
+      "direction": "SE",
+      "originalSize": {
+        "width": 80,
+        "height": 43
+      },
+      "trimOffset": {
+        "x": 0,
+        "y": 0
+      },
+      "sourceRect": {
+        "x": 0,
+        "y": 0,
+        "width": 80,
+        "height": 43
+      },
+      "anchors": {
+        "grip": [
+          20,
+          30
+        ],
+        "supportGrip": null,
+        "muzzle": [
+          77,
+          7
+        ],
+        "slingAttach": [
+          10,
+          26
+        ]
+      }
+    },
+    {
+      "id": "peek--pistol-held-SE",
+      "weaponId": "laspistol",
+      "assetId": "peek--pistol-held-SE",
+      "viewKind": "held",
+      "direction": "SE",
+      "originalSize": {
+        "width": 36,
+        "height": 25
+      },
+      "trimOffset": {
+        "x": 0,
+        "y": 0
+      },
+      "sourceRect": {
+        "x": 0,
+        "y": 0,
+        "width": 36,
+        "height": 25
+      },
+      "anchors": {
+        "grip": [
+          9,
+          17
+        ],
+        "supportGrip": null,
+        "muzzle": [
+          34,
+          19
+        ],
+        "slingAttach": [
+          9,
+          17
+        ]
+      }
+    },
+    {
+      "id": "peek--pistol-transition-SE",
+      "weaponId": "laspistol",
+      "assetId": "peek--pistol-transition-SE",
+      "viewKind": "transition",
+      "direction": "SE",
+      "originalSize": {
+        "width": 25,
+        "height": 32
+      },
+      "trimOffset": {
+        "x": 0,
+        "y": 0
+      },
+      "sourceRect": {
+        "x": 0,
+        "y": 0,
+        "width": 25,
+        "height": 32
+      },
+      "anchors": {
+        "grip": [
+          7,
+          25
+        ],
+        "supportGrip": null,
+        "muzzle": [
+          23,
+          6
+        ],
+        "slingAttach": [
+          7,
+          25
+        ]
+      }
+    },
+    {
+      "id": "peek--pistol-holstered-SE",
+      "weaponId": "laspistol",
+      "assetId": "peek--pistol-holstered-SE",
+      "viewKind": "holstered",
+      "direction": "SE",
+      "originalSize": {
+        "width": 20,
+        "height": 28
+      },
+      "trimOffset": {
+        "x": 0,
+        "y": 0
+      },
+      "sourceRect": {
+        "x": 0,
+        "y": 0,
+        "width": 20,
+        "height": 28
+      },
+      "anchors": {
+        "grip": [
+          7,
+          8
+        ],
+        "supportGrip": null,
+        "muzzle": null,
+        "slingAttach": [
+          7,
+          8
+        ]
+      }
+    },
+    {
+      "id": "peek--lasgun-ground-SE",
+      "weaponId": "lasgun",
+      "assetId": "peek--lasgun-ground-SE",
+      "viewKind": "transition",
+      "direction": "SE",
+      "originalSize": {
+        "width": 80,
+        "height": 46
+      },
+      "trimOffset": {
+        "x": 0,
+        "y": 0
+      },
+      "sourceRect": {
+        "x": 0,
+        "y": 0,
+        "width": 80,
+        "height": 46
+      },
+      "anchors": {
+        "grip": [
+          22,
+          25
+        ],
+        "supportGrip": null,
+        "muzzle": [
+          76,
+          21
+        ],
+        "slingAttach": [
+          15,
+          19
+        ]
+      }
+    },
+    {
+      "id": "peek--lasgun-held-SE",
+      "weaponId": "lasgun",
+      "assetId": "peek--lasgun-held-SE",
+      "viewKind": "held",
+      "direction": "SE",
+      "originalSize": {
+        "width": 80,
+        "height": 54
+      },
+      "trimOffset": {
+        "x": 0,
+        "y": 0
+      },
+      "sourceRect": {
+        "x": 0,
+        "y": 0,
+        "width": 80,
+        "height": 54
+      },
+      "anchors": {
+        "grip": [
+          23,
+          27
+        ],
+        "supportGrip": null,
+        "muzzle": [
+          77,
+          42
+        ],
+        "slingAttach": [
+          30,
+          23
+        ]
+      }
+    },
+    {
+      "id": "peek--lasgun-held-SE-grip-peek-1",
+      "weaponId": "lasgun",
+      "assetId": "peek--lasgun-held-SE",
+      "viewKind": "held",
+      "direction": "SE",
+      "originalSize": {
+        "width": 80,
+        "height": 54
+      },
+      "trimOffset": {
+        "x": 0,
+        "y": 0
+      },
+      "sourceRect": {
+        "x": 0,
+        "y": 0,
+        "width": 80,
+        "height": 54
+      },
+      "anchors": {
+        "grip": [
+          23,
+          27
+        ],
+        "supportGrip": [
+          46.09029830342451,
+          33.62103649430141
+        ],
+        "muzzle": [
+          77,
+          42
+        ],
+        "slingAttach": [
+          30,
+          23
+        ]
+      }
+    },
+    {
+      "id": "peek--lasgun-held-SE-grip-peek-2",
+      "weaponId": "lasgun",
+      "assetId": "peek--lasgun-held-SE",
+      "viewKind": "held",
+      "direction": "SE",
+      "originalSize": {
+        "width": 80,
+        "height": 54
+      },
+      "trimOffset": {
+        "x": 0,
+        "y": 0
+      },
+      "sourceRect": {
+        "x": 0,
+        "y": 0,
+        "width": 80,
+        "height": 54
+      },
+      "anchors": {
+        "grip": [
+          23,
+          27
+        ],
+        "supportGrip": [
+          53.046156076483626,
+          35.61559661472065
+        ],
+        "muzzle": [
+          77,
+          42
+        ],
+        "slingAttach": [
+          30,
+          23
+        ]
+      }
+    },
+    {
+      "id": "peek--lasgun-held-SE-grip-peek-3",
+      "weaponId": "lasgun",
+      "assetId": "peek--lasgun-held-SE",
+      "viewKind": "held",
+      "direction": "SE",
+      "originalSize": {
+        "width": 80,
+        "height": 54
+      },
+      "trimOffset": {
+        "x": 0,
+        "y": 0
+      },
+      "sourceRect": {
+        "x": 0,
+        "y": 0,
+        "width": 80,
+        "height": 54
+      },
+      "anchors": {
+        "grip": [
+          23,
+          27
+        ],
+        "supportGrip": [
+          56.863163521222624,
+          36.71010588690657
+        ],
+        "muzzle": [
+          77,
+          42
+        ],
+        "slingAttach": [
+          30,
+          23
+        ]
+      }
+    },
+    {
+      "id": "fire--lasgun-transition-SE",
+      "weaponId": "lasgun",
+      "assetId": "fire--lasgun-transition-SE",
+      "viewKind": "transition",
+      "direction": "SE",
+      "originalSize": {
+        "width": 70,
+        "height": 80
+      },
+      "trimOffset": {
+        "x": 0,
+        "y": 0
+      },
+      "sourceRect": {
+        "x": 0,
+        "y": 0,
+        "width": 70,
+        "height": 80
+      },
+      "anchors": {
+        "grip": [
+          22,
+          35
+        ],
+        "supportGrip": null,
+        "muzzle": [
+          67,
+          77
+        ],
+        "slingAttach": [
+          13,
+          19
+        ]
+      }
+    },
+    {
+      "id": "fire--lasgun-slung-SE",
+      "weaponId": "lasgun",
+      "assetId": "fire--lasgun-slung-SE",
+      "viewKind": "slung",
+      "direction": "SE",
+      "originalSize": {
+        "width": 29,
+        "height": 80
+      },
+      "trimOffset": {
+        "x": 0,
+        "y": 0
+      },
+      "sourceRect": {
+        "x": 0,
+        "y": 0,
+        "width": 29,
+        "height": 80
+      },
+      "anchors": {
+        "grip": [
+          22,
+          27
+        ],
+        "supportGrip": null,
+        "muzzle": [
+          15,
+          77
+        ],
+        "slingAttach": [
+          10,
+          7
+        ]
+      }
+    },
+    {
+      "id": "fire--lasgun-reload-SE",
+      "weaponId": "lasgun",
+      "assetId": "fire--lasgun-reload-SE",
+      "viewKind": "transition",
+      "direction": "SE",
+      "originalSize": {
+        "width": 80,
+        "height": 43
+      },
+      "trimOffset": {
+        "x": 0,
+        "y": 0
+      },
+      "sourceRect": {
+        "x": 0,
+        "y": 0,
+        "width": 80,
+        "height": 43
+      },
+      "anchors": {
+        "grip": [
+          20,
+          30
+        ],
+        "supportGrip": null,
+        "muzzle": [
+          77,
+          7
+        ],
+        "slingAttach": [
+          10,
+          26
+        ]
+      }
+    },
+    {
+      "id": "fire--pistol-held-SE",
+      "weaponId": "laspistol",
+      "assetId": "fire--pistol-held-SE",
+      "viewKind": "held",
+      "direction": "SE",
+      "originalSize": {
+        "width": 36,
+        "height": 25
+      },
+      "trimOffset": {
+        "x": 0,
+        "y": 0
+      },
+      "sourceRect": {
+        "x": 0,
+        "y": 0,
+        "width": 36,
+        "height": 25
+      },
+      "anchors": {
+        "grip": [
+          9,
+          17
+        ],
+        "supportGrip": null,
+        "muzzle": [
+          34,
+          19
+        ],
+        "slingAttach": [
+          9,
+          17
+        ]
+      }
+    },
+    {
+      "id": "fire--pistol-transition-SE",
+      "weaponId": "laspistol",
+      "assetId": "fire--pistol-transition-SE",
+      "viewKind": "transition",
+      "direction": "SE",
+      "originalSize": {
+        "width": 25,
+        "height": 32
+      },
+      "trimOffset": {
+        "x": 0,
+        "y": 0
+      },
+      "sourceRect": {
+        "x": 0,
+        "y": 0,
+        "width": 25,
+        "height": 32
+      },
+      "anchors": {
+        "grip": [
+          7,
+          25
+        ],
+        "supportGrip": null,
+        "muzzle": [
+          23,
+          6
+        ],
+        "slingAttach": [
+          7,
+          25
+        ]
+      }
+    },
+    {
+      "id": "fire--pistol-holstered-SE",
+      "weaponId": "laspistol",
+      "assetId": "fire--pistol-holstered-SE",
+      "viewKind": "holstered",
+      "direction": "SE",
+      "originalSize": {
+        "width": 20,
+        "height": 28
+      },
+      "trimOffset": {
+        "x": 0,
+        "y": 0
+      },
+      "sourceRect": {
+        "x": 0,
+        "y": 0,
+        "width": 20,
+        "height": 28
+      },
+      "anchors": {
+        "grip": [
+          7,
+          8
+        ],
+        "supportGrip": null,
+        "muzzle": null,
+        "slingAttach": [
+          7,
+          8
+        ]
+      }
+    },
+    {
+      "id": "fire--lasgun-ground-SE",
+      "weaponId": "lasgun",
+      "assetId": "fire--lasgun-ground-SE",
+      "viewKind": "transition",
+      "direction": "SE",
+      "originalSize": {
+        "width": 80,
+        "height": 46
+      },
+      "trimOffset": {
+        "x": 0,
+        "y": 0
+      },
+      "sourceRect": {
+        "x": 0,
+        "y": 0,
+        "width": 80,
+        "height": 46
+      },
+      "anchors": {
+        "grip": [
+          22,
+          25
+        ],
+        "supportGrip": null,
+        "muzzle": [
+          76,
+          21
+        ],
+        "slingAttach": [
+          15,
+          19
+        ]
+      }
+    },
+    {
+      "id": "fire--lasgun-held-SE",
+      "weaponId": "lasgun",
+      "assetId": "fire--lasgun-held-SE",
+      "viewKind": "held",
+      "direction": "SE",
+      "originalSize": {
+        "width": 80,
+        "height": 54
+      },
+      "trimOffset": {
+        "x": 0,
+        "y": 0
+      },
+      "sourceRect": {
+        "x": 0,
+        "y": 0,
+        "width": 80,
+        "height": 54
+      },
+      "anchors": {
+        "grip": [
+          23,
+          27
+        ],
+        "supportGrip": null,
+        "muzzle": [
+          77,
+          42
+        ],
+        "slingAttach": [
+          30,
+          23
+        ]
+      }
+    },
+    {
+      "id": "fire--lasgun-held-SE-grip-fire-0",
+      "weaponId": "lasgun",
+      "assetId": "fire--lasgun-held-SE",
+      "viewKind": "held",
+      "direction": "SE",
+      "originalSize": {
+        "width": 80,
+        "height": 54
+      },
+      "trimOffset": {
+        "x": 0,
+        "y": 0
+      },
+      "sourceRect": {
+        "x": 0,
+        "y": 0,
+        "width": 80,
+        "height": 54
+      },
+      "anchors": {
+        "grip": [
+          23,
+          27
+        ],
+        "supportGrip": [
+          66.63958710951786,
+          39.5134502400738
+        ],
+        "muzzle": [
+          77,
+          42
+        ],
+        "slingAttach": [
+          30,
+          23
+        ]
+      }
+    },
+    {
+      "id": "fire--lasgun-held-SE-grip-fire-1",
+      "weaponId": "lasgun",
+      "assetId": "fire--lasgun-held-SE",
+      "viewKind": "held",
+      "direction": "SE",
+      "originalSize": {
+        "width": 80,
+        "height": 54
+      },
+      "trimOffset": {
+        "x": 0,
+        "y": 0
+      },
+      "sourceRect": {
+        "x": 0,
+        "y": 0,
+        "width": 80,
+        "height": 54
+      },
+      "anchors": {
+        "grip": [
+          23,
+          27
+        ],
+        "supportGrip": [
+          57.31044501681147,
+          36.83836179190198
+        ],
+        "muzzle": [
+          77,
+          42
+        ],
+        "slingAttach": [
+          30,
+          23
+        ]
+      }
+    },
+    {
+      "id": "fire--lasgun-held-SE-grip-fire-2",
+      "weaponId": "lasgun",
+      "assetId": "fire--lasgun-held-SE",
+      "viewKind": "held",
+      "direction": "SE",
+      "originalSize": {
+        "width": 80,
+        "height": 54
+      },
+      "trimOffset": {
+        "x": 0,
+        "y": 0
+      },
+      "sourceRect": {
+        "x": 0,
+        "y": 0,
+        "width": 80,
+        "height": 54
+      },
+      "anchors": {
+        "grip": [
+          23,
+          27
+        ],
+        "supportGrip": [
+          64.73470175558262,
+          38.967233154433345
+        ],
+        "muzzle": [
+          77,
+          42
+        ],
+        "slingAttach": [
+          30,
+          23
+        ]
+      }
+    }
+  ],
+  "frames": [
+    {
+      "index": 0,
+      "keyPose": "peek-0-source-peek-0",
+      "anchors": {
+        "ground": [
+          96,
+          176
+        ],
+        "shoulder": [
+          95,
+          110
+        ],
+        "triggerHand": [
+          94,
+          141
+        ],
+        "supportHand": null,
+        "holster": [
+          76,
+          151
+        ],
+        "sling": [
+          73,
+          109
+        ],
+        "hitPoint": [
+          96,
+          123
+        ]
+      },
+      "artHands": {
+        "trigger": [
+          94,
+          141
+        ],
+        "support": null,
+        "working": null
+      },
+      "layers": {
+        "farArm": {
+          "assetId": "peek--farArm",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 0,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        },
+        "body": {
+          "assetId": "peek--body",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 0,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        },
+        "nearHand": {
+          "assetId": "peek--nearHand",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 0,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        }
+      },
+      "weapons": {
+        "held": {
+          "equipmentSlot": "primary",
+          "weaponId": "lasgun",
+          "viewId": "peek--lasgun-held-SE",
+          "visible": true,
+          "originAnchor": "grip",
+          "position": [
+            94,
+            141
+          ],
+          "rotationDeg": -18,
+          "scale": 1,
+          "flipX": false,
+          "flipY": false
+        },
+        "stowed": [
+          {
+            "equipmentSlot": "secondary",
+            "weaponId": "laspistol",
+            "viewId": "peek--pistol-holstered-SE",
+            "visible": true,
+            "originAnchor": "grip",
+            "position": [
+              76,
+              151
+            ],
+            "rotationDeg": 0,
+            "scale": 1,
+            "flipX": false,
+            "flipY": false
+          }
+        ]
+      },
+      "drawOrder": [
+        "layer:farArm",
+        "layer:body",
+        "weapon:stowed:0",
+        "weapon:held",
+        "layer:nearHand"
+      ],
+      "markers": []
+    },
+    {
+      "index": 1,
+      "keyPose": "peek-1-source-peek-1",
+      "anchors": {
+        "ground": [
+          96,
+          176
+        ],
+        "shoulder": [
+          95,
+          110
+        ],
+        "triggerHand": [
+          95,
+          129
+        ],
+        "supportHand": [
+          119,
+          130
+        ],
+        "holster": [
+          76,
+          151
+        ],
+        "sling": [
+          73,
+          109
+        ],
+        "hitPoint": [
+          96,
+          123
+        ]
+      },
+      "artHands": {
+        "trigger": [
+          95,
+          129
+        ],
+        "support": [
+          119,
+          130
+        ],
+        "working": null
+      },
+      "layers": {
+        "farArm": {
+          "assetId": "peek--farArm",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 192,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        },
+        "body": {
+          "assetId": "peek--body",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 192,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        },
+        "nearHand": {
+          "assetId": "peek--nearHand",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 192,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        }
+      },
+      "weapons": {
+        "held": {
+          "equipmentSlot": "primary",
+          "weaponId": "lasgun",
+          "viewId": "peek--lasgun-held-SE-grip-peek-1",
+          "visible": true,
+          "originAnchor": "grip",
+          "position": [
+            95,
+            129
+          ],
+          "rotationDeg": -13.614055969611186,
+          "scale": 1,
+          "flipX": false,
+          "flipY": false
+        },
+        "stowed": [
+          {
+            "equipmentSlot": "secondary",
+            "weaponId": "laspistol",
+            "viewId": "peek--pistol-holstered-SE",
+            "visible": true,
+            "originAnchor": "grip",
+            "position": [
+              76,
+              151
+            ],
+            "rotationDeg": 0,
+            "scale": 1,
+            "flipX": false,
+            "flipY": false
+          }
+        ]
+      },
+      "drawOrder": [
+        "layer:farArm",
+        "layer:body",
+        "weapon:stowed:0",
+        "weapon:held",
+        "layer:nearHand"
+      ],
+      "markers": []
+    },
+    {
+      "index": 2,
+      "keyPose": "peek-2-source-peek-2",
+      "anchors": {
+        "ground": [
+          96,
+          176
+        ],
+        "shoulder": [
+          95,
+          110
+        ],
+        "triggerHand": [
+          95,
+          122
+        ],
+        "supportHand": [
+          126,
+          118
+        ],
+        "holster": [
+          76,
+          151
+        ],
+        "sling": [
+          73,
+          109
+        ],
+        "hitPoint": [
+          96,
+          123
+        ]
+      },
+      "artHands": {
+        "trigger": [
+          95,
+          122
+        ],
+        "support": [
+          126,
+          118
+        ],
+        "working": null
+      },
+      "layers": {
+        "farArm": {
+          "assetId": "peek--farArm",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 384,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        },
+        "body": {
+          "assetId": "peek--body",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 384,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        },
+        "nearHand": {
+          "assetId": "peek--nearHand",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 384,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        }
+      },
+      "weapons": {
+        "held": {
+          "equipmentSlot": "primary",
+          "weaponId": "lasgun",
+          "viewId": "peek--lasgun-held-SE-grip-peek-2",
+          "visible": true,
+          "originAnchor": "grip",
+          "position": [
+            95,
+            122
+          ],
+          "rotationDeg": -23.35237935989236,
+          "scale": 1,
+          "flipX": false,
+          "flipY": false
+        },
+        "stowed": [
+          {
+            "equipmentSlot": "secondary",
+            "weaponId": "laspistol",
+            "viewId": "peek--pistol-holstered-SE",
+            "visible": true,
+            "originAnchor": "grip",
+            "position": [
+              76,
+              151
+            ],
+            "rotationDeg": 0,
+            "scale": 1,
+            "flipX": false,
+            "flipY": false
+          }
+        ]
+      },
+      "drawOrder": [
+        "layer:farArm",
+        "layer:body",
+        "weapon:stowed:0",
+        "weapon:held",
+        "layer:nearHand"
+      ],
+      "markers": []
+    },
+    {
+      "index": 3,
+      "keyPose": "peek-3-source-fire-0",
+      "anchors": {
+        "ground": [
+          96,
+          176
+        ],
+        "shoulder": [
+          95,
+          110
+        ],
+        "triggerHand": [
+          88,
+          120
+        ],
+        "supportHand": [
+          133,
+          114
+        ],
+        "holster": [
+          76,
+          151
+        ],
+        "sling": [
+          73,
+          109
+        ],
+        "hitPoint": [
+          96,
+          123
+        ]
+      },
+      "artHands": {
+        "trigger": [
+          88,
+          120
+        ],
+        "support": [
+          133,
+          114
+        ],
+        "working": null
+      },
+      "layers": {
+        "farArm": {
+          "assetId": "fire--farArm",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 0,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        },
+        "body": {
+          "assetId": "fire--body",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 0,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        },
+        "nearHand": {
+          "assetId": "fire--nearHand",
+          "originalSize": {
+            "width": 192,
+            "height": 192
+          },
+          "trimOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "sourceRect": {
+            "x": 0,
+            "y": 0,
+            "width": 192,
+            "height": 192
+          }
+        }
+      },
+      "weapons": {
+        "held": {
+          "equipmentSlot": "primary",
+          "weaponId": "lasgun",
+          "viewId": "fire--lasgun-held-SE-grip-fire-0",
+          "visible": true,
+          "originAnchor": "grip",
+          "position": [
+            88,
+            120
+          ],
+          "rotationDeg": -23.594643368591445,
+          "scale": 1,
+          "flipX": false,
+          "flipY": false
+        },
+        "stowed": [
+          {
+            "equipmentSlot": "secondary",
+            "weaponId": "laspistol",
+            "viewId": "fire--pistol-holstered-SE",
+            "visible": true,
+            "originAnchor": "grip",
+            "position": [
+              76,
+              151
+            ],
+            "rotationDeg": 0,
+            "scale": 1,
+            "flipX": false,
+            "flipY": false
+          }
+        ]
+      },
+      "drawOrder": [
+        "layer:farArm",
+        "layer:body",
+        "weapon:stowed:0",
+        "weapon:held",
+        "layer:nearHand"
+      ],
+      "markers": []
+    }
+  ],
+  "provenance": [
+    {
+      "index": 0,
+      "sourceAction": "peek",
+      "sourceFrame": 0
+    },
+    {
+      "index": 1,
+      "sourceAction": "peek",
+      "sourceFrame": 1
+    },
+    {
+      "index": 2,
+      "sourceAction": "peek",
+      "sourceFrame": 2
+    },
+    {
+      "index": 3,
+      "sourceAction": "fire",
+      "sourceFrame": 0
+    }
+  ]
+}

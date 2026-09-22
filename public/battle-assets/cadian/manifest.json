@@ -1,0 +1,81 @@
+{
+  "id": "cadian-SE-seam-v3",
+  "direction": "SE",
+  "frameCount": 59,
+  "productionReady": false,
+  "status": "candidate-endpoint-reuse",
+  "actions": [
+    {
+      "action": "idle",
+      "frames": 4,
+      "path": "idle.json"
+    },
+    {
+      "action": "move",
+      "frames": 8,
+      "path": "move.json"
+    },
+    {
+      "action": "enter-cover",
+      "frames": 4,
+      "path": "enter-cover.json"
+    },
+    {
+      "action": "peek",
+      "frames": 4,
+      "path": "peek.json"
+    },
+    {
+      "action": "fire",
+      "frames": 3,
+      "path": "fire.json"
+    },
+    {
+      "action": "exit-cover",
+      "frames": 4,
+      "path": "exit-cover.json"
+    },
+    {
+      "action": "reload",
+      "frames": 8,
+      "path": "reload.json"
+    },
+    {
+      "action": "swap-to-secondary",
+      "frames": 6,
+      "path": "swap-to-secondary.json"
+    },
+    {
+      "action": "swap-to-primary",
+      "frames": 6,
+      "path": "swap-to-primary.json"
+    },
+    {
+      "action": "pistol-fire",
+      "frames": 3,
+      "path": "pistol-fire.json"
+    },
+    {
+      "action": "hit",
+      "frames": 3,
+      "path": "hit.json"
+    },
+    {
+      "action": "down",
+      "frames": 6,
+      "path": "down.json"
+    }
+  ],
+  "cover": {
+    "back": "images/sandbag-back-SE.png",
+    "front": "images/sandbag-front-SE.png",
+    "canvas": {
+      "width": 192,
+      "height": 192
+    },
+    "ground": [
+      96,
+      176
+    ]
+  }
+}
