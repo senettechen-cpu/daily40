@@ -14,3 +14,6 @@ server/.env
 *.mbtree
 /traffic_*.jpg
 .embedded-pg/
+
+# GPT handoff packages (~236 MB): kept locally, not versioned. Used assets are imported into public/.
+handoff-assets/
