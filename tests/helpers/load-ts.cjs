@@ -15,6 +15,7 @@ function loadTs(file, { mocks, defines, cache = mocks || defines ? new Map() : s
         if (id.endsWith('.css')) return {};
         if (!id.startsWith('.')) return require(id);
         const base = path.resolve(path.dirname(file), id);
+        if (id.endsWith('.json')) { const data = JSON.parse(fs.readFileSync(base, 'utf8')); return { __esModule: true, default: data, ...data }; }
         const target = [base + '.ts', base + '.tsx', path.join(base, 'index.ts')].find(p => fs.existsSync(p));
         return loadTs(target, { mocks, defines, cache });
     } };

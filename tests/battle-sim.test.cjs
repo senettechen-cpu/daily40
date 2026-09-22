@@ -213,7 +213,7 @@ test('frame sampling honours duration weights, distance phase and the clock', ()
 });
 
 test('the battle test is isolated from game data', () => {
-    for (const file of ['src/battle/sim/engine.ts', 'src/battle/sim/rules.ts', 'src/battle/view/BattleTestApp.tsx', 'src/battle/view/BattleStage.tsx', 'src/battle/view/animation.ts', 'src/battle/sprites/loader.ts']) {
+    for (const file of ['src/battle/sim/engine.ts', 'src/battle/sim/rules.ts', 'src/battle/view/BattleTestApp.tsx', 'src/battle/view/BattleStage.tsx', 'src/battle/view/animation.ts', 'src/battle/sprites/loader.ts', 'src/battle/report/report.ts', 'src/battle/view/BattleReportApp.tsx', 'src/battle/main.tsx']) {
         const code = fs.readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
         assert.doesNotMatch(code, /from\s+['"][^'"]*(contexts\/|services\/|lib\/firebase|firebase)/, `${file} imports app data`);
         assert.doesNotMatch(code, /localStorage|sessionStorage|indexedDB|modifyResources|useGame\(|\bapi\./, `${file} touches app data`);

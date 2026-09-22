@@ -22,7 +22,7 @@ export type Action =
     | { kind: 'fire'; start: number; end: number; shotAt: number; targetId: string; slot: Slot; resolved: boolean }
     | { kind: 'retract'; start: number; end: number }
     | { kind: 'reload'; start: number; end: number; slot: Slot }
-    | { kind: 'swap'; start: number; end: number; to: Slot }
+    | { kind: 'swap'; start: number; end: number; to: Slot; reason: SwapReason }
     | { kind: 'down'; start: number };
 
 export interface Unit {
@@ -55,9 +55,17 @@ export interface Unit {
     stats: { shots: number; hits: number; damage: number };
 }
 
+export type SwapReason = 'engaged' | 'disengaged';
+
+// Structured events: the battle report reads these fields, never the log text.
 export type BattleEvent =
     | { id: number; tick: number; kind: 'shot'; sourceId: string; targetId: string; weapon: WeaponId; outcome: 'hit' | 'miss' | 'cover'; amount: number; from: Point; to: Point }
-    | { id: number; tick: number; kind: 'swap' | 'down' | 'reload' | 'cancel'; unitId: string; text: string };
+    | { id: number; tick: number; kind: 'swap'; unitId: string; phase: 'start' | 'complete'; to: Slot; weapon: WeaponId; reason: SwapReason; text: string }
+    | { id: number; tick: number; kind: 'reload'; unitId: string; slot: Slot; weapon: WeaponId; text: string }
+    | { id: number; tick: number; kind: 'cancel'; unitId: string; action: 'reload' | 'aim' | 'fire'; reason: 'engaged'; text: string }
+    | { id: number; tick: number; kind: 'down'; unitId: string; text: string };
+
+type EventFields<K extends BattleEvent['kind']> = Omit<Extract<BattleEvent, { kind: K }>, 'id' | 'tick' | 'text'>;
 
 export type BattleStatus = 'running' | 'victory' | 'defeat' | 'timeout';
 
@@ -133,9 +141,14 @@ function roll(b: Battle) {
 function record(b: Battle, text: string) {
     b.log = [`${(b.tick / TICKS_PER_SECOND).toFixed(1)}s · ${text}`, ...b.log].slice(0, 80);
 }
-function note(b: Battle, kind: 'swap' | 'down' | 'reload' | 'cancel', unit: Unit, text: string) {
-    b.events.push({ id: b.nextEventId++, tick: b.tick, kind, unitId: unit.id, text });
+function note<K extends Exclude<BattleEvent['kind'], 'shot'>>(b: Battle, unit: Unit, fields: EventFields<K> & { kind: K }, text: string) {
+    b.events.push({ id: b.nextEventId++, tick: b.tick, ...fields, text } as BattleEvent);
     record(b, `${unit.name}${text}`);
+}
+
+function startSwap(b: Battle, u: Unit, to: Slot, reason: SwapReason) {
+    u.action = { kind: 'swap', start: b.tick, end: b.tick + SWAP_TICKS[to], to, reason };
+    note(b, u, { kind: 'swap', unitId: u.id, phase: 'start', to, weapon: u.loadout[to], reason }, '開始切換武器');
 }
 
 const opponents = (b: Battle, u: Unit) => b.units.filter(o => o.side !== u.side && o.hp > 0);
@@ -225,7 +238,7 @@ function begin(b: Battle, u: Unit, action: Action) {
 
 function cancelAction(b: Battle, u: Unit, why: string) {
     const kind = u.action.kind;
-    if (kind === 'reload' || kind === 'aim' || (kind === 'fire' && !u.action.resolved)) note(b, 'cancel', u, `${why}，中止${{ reload: '換彈', aim: '瞄準', fire: '射擊' }[kind]}（彈量不補）`);
+    if (kind === 'reload' || kind === 'aim' || (kind === 'fire' && !u.action.resolved)) note(b, u, { kind: 'cancel', unitId: u.id, action: kind, reason: 'engaged' }, `${why}，中止${{ reload: '換彈', aim: '瞄準', fire: '射擊' }[kind]}（彈量不補）`);
     u.action = { kind: 'idle' };
     u.aimedAt = null;
 }
@@ -235,7 +248,7 @@ function kill(b: Battle, u: Unit) {
     u.path = [];
     u.goal = null;
     u.action = { kind: 'down', start: b.tick };
-    note(b, 'down', u, '倒地（測試版不造成永久傷亡）');
+    note(b, u, { kind: 'down', unitId: u.id }, '倒地（測試版不造成永久傷亡）');
 }
 
 function resolveShot(b: Battle, u: Unit, action: Extract<Action, { kind: 'fire' }>) {
@@ -293,10 +306,10 @@ function completeAction(b: Battle, u: Unit) {
     const a = u.action;
     if (a.kind === 'swap') {
         u.active = a.to; // the weapon, damage source and equipment slot change only now
-        note(b, 'swap', u, a.to === 'secondary' ? '完成拔出雷射手槍（低傷害自衛）' : '完成換回雷射步槍');
+        note(b, u, { kind: 'swap', unitId: u.id, phase: 'complete', to: a.to, weapon: u.loadout[a.to], reason: a.reason }, a.to === 'secondary' ? '完成拔出雷射手槍（低傷害自衛）' : '完成換回雷射步槍');
     } else if (a.kind === 'reload') {
         u.ammo[a.slot] = WEAPONS[u.loadout[a.slot]].magazine;
-        note(b, 'reload', u, `完成${WEAPONS[u.loadout[a.slot]].name}換彈`);
+        note(b, u, { kind: 'reload', unitId: u.id, slot: a.slot, weapon: u.loadout[a.slot] }, `完成${WEAPONS[u.loadout[a.slot]].name}換彈`);
     } else if (a.kind === 'enter-cover') u.posture = 'covered';
     else if (a.kind === 'retract') u.posture = 'covered';
     else if (a.kind === 'aim') {
@@ -311,8 +324,8 @@ function decide(b: Battle, u: Unit) {
     if (!foes.length) return;
     // Weapon swaps: melee contact → pistol; clear of contact (with a buffer) → rifle.
     const contact = meleeThreats(b, u, ENGAGE_RANGE).length > 0;
-    if (contact && u.active === 'primary' && u.ammo.secondary >= 0) return begin(b, u, { kind: 'swap', start: b.tick, end: b.tick + SWAP_TICKS.secondary, to: 'secondary' });
-    if (!contact && u.active === 'secondary' && meleeThreats(b, u, DISENGAGE_RANGE).length === 0) return begin(b, u, { kind: 'swap', start: b.tick, end: b.tick + SWAP_TICKS.primary, to: 'primary' });
+    if (contact && u.active === 'primary') return startSwap(b, u, 'secondary', 'engaged');
+    if (!contact && u.active === 'secondary' && meleeThreats(b, u, DISENGAGE_RANGE).length === 0) return startSwap(b, u, 'primary', 'disengaged');
 
     const weapon = weaponOf(u);
     if (u.ammo[u.active] <= 0) {
