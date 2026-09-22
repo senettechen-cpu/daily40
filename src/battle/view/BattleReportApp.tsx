@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { CREW_SIZE, LANES, validateDeployment } from '../sim/engine';
 import { SCENARIOS, setupFor } from '../sim/scenarios';
 import { TICKS_PER_SECOND, WEAPONS } from '../sim/rules';
 import { simulateWithReport, type ReportEntry, type SimulatedBattle, type UnitSnap, type UnitStats } from '../report/report';
+import { loadReportArt, NO_ART, type ReportArt } from './reportArt';
 import './battle-test.css';
 import './battle-report.css';
 
@@ -14,15 +15,25 @@ const SPEEDS = [1, 2, 4];
 const seconds = (tick: number) => (tick / TICKS_PER_SECOND).toFixed(1);
 const BADGE: Partial<Record<ReportEntry['kind'], string>> = { down: '倒地', swap: '換裝完成', cancel: '動作中止', result: '結算', 'swap-start': '切換中', reload: '換彈' };
 
-function Initials({ name, side, down }: { name: string; side: 'crew' | 'enemy'; down: boolean }) {
-    // Placeholder until portrait thumbnails are imported; the portrait is identity art, never equipment.
-    return <span className={`br-avatar br-avatar--${side}${down ? ' is-down' : ''}`} aria-hidden="true">{name.replace(/[^\d]/g, '') || name[0]}</span>;
+export const ArtContext = createContext<ReportArt>(NO_ART);
+
+/** Identity portrait with the unit number always visible (six crew share one portrait). Falls back to a numbered badge. */
+export function Portrait({ name, side, down }: { name: string; side: 'crew' | 'enemy'; down: boolean }) {
+    const art = useContext(ArtContext).portrait(side);
+    const number = name.replace(/[^\d]/g, '') || name[0];
+    return <span className={`br-avatar br-avatar--${side}${down ? ' is-down' : ''}${art ? ' has-art' : ''}`} aria-hidden="true">
+        {art && <img src={art.head} width={128} height={128} alt="" loading="lazy" decoding="async" />}
+        <b>{number}</b>
+    </span>;
 }
 
-function WeaponCard({ snap }: { snap: UnitSnap }) {
+export function WeaponCard({ snap }: { snap: UnitSnap }) {
     const incoming = snap.swapTo;
     const pct = Math.round(snap.swapProgress * 100);
+    // Image and name both follow the committed weapon, which changes only when a swap completes.
+    const art = useContext(ArtContext).equipment(snap.weapon);
     return <div className="br-weapon" data-committed-weapon={snap.weapon}>
+        {art && <img className="br-weapon__art" src={art.small} srcSet={`${art.small} 1x, ${art.large} 2x`} width={96} height={96} alt={WEAPONS[snap.weapon].name} data-weapon-art={snap.weapon} />}
         <span className="br-weapon__label">目前武器</span>
         <strong>{WEAPONS[snap.weapon].name}</strong>
         <span className="br-weapon__ammo">{snap.reloadProgress !== null ? `換彈中 ${Math.round(snap.reloadProgress * 100)}%` : `${snap.ammo[snap.active]}/${WEAPONS[snap.weapon].magazine}`}</span>
@@ -30,10 +41,10 @@ function WeaponCard({ snap }: { snap: UnitSnap }) {
     </div>;
 }
 
-function RosterCard({ name, side, snap, maxHp }: { name: string; side: 'crew' | 'enemy'; snap: UnitSnap; maxHp: number }) {
+export function RosterCard({ name, side, snap, maxHp }: { name: string; side: 'crew' | 'enemy'; snap: UnitSnap; maxHp: number }) {
     const down = snap.hp <= 0;
     return <li className={`br-unit${down ? ' is-down' : ''}`} data-unit-card={snap.id}>
-        <Initials name={name} side={side} down={down} />
+        <Portrait name={name} side={side} down={down} />
         <div className="br-unit__body">
             <div className="br-unit__head"><strong>{name}</strong>{down ? <span className="br-badge br-badge--down">倒地</span> : <span>{snap.hp}/{maxHp}</span>}</div>
             <div className="bt-hp"><i style={{ width: `${100 * snap.hp / maxHp}%`, background: side === 'crew' ? '#add6b0' : '#d98879' }} /></div>
@@ -49,7 +60,7 @@ function Entry({ entry, names, sim }: { entry: ReportEntry; names: Record<string
     const subject = entry.actorId ?? entry.targetId;
     return <li className={`br-entry br-entry--${entry.kind}${entry.key ? ' is-key' : ''}`} data-entry={entry.id} data-sources={entry.sourceEventIds.join(',')}>
         <time>{seconds(entry.startTick)}s{entry.endTick > entry.startTick ? `–${seconds(entry.endTick)}s` : ''}</time>
-        {subject && entry.key && <Initials name={names[subject]} side={side(subject)} down={entry.kind === 'down'} />}
+        {subject && entry.key && <Portrait name={names[subject]} side={side(subject)} down={entry.kind === 'down'} />}
         <p>{badge && <span className={`br-badge br-badge--${entry.kind}`}>{badge}</span>}{entry.text}</p>
         {entry.kind === 'burst' && <button type="button" className="br-expand" aria-expanded={open} onClick={() => setOpen(o => !o)}>{open ? '收合' : '展開原始紀錄'}</button>}
         {open && <ol className="br-sources">{entry.sourceEventIds.map(id => {
@@ -87,6 +98,8 @@ export function BattleReportApp() {
     const [playTick, setPlayTick] = useState(0);
     const feedRef = useRef<HTMLOListElement>(null);
     const playRef = useRef(0);
+    const [art, setArt] = useState<ReportArt>(NO_ART);
+    useEffect(() => { loadReportArt().then(setArt); }, []);
     useEffect(() => { setLanes(scenario.lanes); setSeed(scenario.seed); }, [scenarioId]);
 
     const start = () => {
@@ -138,7 +151,7 @@ export function BattleReportApp() {
     const roster = (side: 'crew' | 'enemy') => snaps.filter(s => unitsById.get(s.id)?.side === side)
         .map(s => <RosterCard key={s.id} name={unitsById.get(s.id)!.name} side={side} snap={s} maxHp={unitsById.get(s.id)!.maxHp} />);
 
-    return <main className="bt-app br-app">
+    return <ArtContext.Provider value={art}><main className="bt-app br-app">
         <header className="bt-header">
             <div>
                 <p className="bt-eyebrow">第一階段戰鬥測試版 · 文字戰報 · 不扣資源、不發獎勵、無永久傷亡、不讀寫生活資料</p>
@@ -175,8 +188,8 @@ export function BattleReportApp() {
             <aside className="br-side">
                 <h2>我方</h2><ul className="br-roster">{roster('crew')}</ul>
                 <h2>敵軍</h2><ul className="br-roster">{roster('enemy')}</ul>
-                <p className="bt-perf">人物圖示為暫代；立繪縮圖於下一步接入，立繪僅代表身分，武器以「目前武器」為準。</p>
+                <p className="bt-perf">立繪為角色示意，六名我方共用同一張、以編號區分；實際武器以「目前武器」卡為準。</p>
             </aside>
         </div>}
-    </main>;
+    </main></ArtContext.Provider>;
 }

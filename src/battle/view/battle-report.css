@@ -17,10 +17,13 @@
 .br-badge--swap, .br-badge--swap-start { background: #2f4f5c; color: #d2f0ff; }
 .br-badge--cancel { background: #5c4a2f; color: #ffe8c2; }
 .br-badge--result { background: #3b5a3a; color: #e1ffd9; }
-.br-avatar { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; font-size: 13px; font-weight: 700; flex: none; }
+.br-avatar { position: relative; display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; font-size: 13px; font-weight: 700; flex: none; }
+.br-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
+.br-avatar.has-art b { position: absolute; right: -4px; bottom: -3px; min-width: 16px; height: 16px; padding: 0 3px; border-radius: 8px; background: #0b1117; border: 1px solid currentColor; font-size: 10px; line-height: 14px; text-align: center; box-sizing: border-box; }
 .br-avatar--crew { background: #3b4d3c; color: #ecffe4; border: 1px solid #9fcf96; }
 .br-avatar--enemy { background: #4d3232; color: #ffe1d9; border: 1px solid #d98879; }
-.br-avatar.is-down { filter: grayscale(1); opacity: .6; }
+.br-avatar.is-down img { filter: grayscale(1) brightness(.7); }
+.br-avatar.is-down { opacity: .75; }
 .br-side h2 { margin: 0 0 6px; font-size: 14px; color: #c8b27a; }
 .br-roster { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 6px; }
 .br-unit { display: flex; gap: 8px; padding: 6px 8px; border: 1px solid #2d3b46; background: #101820; }
@@ -28,7 +31,8 @@
 .br-unit__body { flex: 1; min-width: 0; }
 .br-unit__head { display: flex; justify-content: space-between; gap: 6px; font-size: 13px; }
 .br-unit__head span { font-size: 12px; color: #a8b6ba; }
-.br-weapon { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; font-size: 12px; background: #2d3331; border: 1px solid #3f4a47; padding: 3px 6px; }
+.br-weapon { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; font-size: 12px; background: #2d3331; border: 1px solid #3f4a47; padding: 3px 6px; }
+.br-weapon__art { width: 44px; height: 44px; flex: none; }
 .br-weapon__label { color: #8fa2a8; }
 .br-weapon strong { color: #f0e6cc; }
 .br-weapon__ammo { margin-left: auto; font-variant-numeric: tabular-nums; }

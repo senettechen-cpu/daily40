@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "portraits": [
+    {
+      "assetId": "cadian-rifleman",
+      "role": "crew-default",
+      "head": "portraits/cadian-rifleman-head.webp",
+      "half": "portraits/cadian-rifleman-half.webp",
+      "headSize": [
+        128,
+        128
+      ],
+      "halfSize": [
+        480,
+        480
+      ]
+    },
+    {
+      "assetId": "traitor-guardsman",
+      "role": "enemy-default",
+      "head": "portraits/traitor-guardsman-head.webp",
+      "half": "portraits/traitor-guardsman-half.webp",
+      "headSize": [
+        128,
+        128
+      ],
+      "halfSize": [
+        480,
+        480
+      ]
+    }
+  ],
+  "equipment": [
+    {
+      "artId": "lasgun",
+      "weaponId": "lasgun",
+      "small": "equipment/lasgun-96.webp",
+      "smallSize": [
+        96,
+        96
+      ],
+      "large": "equipment/lasgun-192.webp",
+      "largeSize": [
+        192,
+        192
+      ]
+    },
+    {
+      "artId": "laspistol",
+      "weaponId": "laspistol",
+      "small": "equipment/laspistol-96.webp",
+      "smallSize": [
+        96,
+        96
+      ],
+      "large": "equipment/laspistol-192.webp",
+      "largeSize": [
+        192,
+        192
+      ]
+    },
+    {
+      "artId": "flak-armour",
+      "weaponId": "flak-armour",
+      "small": "equipment/flak-armour-96.webp",
+      "smallSize": [
+        96,
+        96
+      ],
+      "large": "equipment/flak-armour-192.webp",
+      "largeSize": [
+        192,
+        192
+      ]
+    }
+  ]
+}
