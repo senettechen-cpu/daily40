@@ -1,0 +1,12 @@
+node_modules
+dist
+server
+handoff-assets
+.git
+.env
+.env.*
+*.mp4
+*.log
+*.txt
+*.mbtree
+traffic_*.jpg

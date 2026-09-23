@@ -18,7 +18,6 @@ import { AscensionTracker } from './components/astartes/AscensionTracker'
 import { GameProvider, useGame } from './contexts/GameContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { useAuth } from './contexts/AuthContext'
-import { LineCallback } from './pages/LineCallback'
 import { AdminDashboard } from './pages/AdminDashboard'
 import { useLocalNotifications } from './hooks/useLocalNotifications'
 import { LEGACY_PENALTIES_FROZEN } from './game/legacyFreeze'
@@ -30,51 +29,106 @@ const { Title, Text } = Typography;
 
 // Main Content Component separate from Provider to use Context
 // Login Screen Component
-const LoginScreen = ({ onLogin }: { onLogin: () => void }) => (
-  <div className="h-screen bg-black flex flex-col items-center justify-center relative overflow-hidden">
-    <div className="scanline" />
-    <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1635322966219-b75ed3a90e27?q=80&w=2000&auto=format&fit=crop')] opacity-20 bg-cover bg-center" />
+const LoginScreen = ({ mode, onSubmit }: { mode: 'login' | 'setup', onSubmit: (username: string, password: string) => Promise<void> }) => {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-    <div className="z-10 border border-imperial-gold/30 bg-black/80 p-12 backdrop-blur-md max-w-md w-full text-center shadow-[0_0_50px_rgba(251,191,36,0.1)]">
-      <h1 className="text-imperial-gold text-4xl font-mono mb-2 tracking-widest">帝國邏輯引擎</h1>
-      <h2 className="text-zinc-500 text-sm tracking-[0.5em] mb-12">機密存取 // 僅限授權人員</h2>
+  const isSetup = mode === 'setup';
 
-      <Button
-        type="primary"
-        size="large"
-        onClick={onLogin}
-        className="w-full !h-14 !bg-imperial-gold !text-black !font-bold !tracking-widest !text-lg hover:!bg-white transition-all flex items-center justify-center gap-2 mb-4"
-      >
-        <span className="uppercase">啟動 Google 識別協定</span>
-      </Button>
+  const handleSubmit = async () => {
+    if (!username.trim() || !password) {
+      setError('請輸入帳號與密碼');
+      return;
+    }
+    if (isSetup && password.length < 8) {
+      setError('密碼至少需要 8 個字元');
+      return;
+    }
 
-      <Button
-        type="default"
-        size="large"
-        className="w-full !h-14 !border-imperial-gold !text-imperial-gold !font-bold !tracking-widest !text-lg hover:!bg-imperial-gold hover:!text-black transition-all flex items-center justify-center gap-2 !bg-transparent"
-        onClick={() => {
-          // LINE Login Redirect
-          const clientId = '2009004081'; // Should match .env
-          const redirectUri = window.location.origin + '/line-callback';
-          const state = Math.random().toString(36).substring(7); // Simple state
-          const lineAuthUrl = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=profile%20openid`;
-          window.location.href = lineAuthUrl;
-        }}
-      >
-        <span className="uppercase">啟動 LINE 連結協定</span>
-      </Button>
+    setBusy(true);
+    setError(null);
+    try {
+      await onSubmit(username.trim(), password);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '登入失敗，請稍後再試');
+    } finally {
+      setBusy(false);
+    }
+  };
 
-      <div className="mt-8 text-zinc-600 font-mono text-xs">
-        <p>每日箴言：</p>
-        <p>「開放的心靈就像一座大門敞開且無人看守的堡壘。」</p>
+  return (
+    <div className="h-screen bg-black flex flex-col items-center justify-center relative overflow-hidden">
+      <div className="scanline" />
+      <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1635322966219-b75ed3a90e27?q=80&w=2000&auto=format&fit=crop')] opacity-20 bg-cover bg-center" />
+
+      <div className="z-10 border border-imperial-gold/30 bg-black/80 p-12 backdrop-blur-md max-w-md w-full text-center shadow-[0_0_50px_rgba(251,191,36,0.1)]">
+        <h1 className="text-imperial-gold text-4xl font-mono mb-2 tracking-widest">帝國邏輯引擎</h1>
+        <h2 className="text-zinc-500 text-sm tracking-[0.5em] mb-10">
+          {isSetup ? '初始化 // 建立指揮官識別' : '機密存取 // 僅限授權人員'}
+        </h2>
+
+        <div className="text-left mb-2">
+          <label className="text-zinc-500 font-mono text-xs tracking-widest" htmlFor="login-username">識別代號</label>
+        </div>
+        <Input
+          id="login-username"
+          size="large"
+          value={username}
+          autoComplete="username"
+          onChange={(e) => setUsername(e.target.value)}
+          onPressEnter={handleSubmit}
+          className="mb-4 !bg-black !border-imperial-gold/40 !text-imperial-gold font-mono"
+        />
+
+        <div className="text-left mb-2">
+          <label className="text-zinc-500 font-mono text-xs tracking-widest" htmlFor="login-password">通行密語</label>
+        </div>
+        <Input.Password
+          id="login-password"
+          size="large"
+          value={password}
+          autoComplete={isSetup ? 'new-password' : 'current-password'}
+          onChange={(e) => setPassword(e.target.value)}
+          onPressEnter={handleSubmit}
+          className="mb-6 !bg-black !border-imperial-gold/40 font-mono"
+        />
+
+        {error && (
+          <div className="mb-4 border border-red-900/60 bg-red-950/40 text-red-400 font-mono text-xs p-3 text-left">
+            {error}
+          </div>
+        )}
+
+        <Button
+          type="primary"
+          size="large"
+          loading={busy}
+          onClick={handleSubmit}
+          className="w-full !h-14 !bg-imperial-gold !text-black !font-bold !tracking-widest !text-lg hover:!bg-white transition-all flex items-center justify-center gap-2"
+        >
+          <span className="uppercase">{isSetup ? '建立識別並登入' : '啟動識別協定'}</span>
+        </Button>
+
+        <div className="mt-8 text-zinc-600 font-mono text-xs">
+          {isSetup ? (
+            <p>本系統尚無指揮官。建立後註冊將自動關閉。</p>
+          ) : (
+            <>
+              <p>每日箴言：</p>
+              <p>「開放的心靈就像一座大門敞開且無人看守的堡壘。」</p>
+            </>
+          )}
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 // Authenticated Application Wrapper
 const AppContent = () => {
-  const { user, loginWithGoogle, logout, getToken } = useAuth();
+  const { user, loading, needsSetup, login, register, logout, getToken } = useAuth();
   const [isMigrating, setIsMigrating] = useState(false);
 
   // Auto-claim legacy data on login
@@ -112,11 +166,7 @@ const AppContent = () => {
     }
   }, [user]);
 
-  // Simple routing for callback
   const path = window.location.pathname;
-  if (path === '/line-callback') {
-    return <LineCallback />;
-  }
 
   if (path === '/admin') {
     return (
@@ -126,8 +176,12 @@ const AppContent = () => {
     );
   }
 
+  if (loading) {
+    return <div className="h-screen bg-black flex items-center justify-center text-imperial-gold font-mono tracking-widest">連線中…</div>;
+  }
+
   if (!user) {
-    return <LoginScreen onLogin={loginWithGoogle} />;
+    return <LoginScreen mode={needsSetup ? 'setup' : 'login'} onSubmit={needsSetup ? register : login} />;
   }
 
   // Only render GameProvider when user is authenticated

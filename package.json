@@ -19,7 +19,6 @@
     "antd": "^5.23.0",
     "clsx": "^2.1.1",
     "dayjs": "^1.11.11",
-    "firebase": "^12.8.0",
     "framer-motion": "^11.11.0",
     "lucide-react": "^0.446.0",
     "react": "^18.3.1",

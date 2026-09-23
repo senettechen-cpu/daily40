@@ -47,7 +47,6 @@ export default defineConfig({
         manualChunks: {
           vendor: ['react', 'react-dom'],
           antd: ['antd', '@ant-design/icons'],
-          firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore'],
           motion: ['framer-motion']
         }
       }

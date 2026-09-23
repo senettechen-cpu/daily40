@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Input, Switch, Button, message } from 'antd';
 import { Mail, Save } from 'lucide-react';
 import { useGame } from '../contexts/GameContext';
+import { useAuth } from '../contexts/AuthContext';
 
 interface VoxLinkModalProps {
     visible: boolean;
@@ -11,6 +12,7 @@ interface VoxLinkModalProps {
 
 export const VoxLinkModal: React.FC<VoxLinkModalProps> = ({ visible, onClose }) => {
     const { notificationEmail, emailEnabled, updateSettings } = useGame();
+    const { getToken } = useAuth();
 
     const [localEmail, setLocalEmail] = useState(notificationEmail);
     const [localEnabled, setLocalEnabled] = useState(emailEnabled);
@@ -77,8 +79,7 @@ export const VoxLinkModal: React.FC<VoxLinkModalProps> = ({ visible, onClose }) 
                             try {
                                 message.loading("Transmitting test signal...", 1);
                                 // Get current token
-                                const { auth } = await import('../lib/firebase');
-                                const token = await auth.currentUser?.getIdToken();
+                                const token = await getToken();
 
                                 if (!token) throw new Error("Authentication failed: No user found.");
 

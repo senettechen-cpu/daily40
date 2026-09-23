@@ -12,6 +12,14 @@ const pool = new Pool({
 });
 
 const schemaSql = `
+    -- Users Table (local account login; id is also the user_id used across every other table)
+    CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        username TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
     -- Tasks Table
     CREATE TABLE IF NOT EXISTS tasks (
         id TEXT PRIMARY KEY,
