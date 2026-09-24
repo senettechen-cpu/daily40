@@ -4,7 +4,8 @@ const { loadTs } = require('./helpers/load-ts.cjs');
 const { createFakeDb } = require('./helpers/fake-db.cjs');
 
 const xp = loadTs('shared/battle/xp.ts');
-const sim = loadTs('shared/battle/sim/index.ts');
+const turn = loadTs('shared/battle/turn/index.ts');
+const hex = loadTs('shared/battle/hex/board.ts');
 
 function mount(file, db) {
     const handlers = {};
@@ -177,17 +178,63 @@ test('the stored seed replays the battle the server resolved, exactly', async ()
     completeCore(db);
 
     const res = await ops('POST', '/', { body: { squadId: squads[0].id, scenarioId: 'standard' } });
-    const { seed, lanes, crew, outcome } = res.body.operation;
+    const { seed, crew, outcome, board, rounds } = res.body.operation;
     const stored = db.tables.operations[0];
     assert.equal(stored.seed, seed);
+    assert.equal(stored.engine, 'v2');
 
-    // What the report does: re-run from the stored seed and get the same battle.
-    const scenario = sim.SCENARIOS.find(s => s.id === 'standard');
-    const replay = sim.runBattle(sim.createBattle(sim.setupFor(scenario, lanes, seed, crew)));
-    const replayed = replay.status === 'running' ? 'timeout' : replay.status;
-    assert.equal(replayed, outcome);
+    // What the report does: re-run from the stored seed and board, and get the
+    // same battle down to the last activation.
+    const scenario = turn.scenarioById('standard');
+    const replay = turn.runBattle({ board, units: [...crew, ...scenario.enemies], seed });
+    assert.equal(replay.outcome, outcome);
+    assert.equal(replay.rounds, rounds);
+    assert.deepEqual(
+        [...replay.activations].map(a => a.unitId + ':' + a.reason),
+        [...res.body.activations].map(a => a.unitId + ':' + a.reason),
+    );
 
     // And a different seed is a different battle, not the same one relabelled.
-    const other = sim.runBattle(sim.createBattle(sim.setupFor(scenario, lanes, seed + 1, crew)));
+    const other = turn.runBattle({ board, units: [...crew, ...scenario.enemies], seed: seed + 1 });
     assert.notDeepEqual(other.units.map(u => u.hp), replay.units.map(u => u.hp));
+});
+
+test('a squad with no saved formation still deploys, in its own half', async () => {
+    const { db, ops, roster } = setup();
+    const { squads } = (await roster('GET', '/')).body;
+    completeCore(db);
+
+    const res = await ops('POST', '/', { body: { squadId: squads[0].id, scenarioId: 'standard' } });
+    const { crew, placements, board } = res.body.operation;
+    assert.equal(crew.length, 6);
+    assert.equal(placements.length, 6);
+
+    const zone = new Set([...hex.deploymentZone(board, 'crew')].map(h => h.col + ',' + h.row));
+    const seats = new Set();
+    for (const soldier of crew) {
+        const key = soldier.at.col + ',' + soldier.at.row;
+        assert.ok(zone.has(key), soldier.name + ' started outside the deployment zone');
+        assert.ok(!seats.has(key), 'two soldiers share ' + key);
+        seats.add(key);
+        assert.equal(soldier.side, 'crew');
+    }
+});
+
+test('a saved formation is the one that fights', async () => {
+    const { db, ops, roster } = setup();
+    const { squads } = (await roster('GET', '/')).body;
+    completeCore(db);
+
+    // Put everyone on the back row, all holding.
+    const saved = squads[0].memberIds.map((characterId, i) => ({
+        characterId, at: { col: 2 + i, row: 8 }, stance: 'hold',
+    }));
+    db.tables.squads.find(s => s.id === squads[0].id).placements = saved;
+
+    const res = await ops('POST', '/', { body: { squadId: squads[0].id, scenarioId: 'standard' } });
+    for (const soldier of res.body.operation.crew) {
+        const placed = saved.find(p => p.characterId === soldier.id);
+        assert.deepEqual([soldier.at.col, soldier.at.row], [placed.at.col, placed.at.row]);
+        assert.equal(soldier.stance, 'hold');
+    }
 });

@@ -1,9 +1,9 @@
 import { randomInt, randomUUID } from 'crypto';
 import type { Db } from '../db';
+import { MAX_TRAINEES, Outcome, awardsFor, operationGate } from '../shared/battle';
 import {
-    MAX_TRAINEES, Outcome, SCENARIOS, awardsFor, createBattle, deploymentFor, operationGate,
-    runBattle, setupFor,
-} from '../shared/battle';
+    crewFor, placementsFor, resolveGuards, runBattle, scenarioById,
+} from '../shared/battle/turn';
 import { SQUAD_SIZE, validateSquad } from '../shared/roster';
 import { DEFAULT_TIME_ZONE, dayKey } from '../shared/rewards';
 import { newlyUnlocked } from '../shared/progression';
@@ -45,7 +45,7 @@ export async function startOperation(db: Db, userId: string, request: StartReque
     const gate = await readGate(db, userId, now);
     if (!gate.allowed) return { error: gate.reason };
 
-    const scenario = SCENARIOS.find(candidate => candidate.id === request.scenarioId);
+    const scenario = scenarioById(request.scenarioId);
     if (!scenario) return { error: '找不到這個情境。' };
 
     const [squads, roster, items] = await Promise.all([
@@ -60,7 +60,13 @@ export async function startOperation(db: Db, userId: string, request: StartReque
 
     const byId = new Map(roster.map(character => [character.id, character]));
     const members = squad.memberIds.map(id => byId.get(id)!);
-    const { crew, unmodelled } = deploymentFor(members, items);
+
+    // The saved formation when it still fits the squad, a sensible default when
+    // it does not, so a roster change never leaves a squad unable to deploy.
+    const placements = placementsFor(scenario.board, members, squad.placements);
+    const built = crewFor(members, items, placements);
+    const crew = resolveGuards(built.units);
+    const unmodelled = built.unmodelled;
 
     // Trainees must be on the roster and not already deployed.
     const deployedIds = new Set(squad.memberIds);
@@ -69,21 +75,21 @@ export async function startOperation(db: Db, userId: string, request: StartReque
         .slice(0, MAX_TRAINEES)
         .map(id => byId.get(id)!);
 
-    const lanes = request.lanes && request.lanes.length === SQUAD_SIZE ? request.lanes : scenario.lanes;
-    // A fresh seed per operation: the scenario's own seed is the reproducible one
-    // for testing, and reusing it made every battle of a scenario identical, so a
-    // won fight could be replayed for XP indefinitely. The roll is stored, which
-    // keeps the report an exact replay of what the server resolved.
+    // A fresh seed per operation: reusing the scenario's own seed made every
+    // battle of a scenario identical, so a won fight could be replayed for xp
+    // indefinitely. The roll is stored, which keeps the report an exact replay of
+    // what the server resolved.
     const seed = randomInt(1, 2 ** 31 - 1);
-    const finished = runBattle(createBattle(setupFor(scenario, lanes, seed, crew)));
-    const outcome = (finished.status === 'running' ? 'timeout' : finished.status) as Outcome;
+    const finished = runBattle({ board: scenario.board, units: [...crew, ...scenario.enemies], seed });
+    const outcome = finished.outcome as Outcome;
 
     const id = randomUUID();
     await db.query(
-        `INSERT INTO operations (id, user_id, squad_id, scenario_id, seed, crew, trainee_ids, outcome, pays_xp)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        `INSERT INTO operations (id, user_id, squad_id, scenario_id, seed, crew, trainee_ids, outcome, pays_xp, engine, board, rounds)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'v2', $10, $11)`,
         [id, userId, squad.id, scenario.id, seed, JSON.stringify(crew),
-            JSON.stringify(trainees.map(t => t.id)), outcome, gate.paysRequisition],
+            JSON.stringify(trainees.map(t => t.id)), outcome, gate.paysRequisition,
+            JSON.stringify(scenario.board), finished.rounds],
     );
 
     // A rest day or exemption opens the gate but pays nothing, XP included.
@@ -111,7 +117,12 @@ export async function startOperation(db: Db, userId: string, request: StartReque
     }
 
     return {
-        operation: { id, scenarioId: scenario.id, seed, lanes, crew, outcome, paysXp: gate.paysRequisition },
+        operation: {
+            id, scenarioId: scenario.id, seed, crew, outcome, engine: 'v2' as const,
+            board: scenario.board, rounds: finished.rounds, placements,
+            paysXp: gate.paysRequisition,
+        },
+        activations: finished.activations,
         awards,
         unmodelled,
         woundedIds,

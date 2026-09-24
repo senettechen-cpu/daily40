@@ -5,6 +5,7 @@ import {
     recruitTemplate, setMembers, validateSquad,
 } from '../shared/roster';
 import { DEFAULT_TIME_ZONE, balance, dayKey, planSpend } from '../shared/rewards';
+import { normalizePlacements } from '../shared/battle/turn';
 import { appendEntries } from '../rewards/store';
 import { loadWithStartingGrant } from '../rewards/service';
 
@@ -35,13 +36,14 @@ export async function loadCharacters(db: Db, userId: string): Promise<Character[
 
 export async function loadSquads(db: Db, userId: string): Promise<Squad[]> {
     const result = await db.query(
-        'SELECT id, name, member_ids FROM squads WHERE user_id = $1 ORDER BY created_at, id',
+        'SELECT id, name, member_ids, placements FROM squads WHERE user_id = $1 ORDER BY created_at, id',
         [userId],
     );
     return result.rows.map(row => ({
         id: row.id,
         name: row.name,
         memberIds: Array.isArray(row.member_ids) ? row.member_ids : [],
+        placements: normalizePlacements(row.placements),
     }));
 }
 
@@ -133,7 +135,7 @@ export async function createSquad(db: Db, userId: string, name: string): Promise
 }
 
 export async function updateSquad(
-    db: Db, userId: string, squadId: string, changes: { name?: string; memberIds?: string[] },
+    db: Db, userId: string, squadId: string, changes: { name?: string; memberIds?: string[]; placements?: unknown },
 ): Promise<{ squad: Squad } | { error: string }> {
     const squads = await loadSquads(db, userId);
     const current = squads.find(squad => squad.id === squadId);
@@ -147,11 +149,17 @@ export async function updateSquad(
     const error = validateSquad(result.squad, roster);
     if (error) return { error };
 
+    // Placements are stored as given and only checked when the squad departs, so
+    // rearranging a formation is never blocked by a half-finished plan.
+    const placements = changes.placements !== undefined
+        ? normalizePlacements(changes.placements)
+        : current.placements ?? [];
+
     await db.query(
-        'UPDATE squads SET name = $1, member_ids = $2 WHERE id = $3 AND user_id = $4',
-        [result.squad.name, JSON.stringify(result.squad.memberIds), squadId, userId],
+        'UPDATE squads SET name = $1, member_ids = $2, placements = $3 WHERE id = $4 AND user_id = $5',
+        [result.squad.name, JSON.stringify(result.squad.memberIds), JSON.stringify(placements), squadId, userId],
     );
-    return result;
+    return { squad: { ...result.squad, placements } };
 }
 
 export async function deleteSquad(db: Db, userId: string, squadId: string): Promise<void> {

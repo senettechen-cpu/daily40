@@ -201,6 +201,14 @@ const initDb = async () => {
             recruited_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
         )`);
         await pool.query('CREATE INDEX IF NOT EXISTS idx_roster_user_id ON roster_characters(user_id)');
+        // Where each member stands and how they behave: one of the four decisions
+        // the player makes before a v2 battle, saved with the formation.
+        await pool.query('ALTER TABLE squads ADD COLUMN IF NOT EXISTS placements JSONB');
+        // v1 operations were resolved by the retired tick simulation and cannot be
+        // replayed by the turn engine; they keep their result and nothing more.
+        await pool.query("ALTER TABLE operations ADD COLUMN IF NOT EXISTS engine TEXT NOT NULL DEFAULT 'v1'");
+        await pool.query('ALTER TABLE operations ADD COLUMN IF NOT EXISTS board JSONB');
+        await pool.query('ALTER TABLE operations ADD COLUMN IF NOT EXISTS rounds INTEGER');
         // The day a lost battle took someone out of action; the bar lapses with the day.
         await pool.query('ALTER TABLE roster_characters ADD COLUMN IF NOT EXISTS wounded_day TEXT');
 

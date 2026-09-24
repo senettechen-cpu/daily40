@@ -9,6 +9,18 @@ export interface Squad {
     id: string;
     name: string;
     memberIds: string[];
+    /**
+     * Where each member stands and how they behave. Held loosely: an unplaced or
+     * stale formation falls back to a default rather than blocking a departure.
+     */
+    placements?: SquadPlacement[];
+}
+
+export interface SquadPlacement {
+    characterId: string;
+    at: { col: number; row: number };
+    stance: 'hold' | 'advance' | 'flank' | 'guard';
+    guardTargetId?: string;
 }
 
 export type SquadResult = { squad: Squad } | { error: string };

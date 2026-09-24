@@ -135,12 +135,12 @@ function createFakeDb() {
             });
             return { rows: [], rowCount: 1 };
         }
-        if (s.startsWith('SELECT id, name, member_ids FROM squads')) {
+        if (s.startsWith('SELECT id, name, member_ids, placements FROM squads')) {
             const rows = tables.squads.filter(r => r.user_id === p[0]);
             return { rows, rowCount: rows.length };
         }
         if (s.startsWith('INSERT INTO squads')) {
-            tables.squads.push({ id: p[0], user_id: p[1], name: p[2], member_ids: JSON.parse(p[3]), created_at: new Date(fake.now += 1000) });
+            tables.squads.push({ id: p[0], user_id: p[1], name: p[2], member_ids: JSON.parse(p[3]), placements: null, created_at: new Date(fake.now += 1000) });
             return { rows: [], rowCount: 1 };
         }
         if (s.startsWith('UPDATE squads SET')) return applyUpdate(tables.squads, s, p);
@@ -184,6 +184,7 @@ function createFakeDb() {
             tables.operations.push({
                 id: p[0], user_id: p[1], squad_id: p[2], scenario_id: p[3], seed: p[4],
                 crew: JSON.parse(p[5]), trainee_ids: JSON.parse(p[6]), outcome: p[7], pays_xp: p[8],
+                engine: 'v2', board: p[9] ? JSON.parse(p[9]) : null, rounds: p[10] ?? null,
                 started_at: new Date(fake.now += 1000),
             });
             return { rows: [], rowCount: 1 };
@@ -198,7 +199,7 @@ function createFakeDb() {
 
     // Handles the routes' dynamically built "UPDATE <table> SET a = $1, b = $2
     // WHERE id = $n AND user_id = $n+1" by mapping each assignment to its param.
-    const JSON_COLUMNS = new Set(['sub_tasks', 'milestone_ids', 'member_ids']);
+    const JSON_COLUMNS = new Set(['sub_tasks', 'milestone_ids', 'member_ids', 'placements']);
     function applyUpdate(rows, sql, params) {
         const [, setClause, idIdx, userIdx] = sql.match(/^UPDATE \w+ SET (.+) WHERE id = \$(\d+) AND user_id = \$(\d+)$/) ?? [];
         if (!setClause) throw new Error(`fake-db: unsupported update: ${sql}`);
