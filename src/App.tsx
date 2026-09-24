@@ -195,21 +195,45 @@ const AppContent = () => {
   );
 };
 
-/** Today's committed cores. After 09:00 the count is frozen, so the UI says so. */
+/**
+ * Committed cores for the selected day. After 09:00 the day's count is frozen,
+ * so the switch to tomorrow is the only way to commit once the morning passes.
+ */
 const CoreStatus = () => {
-  const { core, error, clearError } = useRequisition();
+  const { enabled, core, error, clearError, today, tomorrow, selectedDay, setSelectedDay } = useRequisition();
+  if (!enabled) return null;
+
   const count = core.taskIds?.length ?? 0;
   const cap = core.cap ?? 0;
   const locked = core.phase === 'locked';
+  const onTomorrow = selectedDay === tomorrow;
+
+  const dayButton = (day: string, label: string) => (
+    <button
+      type="button"
+      onClick={() => setSelectedDay(day)}
+      className={`px-2 py-0.5 border font-mono text-[11px] tracking-widest transition-colors ${selectedDay === day
+        ? 'border-imperial-gold text-imperial-gold bg-imperial-gold/10'
+        : 'border-zinc-700 text-zinc-500 hover:border-imperial-gold/50'}`}
+    >
+      {label}
+    </button>
+  );
 
   return (
     <div className="flex flex-col items-center gap-1">
-      <span
-        className="font-mono text-xs tracking-widest text-imperial-gold/70"
-        title={locked ? '已過 09:00，今天的核心數量已鎖定，只能替換未完成的項目' : '09:00 前可自由增減今日核心'}
-      >
-        今日核心 {count}/{cap || 3}
-        {locked && <span className="text-imperial-gold/40"> · 已鎖定</span>}
+      <div className="flex items-center gap-2">
+        {dayButton(today, '今日')}
+        {dayButton(tomorrow, '明日')}
+        <span className="font-mono text-xs tracking-widest text-imperial-gold/70">
+          核心 {count}/{cap || 3}
+          {locked && <span className="text-imperial-gold/40"> · 已鎖定</span>}
+        </span>
+      </div>
+      <span className="font-mono text-[11px] text-zinc-500">
+        {onTomorrow ? '提前指定明天的核心，明早 09:00 鎖定' : locked && cap === 0
+          ? '今天 09:00 時沒有指定核心，改點「明日」預設'
+          : locked ? '已過 09:00：數量鎖定，只能替換未完成的核心' : '09:00 前可自由增減'}
       </span>
       {error && (
         <button type="button" onClick={clearError} className="font-mono text-[11px] text-red-400 hover:text-red-300">
