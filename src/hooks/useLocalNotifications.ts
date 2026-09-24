@@ -2,7 +2,11 @@ import { useEffect, useState } from 'react';
 import { Task } from '../types';
 
 // VAPID Public Key
-const VAPID_PUBLIC_KEY = 'BIN8jX2NwwF5-RptRA3n9Pi6hP9aHcQadZHw7Xy8p3Er_764WB1yV3kZtOeUIvd5WHOGlNhw5t5HBzS5i1jzlBE';
+// Rotated 2026-09-24: the previous pair was published in the old public repo.
+// The public half is meant to ship; its private half lives only in the api
+// service's environment. Subscriptions made with the old key fail with 410
+// and are deleted, so browsers re-subscribe against this one.
+const VAPID_PUBLIC_KEY = 'BCGjTeKDpYNhVrwxtjhRaX9ggsN4r403_d6ysDfLmm5yRfe1O7DHqTi8pFtkfdrScnaKZ6iWmyIp-8eUweGY1T8';
 
 function urlBase64ToUint8Array(base64String: string) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);

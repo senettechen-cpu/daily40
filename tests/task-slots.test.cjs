@@ -49,3 +49,19 @@ test('slots: the day is met only when every slot is done', () => {
     assert.deepEqual({ ...s.slotProgress(slots, ['08:00', '23:00']) }, { done: 1, total: 2 });
     assert.equal(s.slotsMet([], []), false);
 });
+
+test('reminders: a slot is announced once, only while it is fresh and outstanding', () => {
+    const slots = ['08:00', '10:00', '12:00'];
+    // 10:03 is three minutes past the 10:00 slot.
+    assert.deepEqual([...s.dueReminders(slots, [], [], 10 * 60 + 3)], ['10:00']);
+    // 08:00 fell due two hours ago: too old to shout about now.
+    assert.deepEqual([...s.dueReminders(slots, [], [], 12 * 60)], ['12:00']);
+    // Already drunk, or already announced: silence either way.
+    assert.deepEqual([...s.dueReminders(slots, ['10:00'], [], 10 * 60 + 3)], []);
+    assert.deepEqual([...s.dueReminders(slots, [], ['10:00'], 10 * 60 + 3)], []);
+    // A slot still ahead is not announced early.
+    assert.deepEqual([...s.dueReminders(slots, [], [], 9 * 60 + 59)], []);
+    // A server down for five minutes still catches the slot it slept through.
+    assert.deepEqual([...s.dueReminders(slots, [], [], 10 * 60 + 9)], ['10:00']);
+    assert.deepEqual([...s.dueReminders(slots, [], [], 10 * 60 + 11)], []);
+});

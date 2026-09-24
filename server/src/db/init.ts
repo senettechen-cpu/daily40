@@ -114,6 +114,9 @@ const initDb = async () => {
         await pool.query('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS due_times JSONB');
         await pool.query('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS slots_done JSONB');
         await pool.query('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS slots_day TEXT');
+        // Which slots have already been announced today, so a reminder fires once.
+        await pool.query('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS reminded_slots JSONB');
+        await pool.query('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS reminded_day TEXT');
 
         // Multi-tenancy Migrations
         await pool.query('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS user_id TEXT');

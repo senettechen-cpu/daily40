@@ -66,3 +66,21 @@ export function completeNextSlot(slots: string[], done: unknown): string[] | nul
     if (!next) return null;
     return normalizeSlots([...doneSlots(slots, done), next]);
 }
+
+/**
+ * Slots that fell due in the last `windowMinutes` and are still outstanding and
+ * unannounced. The window rather than an exact match means a cycle that drifts,
+ * or a server that was briefly down, still sends the reminder once instead of
+ * missing it silently or replaying the whole day on restart.
+ */
+export function dueReminders(
+    slots: string[], done: unknown, reminded: unknown, nowMinutes: number, windowMinutes = 10,
+): string[] {
+    const settled = new Set(doneSlots(slots, done));
+    const announced = new Set(normalizeSlots(reminded));
+    return slots.filter(time => {
+        if (settled.has(time) || announced.has(time)) return false;
+        const age = nowMinutes - minutesOf(time);
+        return age >= 0 && age <= windowMinutes;
+    });
+}
