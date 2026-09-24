@@ -1,0 +1,413 @@
+{
+  "schemaVersion": 1,
+  "status": "proposal-not-runtime-UnitSpec",
+  "note": "traitor-guard is scenario faction label, not a new player Origin enum. Explicit null armour means none/0. Source IDs are catalog IDs, resolved through shared profiles.",
+  "scenarios": [
+    {
+      "id": "standard",
+      "board": "existing RUINS unchanged",
+      "enemies": [
+        {
+          "id": "std-1",
+          "side": "enemy",
+          "origin": "traitor-guard",
+          "duty": "sergeant",
+          "maxHp": 90,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour",
+            "tools": []
+          },
+          "stance": "advance",
+          "at": {
+            "col": 5,
+            "row": 1
+          }
+        },
+        {
+          "id": "std-2",
+          "side": "enemy",
+          "origin": "traitor-guard",
+          "duty": "rifleman",
+          "maxHp": 90,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour",
+            "tools": []
+          },
+          "stance": "advance",
+          "at": {
+            "col": 3,
+            "row": 1
+          }
+        },
+        {
+          "id": "std-3",
+          "side": "enemy",
+          "origin": "traitor-guard",
+          "duty": "rifleman",
+          "maxHp": 90,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour",
+            "tools": []
+          },
+          "stance": "advance",
+          "at": {
+            "col": 7,
+            "row": 1
+          }
+        },
+        {
+          "id": "std-4",
+          "side": "enemy",
+          "origin": "traitor-guard",
+          "duty": "rifleman",
+          "maxHp": 90,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "shotgun",
+            "sidearm": "laspistol",
+            "armour": null,
+            "tools": []
+          },
+          "stance": "flank",
+          "at": {
+            "col": 2,
+            "row": 0
+          }
+        },
+        {
+          "id": "std-5",
+          "side": "enemy",
+          "origin": "traitor-guard",
+          "duty": "rifleman",
+          "maxHp": 90,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": null,
+            "tools": []
+          },
+          "stance": "guard",
+          "at": {
+            "col": 6,
+            "row": 0
+          },
+          "guardTargetId": "std-6"
+        },
+        {
+          "id": "std-6",
+          "side": "enemy",
+          "origin": "traitor-guard",
+          "duty": "marksman",
+          "maxHp": 90,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "precision-lasgun",
+            "sidearm": "laspistol",
+            "armour": null,
+            "tools": []
+          },
+          "stance": "hold",
+          "at": {
+            "col": 5,
+            "row": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "close-assault",
+      "board": "existing OPEN_FIELD unchanged",
+      "enemies": [
+        {
+          "id": "ass-1",
+          "side": "enemy",
+          "origin": "traitor-guard",
+          "duty": "sergeant",
+          "maxHp": 90,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour",
+            "tools": []
+          },
+          "stance": "advance",
+          "at": {
+            "col": 5,
+            "row": 1
+          }
+        },
+        {
+          "id": "ass-2",
+          "side": "enemy",
+          "origin": "traitor-guard",
+          "duty": "rifleman",
+          "maxHp": 90,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "shotgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour",
+            "tools": []
+          },
+          "stance": "advance",
+          "at": {
+            "col": 4,
+            "row": 1
+          }
+        },
+        {
+          "id": "ass-3",
+          "side": "enemy",
+          "origin": "traitor-guard",
+          "duty": "rifleman",
+          "maxHp": 90,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "shotgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour",
+            "tools": []
+          },
+          "stance": "flank",
+          "at": {
+            "col": 6,
+            "row": 1
+          }
+        },
+        {
+          "id": "ass-4",
+          "side": "enemy",
+          "origin": "traitor-guard",
+          "duty": "flamer",
+          "maxHp": 90,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "flamer",
+            "sidearm": "laspistol",
+            "armour": null,
+            "tools": []
+          },
+          "stance": "advance",
+          "at": {
+            "col": 3,
+            "row": 0
+          }
+        },
+        {
+          "id": "ass-5",
+          "side": "enemy",
+          "origin": "traitor-guard",
+          "duty": "rifleman",
+          "maxHp": 90,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": null,
+            "tools": []
+          },
+          "stance": "advance",
+          "at": {
+            "col": 7,
+            "row": 0
+          }
+        },
+        {
+          "id": "ass-6",
+          "side": "enemy",
+          "origin": "traitor-guard",
+          "duty": "rifleman",
+          "maxHp": 90,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour",
+            "tools": []
+          },
+          "stance": "guard",
+          "at": {
+            "col": 5,
+            "row": 0
+          },
+          "guardTargetId": "ass-1"
+        }
+      ]
+    },
+    {
+      "id": "outnumbered",
+      "board": "existing RUINS unchanged",
+      "enemies": [
+        {
+          "id": "out-1",
+          "side": "enemy",
+          "origin": "traitor-guard",
+          "duty": "sergeant",
+          "maxHp": 90,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "carapace-armour",
+            "tools": []
+          },
+          "stance": "advance",
+          "at": {
+            "col": 5,
+            "row": 1
+          }
+        },
+        {
+          "id": "out-2",
+          "side": "enemy",
+          "origin": "traitor-guard",
+          "duty": "heavy",
+          "maxHp": 90,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "heavy-weapon",
+            "sidearm": "laspistol",
+            "armour": "carapace-armour",
+            "tools": []
+          },
+          "stance": "advance",
+          "at": {
+            "col": 5,
+            "row": 0
+          },
+          "linkedLoaderId": "out-3"
+        },
+        {
+          "id": "out-3",
+          "side": "enemy",
+          "origin": "traitor-guard",
+          "duty": "rifleman",
+          "maxHp": 90,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour",
+            "tools": []
+          },
+          "stance": "guard",
+          "at": {
+            "col": 6,
+            "row": 0
+          },
+          "guardTargetId": "out-2",
+          "loaderFor": "out-2"
+        },
+        {
+          "id": "out-4",
+          "side": "enemy",
+          "origin": "traitor-guard",
+          "duty": "rifleman",
+          "maxHp": 80,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "shotgun",
+            "sidearm": "laspistol",
+            "armour": null,
+            "tools": []
+          },
+          "stance": "flank",
+          "at": {
+            "col": 2,
+            "row": 1
+          }
+        },
+        {
+          "id": "out-5",
+          "side": "enemy",
+          "origin": "traitor-guard",
+          "duty": "rifleman",
+          "maxHp": 80,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": null,
+            "tools": []
+          },
+          "stance": "advance",
+          "at": {
+            "col": 3,
+            "row": 0
+          }
+        },
+        {
+          "id": "out-6",
+          "side": "enemy",
+          "origin": "traitor-guard",
+          "duty": "rifleman",
+          "maxHp": 80,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": null,
+            "tools": []
+          },
+          "stance": "advance",
+          "at": {
+            "col": 7,
+            "row": 0
+          }
+        },
+        {
+          "id": "out-7",
+          "side": "enemy",
+          "origin": "traitor-guard",
+          "duty": "rifleman",
+          "maxHp": 80,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": null,
+            "tools": []
+          },
+          "stance": "flank",
+          "at": {
+            "col": 8,
+            "row": 1
+          }
+        },
+        {
+          "id": "out-8",
+          "side": "enemy",
+          "origin": "traitor-guard",
+          "duty": "engineer",
+          "maxHp": 90,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour",
+            "tools": [
+              "engineering-kit"
+            ]
+          },
+          "stance": "guard",
+          "at": {
+            "col": 4,
+            "row": 0
+          },
+          "guardTargetId": "out-1"
+        }
+      ]
+    }
+  ]
+}

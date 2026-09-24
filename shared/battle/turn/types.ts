@@ -14,8 +14,13 @@ export const STANCE_LABELS: Record<Stance, string> = {
     hold: '固守', advance: '推進', flank: '側翼', guard: '護衛',
 };
 
+export type DamageType = 'las' | 'ballistic' | 'bolt' | 'plasma' | 'flame' | 'melee';
+export type ArmourType = 'none' | 'flak' | 'carapace' | 'power';
+
 export interface Weapon {
     name: string;
+    /** Decides which column of the coefficient table this weapon reads. */
+    damageType: DamageType;
     /** Damage of a single hit, before armour. */
     damage: number;
     /** Hits attempted per attack. */
@@ -24,6 +29,8 @@ export interface Weapon {
     range: number;
     /** Armour ignored. */
     penetration: number;
+    /** Built for someone's face: kept in hand when an enemy is adjacent. */
+    closeQuarter?: boolean;
 }
 
 export interface UnitSpec {
@@ -34,13 +41,21 @@ export interface UnitSpec {
     duty: string;
     maxHp: number;
     armour: number;
+    /** Follows the plate actually worn, never guessed from the duty. */
+    armourType: ArmourType;
     /** Base hit chance, 0..1. */
     accuracy: number;
+    /** Flat hit bonus from a function mod on the weapon. */
+    accuracyBonus?: number;
+    /** Tuning stages on the primary, as a multiplier: 1, 1.05 or 1.10. */
+    tuning?: number;
     /** Tiles of movement per activation. */
     movement: number;
     /** Higher acts earlier within its side. */
     initiative: number;
     weapon: Weapon;
+    /** Reached for when an enemy is adjacent, unless the primary is close-quarter. */
+    sidearm?: Weapon;
     stance: Stance;
     /** Who a 'guard' stance follows. */
     guardTargetId?: string;
@@ -55,7 +70,7 @@ export interface Unit extends UnitSpec {
 
 export type Activity =
     | { kind: 'move'; to: Hex }
-    | { kind: 'attack'; targetId: string; hits: number; damage: number }
+    | { kind: 'attack'; targetId: string; hits: number; damage: number; weapon: string }
     | { kind: 'idle' };
 
 export interface Activation {
@@ -70,6 +85,9 @@ export interface Activation {
 
 export type Outcome = 'victory' | 'defeat' | 'timeout';
 
+/** Why a battle ended, for a report that has to explain itself. */
+export type Ending = 'enemy-down' | 'crew-down' | 'mutual-down' | 'rounds';
+
 export interface BattleSetup {
     board: Board;
     units: UnitSpec[];
@@ -79,6 +97,7 @@ export interface BattleSetup {
 
 export interface BattleResult {
     outcome: Outcome;
+    ending: Ending;
     rounds: number;
     activations: Activation[];
     units: Unit[];

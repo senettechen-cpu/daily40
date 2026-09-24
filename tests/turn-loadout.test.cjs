@@ -39,10 +39,30 @@ test('a sidearm alone still arms someone who has no rifle', () => {
 });
 
 test('gear with no combat profile is reported rather than silently ignored', () => {
+    // Tuning and mods now ride on the weapon; tools still wait on the skills pass.
     const items = [gear('i1', 'a', 'lasgun'), gear('i2', 'a', 'medicae-kit'), gear('i3', 'a', 'tuning-1')];
     const { units, unmodelled } = l.crewFor([character('a')], items, [place('a')]);
     assert.equal(units[0].weapon.name, r.WEAPON_STATS.lasgun.name);
-    assert.deepEqual([...unmodelled].sort(), ['medicae-kit', 'tuning-1']);
+    assert.equal(units[0].tuning, 1.05);
+    assert.deepEqual([...unmodelled].sort(), ['medicae-kit']);
+});
+
+test('a primary and a sidearm are both kept, and gear reads its own numbers', () => {
+    const items = [
+        gear('i1', 'a', 'lasgun'), gear('i2', 'a', 'laspistol'),
+        gear('i3', 'a', 'carapace-armour'), gear('i4', 'a', 'function-mod'),
+        gear('i5', 'a', 'tuning-1'), gear('i6', 'a', 'tuning-2'),
+    ];
+    const { units } = l.crewFor([character('a')], items, [place('a')]);
+    const soldier = units[0];
+    assert.equal(soldier.weapon.name, r.WEAPON_STATS.lasgun.name);
+    assert.equal(soldier.sidearm.name, r.WEAPON_STATS.laspistol.name);
+    assert.equal(soldier.armourType, 'carapace');
+    assert.equal(soldier.tuning, 1.1, 'two stages total 1.10');
+    assert.equal(soldier.accuracyBonus, 0.05);
+    // Carapace costs initiative rather than movement.
+    assert.equal(soldier.initiative, r.DUTY_STATS.rifleman.initiative - 1);
+    assert.equal(soldier.movement, r.DUTY_STATS.rifleman.movement);
 });
 
 test('duty drives initiative and movement, and nobody is left without them', () => {

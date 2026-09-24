@@ -133,14 +133,52 @@ test('the medic is shot first when both are equally reachable', () => {
     assert.equal(shot.targetId, 'e-medic');
 });
 
-test('cover softens what lands, so the same shot hurts less behind it', () => {
+test('cover reduces the damage that lands, and never the chance of landing it', () => {
+    // GPT's contract: counting cover in both places would shelter twice.
     const shooter = { ...unit('c0', 'crew', { at: at(5, 5) }), hp: 100, down: false };
-    const exposed = { ...unit('e0', 'enemy', { at: at(5, 3) }), hp: 100, down: false };
-    const sheltered = { ...exposed, at: at(5, 3) };
+    const target = { ...unit('e0', 'enemy', { at: at(5, 3) }), hp: 100, down: false };
+    const open = board();
+    const sheltered = board({ '5,3': 'cover' });
 
-    const open = r.hitChance(board(), shooter, shooter.at, exposed);
-    const behind = r.hitChance(board({ '5,3': 'cover' }), shooter, shooter.at, sheltered);
-    assert.ok(behind < open, 'cover must reduce the chance of being hit');
+    assert.equal(
+        r.hitChance(sheltered, shooter, shooter.at, target, RIFLE),
+        r.hitChance(open, shooter, shooter.at, target, RIFLE),
+        'cover must not touch the hit chance',
+    );
+    assert.equal(r.coverMultiplier(sheltered, RIFLE, target.at), 0.75);
+    assert.equal(r.coverMultiplier(open, RIFLE, target.at), 1);
+});
+
+test('flame and fists ignore cover: a sandbag stops neither', () => {
+    const sheltered = board({ '5,3': 'cover' });
+    const flamer = { name: '火焰器', damage: 12, hits: 4, range: 2, penetration: 0, damageType: 'flame' };
+    assert.equal(r.coverMultiplier(sheltered, flamer, at(5, 3)), 1);
+    assert.equal(r.coverMultiplier(sheltered, r.FISTS, at(5, 3)), 1);
+});
+
+test('more armour never means more damage taken', () => {
+    // Plasma is flat rather than rising, so heavy plate is never a liability.
+    for (const id of Object.keys(r.WEAPON_STATS)) {
+        const weapon = r.WEAPON_STATS[id];
+        const steps = [['none', 0], ['flak', 20], ['carapace', 40], ['power', 80]];
+        let previous = Infinity;
+        for (const [type, armour] of steps) {
+            const taken = r.damageOf(weapon, armour, type);
+            assert.ok(taken <= previous, id + ' hurts more through ' + type + ' than through lighter plate');
+            previous = taken;
+        }
+    }
+});
+
+test('the type coefficient is applied once, and only rounds at the end', () => {
+    const weapon = r.WEAPON_STATS.flamer; // 12 damage, flame, 0.65 against carapace
+    assert.equal(r.damageOf(weapon, 40, 'carapace'), Math.round(12 * 0.65 * (100 / 140)));
+    // Two tuning stages are a 1.10 total, never 1.05 squared.
+    assert.equal(r.TUNING_MULTIPLIER[2], 1.1);
+    assert.equal(
+        r.damageOf(r.WEAPON_STATS.lasgun, 0, 'none', { tuning: 1.1 }),
+        Math.round(22 * 1.1),
+    );
 });
 
 test('armour reduces a hit but never to nothing', () => {

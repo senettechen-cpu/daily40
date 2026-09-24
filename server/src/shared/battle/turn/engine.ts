@@ -1,6 +1,8 @@
 import { Hex, distance, hexKey, reachable, ruleAt, sameHex } from '../hex';
-import { canReach, damageOf, expectedDamage, hitChance, MAX_ROUNDS, threatOf } from './rules';
-import { Activation, Activity, BattleResult, BattleSetup, Outcome, Side, Stance, Unit } from './types';
+import {
+    canReach, coverMultiplier, damageOf, expectedDamage, FISTS, hitChance, MAX_ROUNDS, threatOf,
+} from './rules';
+import { Activation, Activity, BattleResult, BattleSetup, Ending, Outcome, Side, Stance, Unit, Weapon } from './types';
 
 // The turn engine. Rounds, alternating activations, and an AI that scores its
 // options by fixed rules so the report can state the reason for every move.
@@ -56,6 +58,18 @@ const snapshot = (battle: Battle) =>
 const occupiedBy = (battle: Battle, self: Unit) =>
     battle.units.filter(u => u.id !== self.id && !u.down).map(u => u.at);
 
+/**
+ * GPT's engagement rule: an ordinary primary is unusable in someone's face, so
+ * an adjacent enemy means the sidearm, or fists when there is none. Shotguns and
+ * flamers are built for that range and keep firing. Choosing the weapon is part
+ * of the one attack, never an extra one.
+ */
+function weaponAgainst(unit: Unit, from: Hex, target: Unit): Weapon {
+    const adjacent = distance(from, target.at) <= 1;
+    if (!adjacent || unit.weapon.closeQuarter) return unit.weapon;
+    return unit.sidearm ?? FISTS;
+}
+
 interface Option {
     tile: Hex;
     cost: number;
@@ -72,7 +86,7 @@ interface Option {
 function exposureOf(battle: Battle, unit: Unit, tile: Hex): number {
     const shelter = ruleAt(battle.setup.board, tile).incoming ?? 1;
     const seen = living(battle, other(unit.side))
-        .filter(foe => canReach(battle.setup.board, foe, foe.at, { ...unit, at: tile })).length;
+        .filter(foe => canReach(battle.setup.board, foe, foe.at, { ...unit, at: tile }, foe.weapon)).length;
     return seen * 6 * shelter;
 }
 
@@ -125,11 +139,12 @@ function bestOption(battle: Battle, unit: Unit): Option {
 
     const options: Option[] = [];
     for (const tile of tiles) {
-        const shootable = foes.filter(foe => canReach(board, unit, tile.hex, foe));
+        const shootable = foes.filter(foe => canReach(board, unit, tile.hex, foe, weaponAgainst(unit, tile.hex, foe)));
         const candidates: (Unit | null)[] = shootable.length > 0 ? shootable : [null];
 
         for (const target of candidates) {
-            const damage = target ? expectedDamage(board, unit, tile.hex, target) : 0;
+            const weapon = target ? weaponAgainst(unit, tile.hex, target) : unit.weapon;
+            const damage = target ? expectedDamage(board, unit, tile.hex, target, weapon) : 0;
             // Finishing someone is worth more than spreading damage around.
             const finisher = target && damage >= target.hp ? 2 : 1;
             const worth = target ? damage * finisher * threatOf(target) : 0;
@@ -155,15 +170,23 @@ function bestOption(battle: Battle, unit: Unit): Option {
 }
 
 function attack(battle: Battle, unit: Unit, target: Unit): Activity {
-    const chance = hitChance(battle.setup.board, unit, unit.at, target);
-    const perHit = damageOf(unit.weapon, target.armour);
+    const board = battle.setup.board;
+    const weapon = weaponAgainst(unit, unit.at, target);
+    const chance = hitChance(board, unit, unit.at, target, weapon);
+    const perHit = damageOf(weapon, target.armour, target.armourType, {
+        tuning: unit.tuning,
+        cover: coverMultiplier(board, weapon, target.at),
+    });
+
+    // Every attempt is rolled on its own: four shots are four chances, not one
+    // chance for four times the damage.
     let landed = 0;
-    for (let i = 0; i < unit.weapon.hits; i += 1) if (roll(battle) < chance) landed += 1;
+    for (let i = 0; i < weapon.hits; i += 1) if (roll(battle) < chance) landed += 1;
 
     const damage = landed * perHit;
     target.hp = Math.max(0, target.hp - damage);
     if (target.hp === 0) target.down = true;
-    return { kind: 'attack', targetId: target.id, hits: landed, damage };
+    return { kind: 'attack', targetId: target.id, hits: landed, damage, weapon: weapon.name };
 }
 
 function activate(battle: Battle, unit: Unit) {
@@ -199,10 +222,19 @@ function endOfRound(battle: Battle) {
     }
 }
 
-const outcomeOf = (battle: Battle): Outcome | null => {
-    if (living(battle, 'enemy').length === 0) return 'victory';
-    if (living(battle, 'crew').length === 0) return 'defeat';
+const endingOf = (battle: Battle): Ending | null => {
+    const crew = living(battle, 'crew').length;
+    const enemy = living(battle, 'enemy').length;
+    // Hazard can drop the last of both sides in the same end-of-round pass.
+    // Checking the enemy first would have handed that to the crew.
+    if (crew === 0 && enemy === 0) return 'mutual-down';
+    if (enemy === 0) return 'enemy-down';
+    if (crew === 0) return 'crew-down';
     return null;
+};
+
+const OUTCOME_OF: Record<Ending, Outcome> = {
+    'enemy-down': 'victory', 'crew-down': 'defeat', 'mutual-down': 'timeout', rounds: 'timeout',
 };
 
 export function runBattle(setup: BattleSetup): BattleResult {
@@ -215,23 +247,25 @@ export function runBattle(setup: BattleSetup): BattleResult {
     };
 
     const maxRounds = setup.maxRounds ?? MAX_ROUNDS;
-    let outcome = outcomeOf(battle);
+    let ending = endingOf(battle);
 
-    while (!outcome && battle.round < maxRounds) {
+    while (!ending && battle.round < maxRounds) {
         battle.round += 1;
         for (const unit of activationOrder(battle)) {
             if (unit.down) continue; // shot before its turn came round
             activate(battle, unit);
-            outcome = outcomeOf(battle);
-            if (outcome) break;
+            ending = endingOf(battle);
+            if (ending) break;
         }
-        if (outcome) break;
+        if (ending) break;
         endOfRound(battle);
-        outcome = outcomeOf(battle);
+        ending = endingOf(battle);
     }
 
+    const settled: Ending = ending ?? 'rounds';
     return {
-        outcome: outcome ?? 'timeout',
+        outcome: OUTCOME_OF[settled],
+        ending: settled,
         rounds: battle.round,
         activations: battle.activations,
         units: battle.units,
