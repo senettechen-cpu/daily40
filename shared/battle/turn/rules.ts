@@ -49,3 +49,49 @@ export const damageOf = (weapon: Weapon, armour: number) =>
 /** What an attack is worth on average, used by the AI to choose its shot. */
 export const expectedDamage = (board: Board, unit: Unit, from: Hex, target: Unit) =>
     unit.weapon.hits * hitChance(board, unit, from, target) * damageOf(unit.weapon, target.armour);
+
+// ---------------------------------------------------------------------------
+// Placeholder stat tables. GPT owns every number below (design §11 and
+// docs/gpt-brief-battle-v2-numbers.md); they are gathered here so the numbers
+// pass replaces one file and no rule has to change with them.
+//
+// P2 adds damageType to each weapon and armourType to each plate, plus the
+// coefficient table between them. Until then a hit is armour against damage.
+// ---------------------------------------------------------------------------
+
+/** Nobody is unarmed: an empty weapon slot still has fists. */
+export const FISTS: Weapon = { name: '徒手', damage: 6, hits: 1, range: 1, penetration: 0 };
+
+/** By catalogue id. An id absent here is carried but does not fight. */
+export const WEAPON_STATS: Record<string, Weapon> = {
+    lasgun: { name: '制式雷射槍', damage: 16, hits: 2, range: 5, penetration: 0 },
+    laspistol: { name: '制式雷射手槍', damage: 12, hits: 1, range: 2, penetration: 0 },
+    shotgun: { name: '霰彈槍', damage: 11, hits: 3, range: 3, penetration: 0 },
+    'precision-lasgun': { name: '精準雷射槍', damage: 26, hits: 1, range: 7, penetration: 5 },
+    flamer: { name: '火焰器', damage: 9, hits: 4, range: 2, penetration: 0 },
+    'plasma-gun': { name: '電漿槍', damage: 34, hits: 1, range: 5, penetration: 30 },
+    'heavy-weapon': { name: '星界軍重武器組', damage: 18, hits: 3, range: 6, penetration: 10 },
+    'sororitas-boltgun': { name: '修女用爆彈槍', damage: 22, hits: 2, range: 5, penetration: 10 },
+    'astartes-boltgun': { name: '阿斯塔特用爆彈槍', damage: 28, hits: 2, range: 5, penetration: 15 },
+};
+
+export const ARMOUR_STATS: Record<string, { armour: number }> = {
+    'flak-armour': { armour: 20 },
+    'carapace-armour': { armour: 40 },
+    'astartes-power-armour': { armour: 80 },
+};
+
+export interface DutyStats { initiative: number; movement: number }
+
+/** Initiative orders a side; movement is tiles per activation. */
+export const DUTY_STATS: Record<string, DutyStats> = {
+    sergeant: { initiative: 14, movement: 3 },
+    marksman: { initiative: 12, movement: 3 },
+    rifleman: { initiative: 10, movement: 3 },
+    medic: { initiative: 9, movement: 3 },
+    comms: { initiative: 9, movement: 3 },
+    engineer: { initiative: 8, movement: 3 },
+    flamer: { initiative: 8, movement: 3 },
+    plasma: { initiative: 8, movement: 3 },
+    heavy: { initiative: 6, movement: 2 },
+};
