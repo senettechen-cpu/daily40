@@ -10,6 +10,8 @@ export interface RosterData { characters: Character[]; squads: Squad[] }
 
 export interface ArmoryData { catalog: CatalogItem[]; items: EquipmentItem[]; authorized: string[]; balance: number }
 
+export interface OperationGate { allowed: boolean; paysRequisition: boolean; reason: string; completedCores: number; day: string }
+
 export interface RequisitionSummary {
     enabled: boolean;
     balance?: number;
@@ -302,6 +304,13 @@ export const api = {
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error || '無法回收');
         return data.refunded;
+    },
+
+    // v1.5 G1: whether a new operation may start today.
+    getOperationGate: async (token?: string): Promise<OperationGate> => {
+        const response = await fetch(`${API_URL}/operations/gate`, { headers: getHeaders(token) });
+        if (!response.ok) throw new Error('Failed to read operation gate');
+        return response.json();
     },
 
     setProjectMilestones: async (projectId: string, milestoneIds: string[], token?: string): Promise<string[]> => {

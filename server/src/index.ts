@@ -44,6 +44,9 @@ app.use('/api/roster', verifyToken, rosterRoutes);
 import armoryRoutes from './routes/armory';
 app.use('/api/armory', verifyToken, armoryRoutes);
 
+import operationRoutes from './routes/operations';
+app.use('/api/operations', verifyToken, operationRoutes);
+
 import notificationRoutes from './routes/notifications';
 app.use('/api/notifications', verifyToken, notificationRoutes);
 

@@ -1,6 +1,21 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { CREW_SIZE, LANES, validateDeployment } from '../sim/engine';
 import { SCENARIOS, setupFor } from '../sim/scenarios';
+import type { CrewProfile } from '../sim/engine';
+import { DEPLOYMENT_KEY } from '../handoff';
+
+interface Handoff { crew: CrewProfile[]; unmodelled: string[]; squadName: string }
+
+/** A real squad handed over by the roster, or null for the built-in test crew. */
+function readDeployment(): Handoff | null {
+    try {
+        const raw = sessionStorage.getItem(DEPLOYMENT_KEY);
+        const parsed = raw ? JSON.parse(raw) as Handoff : null;
+        return parsed && Array.isArray(parsed.crew) && parsed.crew.length > 0 ? parsed : null;
+    } catch {
+        return null;
+    }
+}
 import { TICKS_PER_SECOND, WEAPONS } from '../sim/rules';
 import { simulateWithReport, type ReportEntry, type SimulatedBattle, type UnitSnap, type UnitStats } from '../report/report';
 import { loadReportArt, NO_ART, type ReportArt } from './reportArt';
@@ -86,6 +101,7 @@ function Results({ sim, names }: { sim: SimulatedBattle; names: Record<string, s
 }
 
 export function BattleReportApp() {
+    const [deployment] = useState<Handoff | null>(readDeployment);
     const [scenarioId, setScenarioId] = useState(SCENARIOS[0].id);
     const scenario = SCENARIOS.find(s => s.id === scenarioId)!;
     const [lanes, setLanes] = useState<number[]>(scenario.lanes);
@@ -104,7 +120,7 @@ export function BattleReportApp() {
 
     const start = () => {
         if (deployError) return;
-        setSim(simulateWithReport(setupFor(scenario, lanes, seed)));
+        setSim(simulateWithReport(setupFor(scenario, lanes, seed, deployment?.crew)));
         playRef.current = 0;
         setPlayTick(0);
         setPhase('playing');
@@ -176,6 +192,12 @@ export function BattleReportApp() {
                 {LANES.map(l => <button key={l} type="button" aria-pressed={lanes.includes(l)} className={lanes.includes(l) ? 'is-on' : ''} onClick={() => toggleLane(l)}>通道 {l}</button>)}
             </div>
             <p className="bt-hint">{scenario.description}</p>
+            {deployment && (
+                <p className="bt-hint">
+                    使用「{deployment.squadName}」的實際編成與配裝。
+                    {deployment.unmodelled.length > 0 && `目前模擬沒有這些裝備的戰鬥數值，本場不生效：${deployment.unmodelled.join('、')}。`}
+                </p>
+            )}
             {deployError && <p className="bt-warn">{deployError}（目前 {lanes.length}/{CREW_SIZE}）</p>}
         </section>}
 

@@ -1,4 +1,4 @@
-import type { BattleSetup, EnemySpawn } from './engine';
+import type { BattleSetup, CrewProfile, EnemySpawn } from './engine';
 
 // Reproducible phase-1 test situations. The same scenario, lanes and seed always
 // produce the same battle, so a reported problem can be replayed exactly.
@@ -38,4 +38,5 @@ export const SCENARIOS: Scenario[] = [
     },
 ];
 
-export const setupFor = (scenario: Scenario, lanes = scenario.lanes, seed = scenario.seed): BattleSetup => ({ lanes, enemies: scenario.enemies, seed });
+export const setupFor = (scenario: Scenario, lanes = scenario.lanes, seed = scenario.seed, crew?: CrewProfile[]): BattleSetup =>
+    ({ lanes, enemies: scenario.enemies, seed, crew });

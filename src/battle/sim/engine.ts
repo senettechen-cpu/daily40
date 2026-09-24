@@ -80,7 +80,27 @@ export interface Battle {
 }
 
 export interface EnemySpawn { x: number; y: number; order: Order }
-export interface BattleSetup { lanes: number[]; enemies: EnemySpawn[]; seed: number; crewAmmo?: Partial<Record<Slot, number>> }
+/**
+ * Per-soldier stats for a real deployment. Absent means the test crew: six
+ * identical guardsmen on the HUMAN baseline, which keeps every existing
+ * scenario and its recorded seeds reproducing exactly as before.
+ */
+export interface CrewProfile {
+    id: string;
+    name: string;
+    maxHp: number;
+    armor: number;
+    accuracy: number; // 0..1
+    loadout: Record<Slot, WeaponId>;
+}
+
+export interface BattleSetup {
+    lanes: number[];
+    enemies: EnemySpawn[];
+    seed: number;
+    crewAmmo?: Partial<Record<Slot, number>>;
+    crew?: CrewProfile[];
+}
 
 export const CREW_SIZE = 6;
 export const LANES = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -102,12 +122,14 @@ export function validateDeployment(lanes: number[]): string {
     return '';
 }
 
-function makeUnit(id: string, name: string, side: Side, faction: Faction, order: Order, at: Point, ammo?: Partial<Record<Slot, number>>): Unit {
+function makeUnit(id: string, name: string, side: Side, faction: Faction, order: Order, at: Point, ammo?: Partial<Record<Slot, number>>, profile?: CrewProfile): Unit {
+    const maxHp = profile?.maxHp ?? HUMAN.hp;
+    const loadout: Record<Slot, WeaponId> = profile?.loadout ?? { primary: 'lasgun', secondary: 'laspistol' };
     return {
         id, name, side, faction, order, pos: { ...at }, tile: { ...at }, prev: { ...at }, step: 1, path: [], goal: null, walked: 0,
-        hp: HUMAN.hp, maxHp: HUMAN.hp, armor: HUMAN.armor, accuracy: HUMAN.accuracy,
-        loadout: { primary: 'lasgun', secondary: 'laspistol' }, active: 'primary',
-        ammo: { primary: ammo?.primary ?? WEAPONS.lasgun.magazine, secondary: ammo?.secondary ?? WEAPONS.laspistol.magazine },
+        hp: maxHp, maxHp, armor: profile?.armor ?? HUMAN.armor, accuracy: profile?.accuracy ?? HUMAN.accuracy,
+        loadout, active: 'primary',
+        ammo: { primary: ammo?.primary ?? WEAPONS[loadout.primary].magazine, secondary: ammo?.secondary ?? WEAPONS[loadout.secondary].magazine },
         action: { kind: 'idle' }, posture: 'standing', positioned: false, cooldownUntil: 0, aimedAt: null, noTargetSince: null,
         lastHitTick: -999, stats: { shots: 0, hits: 0, damage: 0 },
     };
@@ -117,7 +139,10 @@ export function createBattle(setup: BattleSetup): Battle {
     const error = validateDeployment(setup.lanes);
     if (error) throw new Error(error);
     const units = [
-        ...setup.lanes.map((lane, i) => makeUnit(`crew-${i + 1}`, `卡迪安 ${i + 1}`, 'crew', 'cadian', 'hold', { x: 1, y: lane }, setup.crewAmmo)),
+        ...setup.lanes.map((lane, i) => {
+            const profile = setup.crew?.[i];
+            return makeUnit(profile?.id ?? `crew-${i + 1}`, profile?.name ?? `卡迪安 ${i + 1}`, 'crew', 'cadian', 'hold', { x: 1, y: lane }, setup.crewAmmo, profile);
+        }),
         ...setup.enemies.map((e, i) => makeUnit(`enemy-${i + 1}`, `叛軍 ${i + 1}${e.order === 'assault' ? '（突擊）' : ''}`, 'enemy', 'traitor', e.order, { x: e.x, y: e.y })),
     ];
     const taken = units.map(u => `${u.tile.x},${u.tile.y}`);

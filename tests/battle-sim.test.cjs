@@ -216,6 +216,15 @@ test('the battle test is isolated from game data', () => {
     for (const file of ['src/battle/sim/engine.ts', 'src/battle/sim/rules.ts', 'src/battle/view/BattleTestApp.tsx', 'src/battle/view/BattleStage.tsx', 'src/battle/view/animation.ts', 'src/battle/sprites/loader.ts', 'src/battle/report/report.ts', 'src/battle/view/BattleReportApp.tsx', 'src/battle/view/reportArt.ts', 'src/battle/main.tsx']) {
         const code = fs.readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
         assert.doesNotMatch(code, /from\s+['"][^'"]*(contexts\/|services\/|lib\/firebase|firebase)/, `${file} imports app data`);
-        assert.doesNotMatch(code, /localStorage|sessionStorage|indexedDB|modifyResources|useGame\(|\bapi\./, `${file} touches app data`);
+        assert.doesNotMatch(code, /localStorage|indexedDB|modifyResources|useGame\(|api\./, `${file} touches app data`);
     }
+});
+
+test('the only channel from the app is a read-only deployment handoff', () => {
+    // Phase 4 lets a real squad fight, so the report view reads one handoff key.
+    // It must stay a read: the battle can never write back into app storage.
+    const report = fs.readFileSync('src/battle/view/BattleReportApp.tsx', 'utf8');
+    const uses = [...report.matchAll(/sessionStorage\.(\w+)/g)].map(match => match[1]);
+    assert.deepEqual([...new Set(uses)], ['getItem'], 'the battle view may only read sessionStorage');
+    assert.match(report, /DEPLOYMENT_KEY/, 'reads go through the shared handoff key');
 });

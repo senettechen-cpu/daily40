@@ -1,12 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Input, Modal, Select } from 'antd';
-import { Plus, Trash2, UserPlus, X } from 'lucide-react';
+import { Plus, Swords, Trash2, UserPlus, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 import {
     Character, DUTY_LABELS, Duty, HEALTH_LABELS, ORIGIN_LABELS, SQUAD_SIZE, Squad,
     isDeployable, levelOf, maxHp, xpToNext,
 } from '../../shared/roster';
+import { validateSquad } from '../../shared/roster';
+import { deploymentFor } from '../battle/deployment';
+import { DEPLOYMENT_KEY } from '../battle/handoff';
 
 // Only the plain Cadian rifleman has delivered art. Giving another duty that
 // portrait would misrepresent them, so everyone else gets an initials medallion
@@ -83,6 +86,7 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
     const [dutyFilter, setDutyFilter] = useState<Duty | 'all'>('all');
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
+    const [departure, setDeparture] = useState<string | null>(null);
 
     const load = useCallback(async () => {
         try {
@@ -124,6 +128,42 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
     const setMembers = (memberIds: string[]) => {
         if (!activeSquad) return;
         void run(token => api.updateSquad(activeSquad.id, { memberIds }, token).then(() => undefined));
+    };
+
+    /**
+     * v1.5 G1 plus the departure checks. The gate is read from the server, so a
+     * client that has been open since yesterday cannot slip past it.
+     */
+    const depart = async () => {
+        if (!activeSquad) return;
+        setBusy(true);
+        setDeparture(null);
+        setError(null);
+        try {
+            const token = await getToken();
+            if (!token) return;
+
+            const squadError = validateSquad(activeSquad, characters, true);
+            if (squadError) { setError(squadError); return; }
+            if (members.length !== SQUAD_SIZE) {
+                setError(`模擬目前固定部署 ${SQUAD_SIZE} 個通道，請補滿再出戰。`);
+                return;
+            }
+
+            const gate = await api.getOperationGate(token);
+            if (!gate.allowed) { setError(gate.reason); return; }
+
+            const armory = await api.getArmory(token);
+            const deployment = deploymentFor(members, armory.items);
+            sessionStorage.setItem(DEPLOYMENT_KEY, JSON.stringify({ ...deployment, squadName: activeSquad.name }));
+
+            setDeparture(gate.paysRequisition ? gate.reason : `${gate.reason}（本次不計軍需）`);
+            window.open(`${import.meta.env.BASE_URL}battle-test.html`, '_blank');
+        } catch (err) {
+            setError(err instanceof Error ? err.message : '無法出戰');
+        } finally {
+            setBusy(false);
+        }
     };
 
     const addSquad = () => {
@@ -188,6 +228,15 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
                         {members.some(member => !isDeployable(member)) && (
                             <div className="mt-2 font-mono text-[11px] text-red-400">編成中有重傷人員，出發前必須替換。</div>
                         )}
+
+                        <div className="mt-3 flex items-center gap-3">
+                            <Button size="small" icon={<Swords size={14} />} disabled={busy || members.length === 0}
+                                onClick={() => void depart()}
+                                className="!bg-transparent !border-imperial-gold !text-imperial-gold font-mono tracking-widest">
+                                出戰
+                            </Button>
+                            {departure && <span className="font-mono text-[11px] text-green-400">{departure}</span>}
+                        </div>
                     </div>
                 )}
 
