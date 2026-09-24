@@ -37,13 +37,18 @@ test('the extermination order never locks the app, and an existing lock is relea
     assert.match(app, /if \(isPenitentMode && !LEGACY_PENALTIES_FROZEN\)/);
 });
 
-test('servo skull is gone: not sold, refused before any RP is spent, and purchases never touch tasks', () => {
-    assert.equal(freeze.isArmoryItem('servo_skull'), false);
-    for (const id of ['theme_khorne', 'rosarius', 'theme_gold']) assert.equal(freeze.isArmoryItem(id), true);
-    const sold = [...armory.matchAll(/\{ id: '([a-z_]+)'/g)].map(m => m[1]);
-    assert.deepEqual(sold, [...freeze.ARMORY_ITEM_IDS]);
-    assert.doesNotMatch(armory, /servo_skull|伺服骷髏/);
-    const purchase = bodyOf(context, 'const purchaseItem = ');
-    assert.ok(purchase.indexOf('isArmoryItem(type)') < purchase.indexOf('modifyResources('), 'item check must precede the RP charge');
-    assert.doesNotMatch(purchase, /setTasks|updateTask|servo_skull/);
+test('the RP armoury is retired: no purchase path, no servo skull, nothing touches tasks', () => {
+    // Stronger than keeping the skull off a list: there is no RP-spending path at
+    // all, so no item can mark a real-life task completed.
+    assert.equal(freeze.ARMORY_ITEM_IDS, undefined);
+    assert.equal(freeze.isArmoryItem, undefined);
+    assert.doesNotMatch(context, /purchaseItem/);
+    assert.doesNotMatch(armory, /servo_skull|伺服骷髏|modifyResources/);
+    for (const source of [context, app, armory]) assert.doesNotMatch(source, /servo_skull/);
+});
+
+test('the v1.5 armoury spends requisition through the server and never writes tasks', () => {
+    // The component only calls the API; the balance lives in the server ledger.
+    assert.match(armory, /api\.purchaseEquipment/);
+    assert.doesNotMatch(armory, /setTasks|updateTask/);
 });

@@ -41,6 +41,9 @@ app.use('/api/rewards', verifyToken, rewardRoutes);
 import rosterRoutes from './routes/roster';
 app.use('/api/roster', verifyToken, rosterRoutes);
 
+import armoryRoutes from './routes/armory';
+app.use('/api/armory', verifyToken, armoryRoutes);
+
 import notificationRoutes from './routes/notifications';
 app.use('/api/notifications', verifyToken, notificationRoutes);
 

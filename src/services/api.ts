@@ -2,10 +2,13 @@
 import { Task, Project, ArmyStrength, SectorHistory, Resources } from '../types';
 import type { LedgerPreset, PresetFields, Suggestion } from '../../shared/ledger/presets';
 import type { Character, Squad } from '../../shared/roster';
+import type { CatalogItem, EquipmentItem } from '../../shared/armory';
 
 export interface LedgerQuickMenuData { pinned: LedgerPreset[]; suggestions: Suggestion[] }
 
 export interface RosterData { characters: Character[]; squads: Squad[] }
+
+export interface ArmoryData { catalog: CatalogItem[]; items: EquipmentItem[]; authorized: string[]; balance: number }
 
 export interface RequisitionSummary {
     enabled: boolean;
@@ -271,6 +274,34 @@ export const api = {
     deleteSquad: async (id: string, token?: string): Promise<void> => {
         const response = await fetch(`${API_URL}/roster/squads/${encodeURIComponent(id)}`, { method: 'DELETE', headers: getHeaders(token) });
         if (!response.ok) throw new Error('無法刪除編成');
+    },
+
+    // v1.5 armoury
+    getArmory: async (token?: string): Promise<ArmoryData> => {
+        const response = await fetch(`${API_URL}/armory`, { headers: getHeaders(token) });
+        if (!response.ok) throw new Error('Failed to fetch armory');
+        return response.json();
+    },
+
+    purchaseEquipment: async (catalogId: string, token?: string): Promise<EquipmentItem> => {
+        const response = await fetch(`${API_URL}/armory/purchase`, { method: 'POST', headers: getHeaders(token), body: JSON.stringify({ catalogId }) });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || '無法採購');
+        return data;
+    },
+
+    assignEquipment: async (itemId: string, characterId: string | null, token?: string): Promise<EquipmentItem> => {
+        const response = await fetch(`${API_URL}/armory/items/${encodeURIComponent(itemId)}/assign`, { method: 'POST', headers: getHeaders(token), body: JSON.stringify({ characterId }) });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || '無法配裝');
+        return data;
+    },
+
+    sellEquipment: async (itemId: string, token?: string): Promise<number> => {
+        const response = await fetch(`${API_URL}/armory/items/${encodeURIComponent(itemId)}`, { method: 'DELETE', headers: getHeaders(token) });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || '無法回收');
+        return data.refunded;
     },
 
     setProjectMilestones: async (projectId: string, milestoneIds: string[], token?: string): Promise<string[]> => {

@@ -56,7 +56,6 @@ function Preview() {
         recruitUnit: type => { const cost = getRecruitmentCost(type, getTraitForMonth(`M${new Date().getMonth() + 1}`) === 'hive'); if (resources.glory < cost) return false; modifyResources(0, -cost, 'preview'); setArmy(previous => ({ ...previous, reserves: { ...previous.reserves, [type]: previous.reserves[type] + 1 } })); return true; },
         deployUnit: transfer, recallUnit: (month, type, count) => transfer(month, type, -count),
         cleanseCorruption: () => { if (resources.rp >= 20) { modifyResources(-20, 0, 'preview'); setCorruption(previous => Math.max(0, previous - 30)); } },
-        purchaseItem: (cost, id) => { if (resources.rp >= cost) { modifyResources(-cost, 0, 'preview'); if (id === 'rosarius') setCorruption(previous => Math.max(0, previous - 50)); } },
         resetGame: unavailable, activateTacticalScan: unavailable, updateSettings: unavailable, exportSTC: unavailable, importSTC: async () => { unavailable(); },
         debugSetResources: setResources, debugSetCorruption: setCorruption, debugSetArmyStrength: setArmy,
         addProject: (title, difficulty, month) => { const id = crypto.randomUUID(); setProjects(previous => [...previous, { id, title, difficulty, month, completed: false, subTasks: [] }]); return id; },

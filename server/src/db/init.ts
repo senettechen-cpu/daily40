@@ -200,6 +200,28 @@ const initDb = async () => {
         )`);
         await pool.query('CREATE INDEX IF NOT EXISTS idx_squads_user_id ON squads(user_id)');
 
+        // v1.5 armoury: every owned piece of gear is its own row, so two soldiers
+        // can never share one weapon. `paid` is what was actually spent, which is
+        // what the 25% buy-back is calculated from; issued gear is 0 and refunds 0.
+        await pool.query(`CREATE TABLE IF NOT EXISTS equipment_items (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            catalog_id TEXT NOT NULL,
+            assigned_to TEXT,
+            paid INTEGER NOT NULL DEFAULT 0,
+            acquired_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        )`);
+        await pool.query('CREATE INDEX IF NOT EXISTS idx_equipment_user_id ON equipment_items(user_id)');
+
+        // Restricted catalogue entries stay unbuyable until a campaign or story
+        // grants the authorization; requisition alone is never enough.
+        await pool.query(`CREATE TABLE IF NOT EXISTS equipment_authorizations (
+            user_id TEXT NOT NULL,
+            catalog_id TEXT NOT NULL,
+            granted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            PRIMARY KEY (user_id, catalog_id)
+        )`);
+
         console.log('Migrations applied.');
 
         // Initialize default game state if not exists

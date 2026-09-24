@@ -5,8 +5,7 @@
 // catch-up would charge the entire frozen period at once.
 export const LEGACY_PENALTIES_FROZEN = true;
 
-// Armory items that may still be bought with RP. The servo skull was removed: it marked a
-// random real-life task as completed, and the game must never change life data.
-export const ARMORY_ITEM_IDS = ['theme_khorne', 'rosarius', 'theme_gold'] as const;
-export type ArmoryItemId = typeof ARMORY_ITEM_IDS[number];
-export const isArmoryItem = (id: string): id is ArmoryItemId => (ARMORY_ITEM_IDS as readonly string[]).includes(id);
+// The RP armoury is retired. v1.5 replaced the "life rewards buy cosmetics" rule
+// with one requisition wallet spent on equipment, so there is no longer any path
+// that spends RP on an item — which also permanently settles the servo skull,
+// the item that used to mark a random real-life task as completed.

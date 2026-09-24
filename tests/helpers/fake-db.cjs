@@ -3,7 +3,7 @@
 // (user_id, seq), preset upsert) and rolls back on error like a transaction.
 // It is not a SQL engine: an unknown statement throws so tests cannot pass silently.
 function createFakeDb() {
-    const tables = { expenses: [], reward_entries: [], ledger_presets: [], core_plans: [], tasks: [], projects: [], roster_characters: [], squads: [] };
+    const tables = { expenses: [], reward_entries: [], ledger_presets: [], core_plans: [], tasks: [], projects: [], roster_characters: [], squads: [], equipment_items: [], equipment_authorizations: [] };
     const log = [];
     const normalized = sql => sql.replace(/\s+/g, ' ').trim();
 
@@ -120,6 +120,33 @@ function createFakeDb() {
             const before = tables.squads.length;
             tables.squads = tables.squads.filter(r => !(r.id === p[0] && r.user_id === p[1]));
             return { rows: [], rowCount: before - tables.squads.length };
+        }
+        if (s.startsWith('SELECT id, catalog_id, assigned_to, paid, acquired_at FROM equipment_items')) {
+            const rows = tables.equipment_items.filter(r => r.user_id === p[0]);
+            return { rows, rowCount: rows.length };
+        }
+        if (s.startsWith('INSERT INTO equipment_items')) {
+            tables.equipment_items.push({ id: p[0], user_id: p[1], catalog_id: p[2], assigned_to: null, paid: p[3], acquired_at: new Date(fake.now += 1000) });
+            return { rows: [], rowCount: 1 };
+        }
+        if (s.startsWith('UPDATE equipment_items SET assigned_to = NULL WHERE id = $1 AND user_id = $2')) {
+            const row = tables.equipment_items.find(r => r.id === p[0] && r.user_id === p[1]);
+            if (row) row.assigned_to = null;
+            return { rows: [], rowCount: row ? 1 : 0 };
+        }
+        if (s.startsWith('UPDATE equipment_items SET assigned_to = $1 WHERE id = $2 AND user_id = $3')) {
+            const row = tables.equipment_items.find(r => r.id === p[1] && r.user_id === p[2]);
+            if (row) row.assigned_to = p[0];
+            return { rows: [], rowCount: row ? 1 : 0 };
+        }
+        if (s.startsWith('DELETE FROM equipment_items WHERE id = $1 AND user_id = $2')) {
+            const before = tables.equipment_items.length;
+            tables.equipment_items = tables.equipment_items.filter(r => !(r.id === p[0] && r.user_id === p[1]));
+            return { rows: [], rowCount: before - tables.equipment_items.length };
+        }
+        if (s.startsWith('SELECT catalog_id FROM equipment_authorizations')) {
+            const rows = tables.equipment_authorizations.filter(r => r.user_id === p[0]);
+            return { rows, rowCount: rows.length };
         }
         throw new Error(`fake-db: unsupported statement: ${s}`);
     }

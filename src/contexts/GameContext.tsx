@@ -5,7 +5,7 @@ import { api } from '../services/api';
 import { RITUAL_ACTIVITIES } from '../data/astartesData';
 import { getRecruitmentCost, UNIT_POWER } from '../data/unitVisuals';
 import { useCampaign } from '../game/useCampaign';
-import { isArmoryItem, LEGACY_PENALTIES_FROZEN } from '../game/legacyFreeze';
+import { LEGACY_PENALTIES_FROZEN } from '../game/legacyFreeze';
 import { localDay, type CampaignState, type Site, type Tactic } from '../game/campaign';
 
 
@@ -27,7 +27,6 @@ export interface GameContextType {
     resetGame: () => void;
     // Armory
     radarTheme: string;
-    purchaseItem: (cost: number, type: string) => void;
     // Strategic
     viewMode: 'tactical' | 'strategic';
     setViewMode: (mode: 'tactical' | 'strategic') => void;
@@ -788,30 +787,6 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // Maybe trigger a backend reset?
     };
 
-    const purchaseItem = (cost: number, type: string) => {
-        // Unknown or retired items (e.g. the servo skull) are refused before any RP is spent.
-        if (!isArmoryItem(type)) {
-            console.warn(`Armory item not available: ${type}`);
-            return;
-        }
-        if (resources.rp < cost) {
-            console.warn("Insufficient RP");
-            return;
-        }
-
-        modifyResources(-cost, 0, `Armory Purchase: ${type}`);
-
-        // Execute Effects
-        if (type === 'theme_khorne') {
-            setRadarTheme('red');
-        }
-        else if (type === 'theme_gold') {
-            setRadarTheme('gold');
-        }
-        else if (type === 'rosarius') {
-            modifyCorruption(-50, "Item Effect: Rosarius");
-        }
-    };
 
     // Project Logic
     const addProject = (title: string, difficulty: number, month: string) => {
@@ -1227,7 +1202,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }),
             resources, corruption, ownedUnits, isPenitentMode,
             addTask, updateTask, purgeTask, deleteTask, buyUnit, cleanseCorruption, resetGame,
-            radarTheme, purchaseItem,
+            radarTheme,
             viewMode, setViewMode, projects, addProject,
             addSubTask, completeSubTask, updateSubTask, deleteSubTask, deleteProject, recruitUnit,
             deployUnit, recallUnit,

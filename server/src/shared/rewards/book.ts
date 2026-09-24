@@ -81,6 +81,36 @@ export function reconcile(book: RewardBook, prefix: string, causes: RewardCause[
     return planned;
 }
 
+export interface SpendInput { sourceKey: string; amount: number; day: string; at: Date; reason: string }
+
+const hasKind = (book: RewardBook, sourceKey: string, kind: RewardKind) =>
+    book.entries.some(entry => entry.sourceKey === sourceKey && entry.kind === kind);
+
+/**
+ * A purchase. Idempotent by source key, so a retried request cannot charge
+ * twice, and refused outright when the balance would not cover it.
+ */
+export function planSpend(book: RewardBook, input: SpendInput): PlannedEntry | null {
+    if (!canSpend(book, input.amount) || hasKind(book, input.sourceKey, 'spend')) return null;
+    return { sourceKey: input.sourceKey, kind: 'spend', amount: -input.amount, day: input.day, at: input.at.toISOString(), reason: input.reason };
+}
+
+/** v1.5 §2: selling back returns at most a quarter of what was actually paid. */
+export const REFUND_RATE = 0.25;
+
+/**
+ * Refund for an item, keyed separately from its purchase so both stay in the
+ * book. Issued gear has no spend entry, so it correctly refunds nothing.
+ */
+export function planRefund(book: RewardBook, spendKey: string, refundKey: string, day: string, at: Date, reason: string): PlannedEntry | null {
+    const spend = book.entries.find(entry => entry.sourceKey === spendKey && entry.kind === 'spend');
+    if (!spend || hasKind(book, refundKey, 'grant')) return null;
+
+    const amount = Math.floor(Math.abs(spend.amount) * REFUND_RATE);
+    if (amount <= 0) return null;
+    return { sourceKey: refundKey, kind: 'grant', amount, day, at: at.toISOString(), reason };
+}
+
 export function append(book: RewardBook, ...entries: (PlannedEntry | null)[]): RewardBook {
     const valid = entries.filter((e): e is PlannedEntry => e !== null);
     if (!valid.length) return book;
