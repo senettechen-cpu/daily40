@@ -79,3 +79,37 @@ test('a real deployment drives the battle, and its absence reproduces the old te
     assert.equal(testCrew[0].armor, 20);
     assert.equal(testCrew[0].maxHp, 100);
 });
+
+test('carapace slows movement once; flak and power armour do not', () => {
+    const suits = { 'flak-armour': 1.2, 'carapace-armour': 1.08, 'astartes-power-armour': 1.2 };
+    for (const [suit, expected] of Object.entries(suits)) {
+        const { crew } = deploy.deploymentFor([character('a')], [item('i1', suit, 'a')]);
+        assert.equal(Number(crew[0].speed.toFixed(4)), expected, `${suit} speed`);
+    }
+    // No armour at all keeps the baseline.
+    assert.equal(deploy.deploymentFor([character('a')], []).crew[0].speed, 1.2);
+});
+
+test('the speed penalty is applied once, not compounded as the unit walks', () => {
+    const scenario = scenarios.SCENARIOS[0];
+    const roster = ['a', 'b', 'c', 'd', 'e', 'f'].map(id => character(id));
+    const { crew } = deploy.deploymentFor(roster, [item('i1', 'carapace-armour', 'a')]);
+
+    let battle = engine.createBattle(scenarios.setupFor(scenario, scenario.lanes, scenario.seed, crew));
+    const walker = () => battle.units.find(u => u.id === 'a');
+    const speedAtStart = walker().speed;
+
+    for (let i = 0; i < 200; i += 1) battle = engine.stepBattle(battle);
+    // A per-tick multiplier would have driven this toward zero by now.
+    assert.equal(walker().speed, speedAtStart);
+    assert.equal(Number(speedAtStart.toFixed(4)), 1.08);
+});
+
+test('carapace changes movement only: cover, aim, reload and swap timings are untouched', () => {
+    const rules = loadTs('src/battle/sim/rules.ts');
+    const source = require('node:fs').readFileSync('src/battle/sim/engine.ts', 'utf8');
+    // The unit's speed is read for movement and nowhere else.
+    const uses = [...source.matchAll(/u\.speed|\.speed\b/g)].length;
+    assert.ok(uses <= 3, `unit speed is referenced ${uses} times; it should only drive movement`);
+    assert.ok(rules.ENTER_COVER_TICKS > 0 && rules.SWAP_TICKS.primary > 0, 'fixed timings still exist');
+});

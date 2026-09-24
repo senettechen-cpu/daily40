@@ -28,8 +28,8 @@ export const CATALOG: CatalogItem[] = [
     { id: 'sororitas-boltgun', name: '修女用爆彈槍', category: 'primary', price: 180, restricted: true, origins: ['sororitas'] },
     { id: 'astartes-boltgun', name: '阿斯塔特用爆彈槍', category: 'primary', price: 280, restricted: true, origins: ['astartes'] },
 
-    { id: 'flak-armour', name: '防破片甲', category: 'armour', price: 60, note: '護甲 20' },
-    { id: 'carapace-armour', name: '甲殼甲', category: 'armour', price: 160, restricted: true, note: '移動代價待測' },
+    { id: 'flak-armour', name: '防破片甲', category: 'armour', price: 60, note: '護甲 20；不影響移動' },
+    { id: 'carapace-armour', name: '甲殼甲', category: 'armour', price: 160, restricted: true, note: '護甲 40；移動速度 ×0.90' },
     { id: 'astartes-power-armour', name: '阿斯塔特制式動力甲', category: 'armour', price: 400, restricted: true, origins: ['astartes'], note: '護甲 80' },
 
     { id: 'medicae-kit', name: '醫療工具', category: 'tool', price: 80, note: '操作資格獨立於持有' },

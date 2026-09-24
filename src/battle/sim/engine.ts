@@ -42,6 +42,12 @@ export interface Unit {
     maxHp: number;
     armor: number;
     accuracy: number;
+    /**
+     * Tiles per second. Derived once from the baseline and the worn armour, never
+     * re-multiplied per tick — a repeated multiplier would make a unit crawl
+     * slower the longer it walked.
+     */
+    speed: number;
     loadout: Record<Slot, WeaponId>;
     active: Slot; // committed weapon: changes only when a swap completes
     ammo: Record<Slot, number>;
@@ -91,6 +97,8 @@ export interface CrewProfile {
     maxHp: number;
     armor: number;
     accuracy: number; // 0..1
+    /** Tiles per second; absent falls back to the unencumbered baseline. */
+    speed?: number;
     loadout: Record<Slot, WeaponId>;
 }
 
@@ -128,6 +136,7 @@ function makeUnit(id: string, name: string, side: Side, faction: Faction, order:
     return {
         id, name, side, faction, order, pos: { ...at }, tile: { ...at }, prev: { ...at }, step: 1, path: [], goal: null, walked: 0,
         hp: maxHp, maxHp, armor: profile?.armor ?? HUMAN.armor, accuracy: profile?.accuracy ?? HUMAN.accuracy,
+        speed: profile?.speed ?? HUMAN.speed,
         loadout, active: 'primary',
         ammo: { primary: ammo?.primary ?? WEAPONS[loadout.primary].magazine, secondary: ammo?.secondary ?? WEAPONS[loadout.secondary].magazine },
         action: { kind: 'idle' }, posture: 'standing', positioned: false, cooldownUntil: 0, aimedAt: null, noTargetSince: null,
@@ -303,7 +312,9 @@ function resolveShot(b: Battle, u: Unit, action: Extract<Action, { kind: 'fire' 
 }
 
 function advanceMove(b: Battle, u: Unit) {
-    const speed = HUMAN.speed / TICKS_PER_SECOND;
+    // Per-unit: heavy armour slows movement only. Cover entry, aiming, reloading
+    // and weapon swaps keep their own fixed timings.
+    const speed = u.speed / TICKS_PER_SECOND;
     if (u.step >= 1) {
         const next = u.path.shift();
         if (!next) { arrive(u); return; }
