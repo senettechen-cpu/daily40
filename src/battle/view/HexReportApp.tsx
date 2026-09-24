@@ -26,6 +26,16 @@ interface Handoff {
 
 const OUTCOME_LABELS: Record<string, string> = { victory: '勝利', defeat: '失敗', timeout: '超時' };
 
+/** How it ended, not just who won: a win on bodies should not read as a wipe. */
+const ENDING_LABELS: Record<string, string> = {
+    'enemy-down': '敵軍全滅',
+    'crew-down': '我方全滅',
+    'mutual-down': '同歸於盡',
+    'rounds-ahead': '回合用盡，我方存活較多',
+    'rounds-behind': '回合用盡，敵方存活較多',
+    'rounds-level': '回合用盡，雙方存活相同',
+};
+
 function readHandoff(): Handoff | null {
     try {
         const raw = sessionStorage.getItem(DEPLOYMENT_KEY);
@@ -86,6 +96,7 @@ export function HexReportApp() {
                         重播伺服器判定的行動 · {handoff.paysXp === false ? '本場不計 XP' : 'XP 已於出戰時結算'} · 不扣軍需、無永久傷亡
                     </p>
                     <h1>{handoff.squadName} · {OUTCOME_LABELS[battle.outcome]}（{battle.rounds} 回合）</h1>
+                    <p className="bt-hint">{ENDING_LABELS[battle.ending] ?? ''}</p>
                 </div>
                 <div className="bt-controls" role="group" aria-label="重播控制">
                     <button type="button" onClick={() => setStep(0)} disabled={step === 0}>回到開頭</button>

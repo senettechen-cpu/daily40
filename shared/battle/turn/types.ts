@@ -86,7 +86,13 @@ export interface Activation {
 export type Outcome = 'victory' | 'defeat' | 'timeout';
 
 /** Why a battle ended, for a report that has to explain itself. */
-export type Ending = 'enemy-down' | 'crew-down' | 'mutual-down' | 'rounds';
+export type Ending =
+    | 'enemy-down'      // the enemy is wiped out
+    | 'crew-down'       // the squad is wiped out
+    | 'mutual-down'     // the last of both fell together
+    | 'rounds-ahead'    // out of rounds, more of the squad left standing
+    | 'rounds-behind'   // out of rounds, fewer
+    | 'rounds-level';   // out of rounds, level on bodies
 
 export interface BattleSetup {
     board: Board;

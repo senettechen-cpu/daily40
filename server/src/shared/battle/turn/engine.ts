@@ -110,13 +110,13 @@ function stanceBonus(battle: Battle, unit: Unit, tile: Hex, target: Unit | null)
 
         case 'advance': {
             if (!nearest) return 0;
-            // With a shot already available, closing further only invites return
-            // fire: prefer to shoot from where you are, and from cover.
-            if (target) return (sameHex(tile, unit.at) ? 6 : -distance(unit.at, tile) * 2) + (sheltered ? 6 : 0);
-            // Without one, close the ground — but toward a firing position rather
-            // than into the enemy's face.
-            const wanted = Math.max(1, Math.floor(unit.weapon.range / 2));
-            return -Math.abs(distance(tile, nearest.at) - wanted) * 3;
+            // Work to the furthest distance that still shoots at full accuracy,
+            // and hold there. Stopping at maximum range instead looked like
+            // caution but measured as a stalemate: both sides froze at the edge
+            // of their falloff and neither could finish inside ten rounds.
+            // This is the effective band, not the enemy's face.
+            const band = Math.max(1, Math.floor(unit.weapon.range / 2));
+            return -Math.abs(distance(tile, nearest.at) - band) * 3 + (sheltered ? 6 : 0);
         }
 
         case 'flank': {
@@ -253,8 +253,25 @@ const endingOf = (battle: Battle): Ending | null => {
     return null;
 };
 
+/**
+ * Running out of rounds is settled on who is still standing. Without this the
+ * tail of an even fight never resolves: the last survivor on each side is
+ * usually holding, out of the other's reach, and ten rounds burn down to a draw
+ * that neither player's decisions caused. Equal numbers left is a real draw.
+ */
+const endingAtLimit = (crew: number, enemy: number): { ending: Ending; outcome: Outcome } => {
+    if (crew > enemy) return { ending: 'rounds-ahead', outcome: 'victory' };
+    if (enemy > crew) return { ending: 'rounds-behind', outcome: 'defeat' };
+    return { ending: 'rounds-level', outcome: 'timeout' };
+};
+
 const OUTCOME_OF: Record<Ending, Outcome> = {
-    'enemy-down': 'victory', 'crew-down': 'defeat', 'mutual-down': 'timeout', rounds: 'timeout',
+    'enemy-down': 'victory',
+    'crew-down': 'defeat',
+    'mutual-down': 'timeout',
+    'rounds-ahead': 'victory',
+    'rounds-behind': 'defeat',
+    'rounds-level': 'timeout',
 };
 
 export function runBattle(setup: BattleSetup): BattleResult {
@@ -291,7 +308,8 @@ export function runBattle(setup: BattleSetup): BattleResult {
         ending = endingOf(battle);
     }
 
-    const settled: Ending = ending ?? 'rounds';
+    const settled: Ending = ending
+        ?? endingAtLimit(living(battle, 'crew').length, living(battle, 'enemy').length).ending;
     return {
         outcome: OUTCOME_OF[settled],
         ending: settled,

@@ -237,16 +237,76 @@ test('a held position never leaves its deployment zone, whatever the score says'
     }
 });
 
-test('an advance that can already shoot does not keep closing', () => {
-    // In range from the start: the right move is to fire, not to walk into range
-    // of everything else.
-    const start = at(5, 6);
+test('an advance works to its effective band, and stops there', () => {
+    // Stopping at maximum range measured as a stalemate; charging to contact
+    // throws the range advantage away. The contract is the furthest distance
+    // that still shoots at full accuracy — 2 tiles for a five-tile lasgun.
+    const band = Math.max(1, Math.floor(RIFLE.range / 2));
     const result = run([
-        unit('c0', 'crew', { at: start, stance: 'advance', movement: 3 }),
-        unit('e0', 'enemy', { at: at(5, 3), stance: 'hold', movement: 0, maxHp: 400 }),
+        unit('c0', 'crew', { at: at(5, 8), stance: 'advance', movement: 3 }),
+        unit('e0', 'enemy', { at: at(5, 1), stance: 'hold', movement: 0, maxHp: 4000 }),
     ]);
-    const first = [...result.activations].find(a => a.unitId === 'c0');
-    const after = first.snapshot.find(s => s.id === 'c0');
-    assert.equal(after.at.row, start.row, 'it charged despite having a shot');
+
+    const mine = [...result.activations].filter(a => a.unitId === 'c0');
+    const settled = mine[mine.length - 1].snapshot.find(s => s.id === 'c0');
+    const gap = Math.max(Math.abs(settled.at.col - 5), Math.abs(settled.at.row - 1));
+    assert.ok(gap <= band + 1, `stopped ${gap} tiles out, past its band of ${band}`);
+    assert.ok(gap >= band - 1, `closed to ${gap} tiles, inside its band of ${band}`);
+
+    // Already standing in the band: no reason to shuffle.
+    const held = run([
+        unit('c0', 'crew', { at: at(5, 4), stance: 'advance', movement: 3 }),
+        unit('e0', 'enemy', { at: at(5, 2), stance: 'hold', movement: 0, maxHp: 4000 }),
+    ]);
+    const first = [...held.activations].find(a => a.unitId === 'c0');
     assert.ok(first.activities.some(a => a.kind === 'attack'));
+    assert.ok(!first.activities.some(a => a.kind === 'move'), 'it shuffled while already in band');
+});
+
+test('running out of rounds is settled on who is left standing', () => {
+    // Two units that cannot reach each other: the round limit decides, and with
+    // one body each it is a genuine draw.
+    const stuck = () => e.runBattle({
+        board: board({}),
+        units: [
+            unit('c0', 'crew', { at: at(0, 8), stance: 'hold', movement: 0 }),
+            unit('e0', 'enemy', { at: at(10, 0), stance: 'hold', movement: 0 }),
+        ],
+        seed: 5,
+    });
+    assert.equal(stuck().ending, 'rounds-level');
+    assert.equal(stuck().outcome, 'timeout');
+
+    // Add a second crewman who also cannot reach anyone: still out of rounds,
+    // but the squad is ahead on bodies and takes it.
+    const ahead = e.runBattle({
+        board: board({}),
+        units: [
+            unit('c0', 'crew', { at: at(0, 8), stance: 'hold', movement: 0 }),
+            unit('c1', 'crew', { at: at(1, 8), stance: 'hold', movement: 0 }),
+            unit('e0', 'enemy', { at: at(10, 0), stance: 'hold', movement: 0 }),
+        ],
+        seed: 5,
+    });
+    assert.equal(ahead.ending, 'rounds-ahead');
+    assert.equal(ahead.outcome, 'victory');
+
+    const behind = e.runBattle({
+        board: board({}),
+        units: [
+            unit('c0', 'crew', { at: at(0, 8), stance: 'hold', movement: 0 }),
+            unit('e0', 'enemy', { at: at(10, 0), stance: 'hold', movement: 0 }),
+            unit('e1', 'enemy', { at: at(9, 0), stance: 'hold', movement: 0 }),
+        ],
+        seed: 5,
+    });
+    assert.equal(behind.ending, 'rounds-behind');
+    assert.equal(behind.outcome, 'defeat');
+});
+
+test('a wipe still reads as a wipe, not as a count', () => {
+    const crew = [0, 1, 2, 3, 4, 5].map(j => unit('c' + j, 'crew', { at: at(3 + j, 6) }));
+    const win = run([...crew, unit('e0', 'enemy', { at: at(5, 5), maxHp: 20 })]);
+    assert.equal(win.ending, 'enemy-down');
+    assert.equal(win.outcome, 'victory');
 });
