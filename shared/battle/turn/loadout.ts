@@ -1,7 +1,10 @@
 import { BASE_ACCURACY, Character, Duty, maxHp } from '../../roster';
 import { EquipmentItem, catalogItem, itemsOf } from '../../armory';
 import { Hex } from '../hex';
-import { ARMOUR_STATS, DUTY_STATS, FISTS, FUNCTION_MOD_ACCURACY, TUNING_MULTIPLIER, WEAPON_STATS } from './rules';
+import {
+    ARMOUR_STATS, DUTY_STATS, FISTS, FUNCTION_MOD_ACCURACY, TUNING_MULTIPLIER, VOX_CASTER,
+    VOX_INITIATIVE, WEAPON_STATS,
+} from './rules';
 import { ArmourType, Stance, UnitSpec } from './types';
 
 // Turns roster records and the armoury into the units the turn engine fights
@@ -37,6 +40,7 @@ function specFor(character: Character, carried: EquipmentItem[], placement: Plac
     let initiative = duty.initiative;
     let tuningStages = 0;
     let mods = 0;
+    const tools: string[] = [];
 
     for (const item of carried) {
         const definition = catalogItem(item.catalogId);
@@ -66,10 +70,11 @@ function specFor(character: Character, carried: EquipmentItem[], placement: Plac
             sidearm = profile;
             continue;
         }
-        // Upgrades ride on the primary. Tools only unlock a duty's ability, which
-        // is the skills pass, so they stay reported as carried but inert.
+        // Upgrades ride on the primary; tools unlock what their duty can already
+        // do, so a kit in the wrong hands is carried and says so.
         if (item.catalogId === 'tuning-1' || item.catalogId === 'tuning-2') { tuningStages += 1; continue; }
         if (item.catalogId === 'function-mod') { mods += 1; continue; }
+        if (definition.category === 'tool') { tools.push(item.catalogId); continue; }
         unmodelled.add(item.catalogId);
     }
 
@@ -89,9 +94,10 @@ function specFor(character: Character, carried: EquipmentItem[], placement: Plac
         accuracyBonus: Math.min(mods, 1) * FUNCTION_MOD_ACCURACY,
         tuning: TUNING_MULTIPLIER[Math.min(tuningStages, TUNING_MULTIPLIER.length - 1)],
         movement: duty.movement,
-        initiative,
+        initiative: initiative + (tools.includes(VOX_CASTER) ? VOX_INITIATIVE : 0),
         weapon,
         sidearm,
+        tools,
         stance: placement.stance,
         guardTargetId: placement.guardTargetId,
         at: placement.at,

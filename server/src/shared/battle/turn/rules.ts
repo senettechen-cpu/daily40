@@ -133,6 +133,10 @@ export interface DamageContext {
     /** An active skill's damage multiplier for this attack. */
     skill?: number;
     cover?: number;
+    /** Anything else softening the hit, such as an engineer's fortified position. */
+    reduction?: number;
+    /** Armour ignored on top of the weapon's own penetration. */
+    extraPenetration?: number;
 }
 
 /**
@@ -140,12 +144,14 @@ export interface DamageContext {
  * same shot never resolves differently depending on the order it was computed.
  */
 export function damageOf(weapon: Weapon, armour: number, armourType: ArmourType = 'none', context: DamageContext = {}): number {
+    const pierced = weapon.penetration + (context.extraPenetration ?? 0);
     const raw = weapon.damage
         * (context.tuning ?? 1)
         * (context.skill ?? 1)
         * coefficientFor(weapon.damageType, armourType)
-        * (100 / (100 + Math.max(0, armour - weapon.penetration)))
-        * (context.cover ?? 1);
+        * (100 / (100 + Math.max(0, armour - pierced)))
+        * (context.cover ?? 1)
+        * (context.reduction ?? 1);
     return Math.max(1, Math.round(raw));
 }
 
@@ -157,3 +163,59 @@ export function expectedDamage(board: Board, unit: Unit, from: Hex, target: Unit
     });
     return weapon.hits * hitChance(board, unit, from, target, weapon) * perHit;
 }
+
+// ---------------------------------------------------------------------------
+// Tools and duty skills (GPT's table four). A tool only unlocks what its duty
+// can already do: an engineering kit in a rifleman's hands does nothing this
+// battle, and the UI says so rather than pretending otherwise.
+// ---------------------------------------------------------------------------
+
+export interface Skill { name: string; charge: number }
+
+/** One active per duty. Charge is banked a round at a time and spent in full. */
+export const SKILLS: Record<string, Skill> = {
+    sergeant: { name: '戰術指令', charge: 3 },
+    rifleman: { name: '瞄準射擊', charge: 2 },
+    marksman: { name: '弱點射擊', charge: 3 },
+    medic: { name: '戰地救護', charge: 2 },
+    engineer: { name: '佈設掩體', charge: 3 },
+    heavy: { name: '壓制射擊', charge: 3 },
+};
+
+export const skillFor = (duty: string): Skill | undefined => SKILLS[duty];
+
+/** A sergeant steadies the people beside them; vox doubles how far that reaches. */
+export const AURA_HIT = 0.05;
+export const AURA_RANGE = 1;
+export const AURA_RANGE_WITH_VOX = 2;
+
+/** Passive patching: small, every round, and capped per side so it cannot stall a battle. */
+export const MEDIC_PASSIVE_HEAL = 4;
+export const MEDIC_PASSIVE_CAP = 8;
+/** 戰地救護: worth spending only on someone actually hurt. */
+export const MEDIC_ACTIVE_HEAL = 24;
+export const MEDIC_ACTIVE_MIN_MISSING = 18;
+/** A medicae kit in anyone else's hands: once a battle, on themselves. */
+export const SELF_HEAL = 12;
+export const SELF_HEAL_MIN_MISSING = 12;
+
+/** An engineer with their kit is harder to shift out of cover. */
+export const ENGINEER_COVER_REDUCTION = 0.90;
+export const MAX_BUILT_COVER = 2;
+
+export const AIMED_HIT = 0.15;
+export const AIMED_DAMAGE = 1.15;
+export const WEAKPOINT_PENETRATION = 30;
+export const WEAKPOINT_HIT = 0.10;
+export const SUPPRESS_DAMAGE = 0.80;
+export const SUPPRESS_HIT = 0.15;
+export const COMMAND_MOVE = 1;
+export const COMMAND_RANGE = 2;
+export const COMMAND_MIN_TARGETS = 2;
+
+export const MEDICAE_KIT = 'medicae-kit';
+export const VOX_CASTER = 'vox-caster';
+export const ENGINEERING_KIT = 'engineering-kit';
+export const VOX_INITIATIVE = 1;
+
+export const carries = (tools: string[] | undefined, tool: string) => !!tools?.includes(tool);

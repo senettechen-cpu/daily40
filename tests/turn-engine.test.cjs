@@ -310,3 +310,161 @@ test('a wipe still reads as a wipe, not as a count', () => {
     assert.equal(win.ending, 'enemy-down');
     assert.equal(win.outcome, 'victory');
 });
+
+// --- P4: tools and duty skills ------------------------------------------------
+
+const KIT = (duty, tools, over = {}) => unit('s-' + duty, 'crew', { duty, tools, ...over });
+const activitiesOf = (result, id, kind) => [...result.activations]
+    .filter(a => a.unitId === id)
+    .flatMap(a => [...a.activities])
+    .filter(a => a.kind === kind);
+
+test('charge is banked a round at a time, so no skill fires on round one', () => {
+    const result = run([
+        KIT('rifleman', [], { at: at(5, 6), stance: 'hold' }),
+        unit('e0', 'enemy', { at: at(5, 4), stance: 'hold', movement: 0, maxHp: 900 }),
+    ]);
+    const aimed = [...result.activations]
+        .filter(a => a.activities.some(x => x.kind === 'attack' && x.skill))
+        .map(a => a.round);
+    assert.ok(aimed.length > 0, 'the rifleman never used its skill at all');
+    // Two rounds of charge means the earliest possible use is round three.
+    assert.ok(Math.min(...aimed) >= 3, `fired on round ${Math.min(...aimed)}`);
+});
+
+test('a medic with a kit patches the worst hurt, and never revives', () => {
+    const wounded = KIT('rifleman', [], { at: at(5, 8), stance: 'hold', movement: 0 });
+    const result = e.runBattle({
+        board: board({}),
+        units: [
+            KIT('medic', ['medicae-kit'], { at: at(4, 8), stance: 'hold', movement: 0 }),
+            { ...wounded, id: 'hurt', maxHp: 100 },
+            unit('e0', 'enemy', { at: at(5, 0), stance: 'hold', movement: 0 }),
+        ],
+        seed: 11,
+    });
+    // Nobody took damage, so there is nothing to heal and no charge is wasted.
+    assert.equal(activitiesOf(result, 's-medic', 'heal').length, 0);
+
+    const hurtResult = e.runBattle({
+        board: board({}),
+        units: [
+            KIT('medic', ['medicae-kit'], { at: at(4, 8), stance: 'hold', movement: 0 }),
+            { ...wounded, id: 'hurt', maxHp: 100, hp: 100 },
+            unit('e0', 'enemy', { at: at(5, 0), stance: 'hold', movement: 0 }),
+        ],
+        seed: 11,
+    });
+    for (const step of hurtResult.activations) {
+        for (const snap of step.snapshot) {
+            assert.ok(snap.hp <= 100, 'healed past full');
+            if (snap.down) assert.equal(snap.hp, 0, 'a downed unit was healed back up');
+        }
+    }
+});
+
+test('an engineer fortifies at most twice, and only ground that is open', () => {
+    const crew = [
+        KIT('engineer', ['engineering-kit'], { at: at(5, 8), stance: 'hold', movement: 0 }),
+        unit('a1', 'crew', { at: at(4, 8), stance: 'hold', movement: 0 }),
+        unit('a2', 'crew', { at: at(6, 8), stance: 'hold', movement: 0 }),
+    ];
+    const foes = [0, 1, 2].map(j => unit('e' + j, 'enemy', { at: at(4 + j, 5), stance: 'hold', movement: 0, maxHp: 900 }));
+    const result = e.runBattle({ board: board({}), units: [...crew, ...foes], seed: 3 });
+
+    const built = activitiesOf(result, 's-engineer', 'fortify');
+    assert.ok(built.length <= 2, `built ${built.length} pieces of cover`);
+    // Whatever it fortified, it was somewhere a living ally stood.
+    for (const piece of built) assert.ok(piece.at.row >= 7);
+});
+
+test('a sergeant only gives an order when enough people can use it', () => {
+    const lone = e.runBattle({
+        board: board({}),
+        units: [
+            KIT('sergeant', [], { at: at(5, 8), stance: 'hold', movement: 0 }),
+            unit('a1', 'crew', { at: at(4, 8), stance: 'hold', movement: 0 }),
+            unit('e0', 'enemy', { at: at(5, 0), stance: 'hold', movement: 0 }),
+        ],
+        seed: 9,
+    });
+    // One ally in range is below the threshold, so the order is never given.
+    assert.equal(activitiesOf(lone, 's-sergeant', 'command').length, 0);
+
+    const squad = e.runBattle({
+        board: board({}),
+        units: [
+            KIT('sergeant', [], { at: at(5, 8), stance: 'hold', movement: 0 }),
+            unit('a1', 'crew', { at: at(4, 8), stance: 'hold', movement: 0 }),
+            unit('a2', 'crew', { at: at(6, 8), stance: 'hold', movement: 0 }),
+            unit('a3', 'crew', { at: at(5, 7), stance: 'hold', movement: 0 }),
+            unit('e0', 'enemy', { at: at(5, 0), stance: 'hold', movement: 0 }),
+        ],
+        seed: 9,
+    });
+    assert.ok(activitiesOf(squad, 's-sergeant', 'command').length > 0, 'the order was never given');
+});
+
+test('a tool in the wrong hands unlocks nothing', () => {
+    // A rifleman carrying an engineering kit cannot fortify anything.
+    const result = e.runBattle({
+        board: board({}),
+        units: [
+            KIT('rifleman', ['engineering-kit'], { at: at(5, 8), stance: 'hold', movement: 0 }),
+            unit('a1', 'crew', { at: at(4, 8), stance: 'hold', movement: 0 }),
+            unit('e0', 'enemy', { at: at(5, 5), stance: 'hold', movement: 0, maxHp: 900 }),
+        ],
+        seed: 4,
+    });
+    assert.equal(activitiesOf(result, 's-rifleman', 'fortify').length, 0);
+});
+
+test('skills and tools leave the replay exact', () => {
+    const squad = () => [
+        KIT('sergeant', ['vox-caster'], { at: at(4, 7) }),
+        KIT('medic', ['medicae-kit'], { at: at(5, 8) }),
+        KIT('engineer', ['engineering-kit'], { at: at(6, 7) }),
+        unit('r1', 'crew', { at: at(5, 7) }),
+        unit('e0', 'enemy', { at: at(4, 1) }),
+        unit('e1', 'enemy', { at: at(6, 1) }),
+    ];
+    const summary = r => JSON.stringify({
+        outcome: r.outcome, ending: r.ending, rounds: r.rounds,
+        units: r.units.map(u => [u.id, u.hp, u.at.col, u.at.row, u.down, u.charge]),
+        reasons: [...r.activations].map(a => a.unitId + ':' + a.reason),
+    });
+    const once = e.runBattle({ board: board({ '5,4': 'cover' }), units: squad(), seed: 4242 });
+    const twice = e.runBattle({ board: board({ '5,4': 'cover' }), units: squad(), seed: 4242 });
+    assert.equal(summary(once), summary(twice));
+});
+
+test('fortifying never writes on the board it was handed', () => {
+    // Scenario boards are module constants shared by every battle: one
+    // engineer's sandbags must not become part of the map for everyone after.
+    const shared = board({});
+    const before = JSON.stringify(shared.tiles);
+    e.runBattle({
+        board: shared,
+        units: [
+            KIT('engineer', ['engineering-kit'], { at: at(5, 8), stance: 'hold', movement: 0 }),
+            unit('a1', 'crew', { at: at(4, 8), stance: 'hold', movement: 0 }),
+            unit('a2', 'crew', { at: at(6, 8), stance: 'hold', movement: 0 }),
+            ...[0, 1].map(j => unit('e' + j, 'enemy', { at: at(4 + j, 5), stance: 'hold', movement: 0, maxHp: 900 })),
+        ],
+        seed: 3,
+    });
+    assert.equal(JSON.stringify(shared.tiles), before, 'the battle edited the board it was given');
+});
+
+test('a heavy weapon cannot be fired on the move', () => {
+    const HEAVY = { name: '星界軍重武器組', damage: 20, hits: 3, range: 6, penetration: 10, damageType: 'ballistic' };
+    const result = run([
+        unit('h0', 'crew', { duty: 'heavy', weapon: HEAVY, at: at(5, 8), stance: 'advance', movement: 2 }),
+        unit('e0', 'enemy', { at: at(5, 2), stance: 'hold', movement: 0, maxHp: 900 }),
+    ]);
+    for (const step of [...result.activations].filter(a => a.unitId === 'h0')) {
+        const moved = step.activities.some(x => x.kind === 'move');
+        const fired = step.activities.some(x => x.kind === 'attack');
+        assert.ok(!(moved && fired), `round ${step.round}: moved and fired the heavy weapon`);
+    }
+});

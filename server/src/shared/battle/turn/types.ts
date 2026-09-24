@@ -58,6 +58,8 @@ export interface UnitSpec {
     weapon: Weapon;
     /** Reached for when an enemy is adjacent, unless the primary is close-quarter. */
     sidearm?: Weapon;
+    /** Catalogue ids of carried tools; what they unlock depends on the duty. */
+    tools?: string[];
     stance: Stance;
     /** Who a 'guard' stance follows. */
     guardTargetId?: string;
@@ -68,11 +70,22 @@ export interface Unit extends UnitSpec {
     hp: number;
     /** Downed units stay on the field as wreckage; v2 has no permanent death. */
     down: boolean;
+    /** Rounds banked toward this duty's active skill. */
+    charge: number;
+    /** Extra movement granted for this unit's next activation only. */
+    moveBonus?: number;
+    /** Hit chance lost on this unit's next activation only. */
+    suppressed?: number;
+    /** A non-medic's medicae kit patches them up once a battle. */
+    selfHealed?: boolean;
 }
 
 export type Activity =
     | { kind: 'move'; to: Hex }
-    | { kind: 'attack'; targetId: string; hits: number; damage: number; weapon: string }
+    | { kind: 'attack'; targetId: string; hits: number; damage: number; weapon: string; skill?: string }
+    | { kind: 'heal'; targetId: string; amount: number; skill: string }
+    | { kind: 'fortify'; at: Hex; skill: string }
+    | { kind: 'command'; targetIds: string[]; skill: string }
     | { kind: 'idle' };
 
 export interface Activation {

@@ -38,13 +38,20 @@ test('a sidearm alone still arms someone who has no rifle', () => {
     assert.equal(units[0].weapon.name, r.WEAPON_STATS.laspistol.name);
 });
 
-test('gear with no combat profile is reported rather than silently ignored', () => {
-    // Tuning and mods now ride on the weapon; tools still wait on the skills pass.
-    const items = [gear('i1', 'a', 'lasgun'), gear('i2', 'a', 'medicae-kit'), gear('i3', 'a', 'tuning-1')];
+test('every catalogue item now reaches the battle in some form', () => {
+    // Tuning and mods ride on the weapon, tools are carried and unlock by duty.
+    // Nothing in the catalogue is inert any more, which is what P4 was for.
+    const items = [
+        gear('i1', 'a', 'lasgun'), gear('i2', 'a', 'medicae-kit'),
+        gear('i3', 'a', 'tuning-1'), gear('i4', 'a', 'vox-caster'),
+    ];
     const { units, unmodelled } = l.crewFor([character('a')], items, [place('a')]);
     assert.equal(units[0].weapon.name, r.WEAPON_STATS.lasgun.name);
     assert.equal(units[0].tuning, 1.05);
-    assert.deepEqual([...unmodelled].sort(), ['medicae-kit']);
+    assert.deepEqual([...units[0].tools].sort(), ['medicae-kit', 'vox-caster']);
+    assert.deepEqual([...unmodelled], []);
+    // A vox-caster lifts its bearer's place in the order.
+    assert.equal(units[0].initiative, r.DUTY_STATS.rifleman.initiative + r.VOX_INITIATIVE);
 });
 
 test('a primary and a sidearm are both kept, and gear reads its own numbers', () => {
