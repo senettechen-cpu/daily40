@@ -161,11 +161,14 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
             dataIndex: 'title',
             key: 'title',
             render: (title: string, record: Task) => (
-                <span
-                    className={`font-mono transition-colors ${record.id === selectedId ? 'text-green-400' : 'text-green-500/80'}`}
-                >
-                    <span>{title}</span>
-                </span>
+                <div className="flex items-center gap-2">
+                    <span
+                        className={`font-mono transition-colors ${record.id === selectedId ? 'text-green-400' : 'text-green-500/80'}`}
+                    >
+                        <span>{title}</span>
+                    </span>
+                    <CoreBadge taskId={record.id} />
+                </div>
             ),
         },
         {
