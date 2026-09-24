@@ -1,6 +1,6 @@
 import type { Db } from '../db';
 import {
-    addCore, coreCap, corePhase, CorePlan, CORE_MAX, dayKey, DEFAULT_TIME_ZONE, emptyPlan,
+    addCore, corePhase, CorePlan, CORE_MAX, dayKey, DEFAULT_TIME_ZONE, emptyPlan,
     onTaskCompleted, removeCore, replaceCore,
 } from '../shared/rewards';
 import { appendEntries, loadBook } from './store';
@@ -11,23 +11,19 @@ const timeZone = DEFAULT_TIME_ZONE;
 
 export async function loadPlan(db: Db, userId: string, day: string): Promise<CorePlan> {
     const result = await db.query(
-        'SELECT day, task_ids, locked_cap FROM core_plans WHERE user_id = $1 AND day = $2',
+        'SELECT day, task_ids FROM core_plans WHERE user_id = $1 AND day = $2',
         [userId, day],
     );
     const row = result.rows[0];
     if (!row) return emptyPlan(day);
-    return {
-        day: row.day,
-        taskIds: Array.isArray(row.task_ids) ? row.task_ids : [],
-        lockedCap: row.locked_cap ?? undefined,
-    };
+    return { day: row.day, taskIds: Array.isArray(row.task_ids) ? row.task_ids : [] };
 }
 
 async function savePlan(db: Db, userId: string, plan: CorePlan) {
     await db.query(
-        `INSERT INTO core_plans (user_id, day, task_ids, locked_cap) VALUES ($1, $2, $3, $4)
-         ON CONFLICT (user_id, day) DO UPDATE SET task_ids = EXCLUDED.task_ids, locked_cap = EXCLUDED.locked_cap`,
-        [userId, plan.day, JSON.stringify(plan.taskIds), plan.lockedCap ?? null],
+        `INSERT INTO core_plans (user_id, day, task_ids) VALUES ($1, $2, $3)
+         ON CONFLICT (user_id, day) DO UPDATE SET task_ids = EXCLUDED.task_ids`,
+        [userId, plan.day, JSON.stringify(plan.taskIds)],
     );
 }
 
@@ -87,7 +83,7 @@ export async function planView(db: Db, userId: string, day: string, now: Date) {
         day,
         taskIds: plan.taskIds,
         phase: corePhase(day, now, timeZone),
-        cap: coreCap(plan, now, timeZone),
+        cap: CORE_MAX,
         max: CORE_MAX,
         paidTaskIds: plan.taskIds.filter(id => paid.has(`core:${day}:${id}`)),
     };

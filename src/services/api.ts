@@ -37,14 +37,14 @@ export interface RequisitionSummary {
     ledger?: { used: number; slots: number };
 }
 
-export type CorePhase = 'too-early' | 'upcoming' | 'open' | 'locked' | 'past';
+export type CorePhase = 'too-early' | 'upcoming' | 'open' | 'past';
 
 export interface CoreView {
     enabled: boolean;
     day?: string;
     taskIds?: string[];
     phase?: CorePhase;
-    /** How many cores the day may hold right now; drops to the 09:00 count once locked. */
+    /** How many cores the day may hold: three on any day still open. */
     cap?: number;
     max?: number;
     paidTaskIds?: string[];

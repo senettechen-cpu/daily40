@@ -53,14 +53,14 @@ function createFakeDb() {
             tables.ledger_presets = tables.ledger_presets.filter(r => !(r.id === p[0] && r.user_id === p[1] && r.pinned));
             return { rows: [], rowCount: before - tables.ledger_presets.length };
         }
-        if (s.startsWith('SELECT day, task_ids, locked_cap FROM core_plans')) {
+        if (s.startsWith('SELECT day, task_ids FROM core_plans')) {
             const rows = tables.core_plans.filter(r => r.user_id === p[0] && r.day === p[1]);
             return { rows, rowCount: rows.length };
         }
         if (s.startsWith('INSERT INTO core_plans')) {
-            const [user_id, day, task_ids, locked_cap] = p;
+            const [user_id, day, task_ids] = p;
             let row = tables.core_plans.find(r => r.user_id === user_id && r.day === day);
-            const next = { user_id, day, task_ids: JSON.parse(task_ids), locked_cap };
+            const next = { user_id, day, task_ids: JSON.parse(task_ids) };
             if (row) Object.assign(row, next); else tables.core_plans.push(next);
             return { rows: [], rowCount: 1 };
         }

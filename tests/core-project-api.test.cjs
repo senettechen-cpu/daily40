@@ -32,7 +32,7 @@ function setup(economy = true) {
     };
 }
 
-// Planning for tomorrow keeps the 09:00 rules out of the wiring tests: whatever
+// Planning for tomorrow keeps day-boundary drift out of the wiring tests: whatever
 // time the suite runs, tomorrow is always in the editable "upcoming" phase.
 const TOMORROW = time.addDays(time.dayKey(new Date()), 1);
 const atNoon = day => new Date(`${day}T12:00:00+08:00`).toISOString();

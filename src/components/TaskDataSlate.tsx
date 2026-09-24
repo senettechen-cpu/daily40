@@ -10,12 +10,11 @@ import { useRequisition } from '../contexts/RequisitionContext';
  * running, and disabled once the core has already paid out.
  */
 const CoreBadge = ({ taskId }: { taskId: string }) => {
-    const { enabled, isCore, isCorePaid, canAddCore, core, toggleCore, selectedDay, today } = useRequisition();
+    const { enabled, isCore, isCorePaid, canAddCore, toggleCore, selectedDay, today } = useRequisition();
     if (!enabled) return null;
 
     const selected = isCore(taskId);
     const paid = isCorePaid(taskId);
-    const locked = core.phase === 'locked';
     const forTomorrow = selectedDay !== today;
     const disabled = paid || (!selected && !canAddCore);
 
@@ -25,9 +24,8 @@ const CoreBadge = ({ taskId }: { taskId: string }) => {
             disabled={disabled}
             onClick={(e) => { e.stopPropagation(); void toggleCore(taskId); }}
             title={paid ? '這個核心已結算，不能取消'
-                : locked ? '已過 09:00：數量已鎖定，只能替換未完成的核心'
-                    : forTomorrow ? '設為明天的核心（完成 +10 軍需）'
-                        : '設為今日核心（完成 +10 軍需）'}
+                : forTomorrow ? '設為明天的核心（完成 +10 軍需）'
+                    : '設為今日核心（完成 +10 軍需）'}
             className={`text-[10px] font-mono px-1.5 py-0.5 border tracking-widest transition-colors ${selected
                 ? 'border-imperial-gold text-imperial-gold bg-imperial-gold/10'
                 : 'border-zinc-700 text-zinc-500 hover:border-imperial-gold/50 hover:text-imperial-gold/70'

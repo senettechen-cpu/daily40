@@ -62,7 +62,7 @@ test('ledger: reversals may push the balance negative, which blocks spending', (
 const ctx = (time, completed = []) => ({ now: taipei(time.slice(0, 10), time.slice(11)), isCompleted: id => completed.includes(id) });
 const ok = result => { assert.ok(!('error' in result), result.error); return result.plan; };
 
-test('daily core: up to three before 09:00; tomorrow can be preset; later days cannot', () => {
+test('daily core: up to three a day; tomorrow can be preset; later days cannot', () => {
     let plan = r.emptyPlan('2026-09-21');
     for (const id of ['t1', 't2', 't3']) plan = ok(r.addCore(plan, id, ctx('2026-09-21T08:00')));
     assert.match(r.addCore(plan, 't4', ctx('2026-09-21T08:00')).error, /最多 3/);
@@ -71,18 +71,18 @@ test('daily core: up to three before 09:00; tomorrow can be preset; later days c
     assert.match(r.addCore(r.emptyPlan('2026-09-20'), 't1', ctx('2026-09-21T08:00')).error, /結束/);
 });
 
-test('daily core: after 09:00 the count is capped at the 09:00 count but cores can be swapped', () => {
+test('daily core: no cutoff - the day stays open to add, swap and top up', () => {
     let plan = r.emptyPlan('2026-09-21');
     for (const id of ['t1', 't2']) plan = ok(r.addCore(plan, id, ctx('2026-09-21T08:30')));
-    assert.match(r.addCore(plan, 't3', ctx('2026-09-21T09:00')).error, /鎖定為 2/);
-    plan = ok(r.replaceCore(plan, 't2', 't3', ctx('2026-09-21T10:00')));
-    assert.deepEqual([...plan.taskIds], ['t1', 't3']);
-    // Remove-then-add is still only a swap: the cap stays 2.
-    plan = ok(r.removeCore(plan, 't3', ctx('2026-09-21T11:00')));
-    plan = ok(r.addCore(plan, 't4', ctx('2026-09-21T11:05')));
-    assert.match(r.addCore(plan, 't5', ctx('2026-09-21T11:10')).error, /鎖定為 2/);
-    // An empty plan at 09:00 means no cores that day.
-    assert.match(r.addCore(r.emptyPlan('2026-09-21'), 't1', ctx('2026-09-21T09:30')).error, /鎖定為 0/);
+    // Past 09:00 the third slot is still free, not frozen at the morning count.
+    plan = ok(r.addCore(plan, 't3', ctx('2026-09-21T09:00')));
+    assert.deepEqual([...plan.taskIds], ['t1', 't2', 't3']);
+    plan = ok(r.replaceCore(plan, 't2', 't4', ctx('2026-09-21T23:30')));
+    assert.deepEqual([...plan.taskIds], ['t1', 't3', 't4']);
+    assert.match(r.addCore(plan, 't5', ctx('2026-09-21T23:40')).error, /最多 3/);
+    // A morning with nothing committed no longer locks the day out.
+    const late = ok(r.addCore(r.emptyPlan('2026-09-21'), 't1', ctx('2026-09-21T21:00')));
+    assert.deepEqual([...late.taskIds], ['t1']);
 });
 
 test('daily core: completed tasks cannot be added, completed cores are locked', () => {

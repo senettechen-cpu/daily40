@@ -160,13 +160,13 @@ const initDb = async () => {
         )`);
         await pool.query('CREATE INDEX IF NOT EXISTS idx_expenses_user_created ON expenses(user_id, created_at)');
 
-        // v1.5 daily core: the committed task list for one day, plus the count
-        // frozen at 09:00 so later edits can swap but not add.
+        // v1.5 daily core: the committed task list for one day. The 09:00 cap was
+        // dropped on 2026-09-24; databases created before then keep an unused
+        // locked_cap column, which nothing reads or writes any more.
         await pool.query(`CREATE TABLE IF NOT EXISTS core_plans (
             user_id TEXT NOT NULL,
             day TEXT NOT NULL,
             task_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
-            locked_cap INTEGER,
             PRIMARY KEY (user_id, day)
         )`);
 
