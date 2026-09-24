@@ -2,9 +2,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const { loadTs } = require('./helpers/load-ts.cjs');
-const e = loadTs('src/battle/sim/engine.ts');
-const s = loadTs('src/battle/sim/scenarios.ts');
-const rules = loadTs('src/battle/sim/rules.ts');
+const e = loadTs('shared/battle/sim/engine.ts');
+const s = loadTs('shared/battle/sim/scenarios.ts');
+const rules = loadTs('shared/battle/sim/rules.ts');
 const map = loadTs('src/expedition/engine.ts');
 const c = loadTs('src/battle/sprites/contract.ts');
 const anim = loadTs('src/battle/view/animation.ts');
@@ -213,7 +213,7 @@ test('frame sampling honours duration weights, distance phase and the clock', ()
 });
 
 test('the battle test is isolated from game data', () => {
-    for (const file of ['src/battle/sim/engine.ts', 'src/battle/sim/rules.ts', 'src/battle/view/BattleTestApp.tsx', 'src/battle/view/BattleStage.tsx', 'src/battle/view/animation.ts', 'src/battle/sprites/loader.ts', 'src/battle/report/report.ts', 'src/battle/view/BattleReportApp.tsx', 'src/battle/view/reportArt.ts', 'src/battle/main.tsx']) {
+    for (const file of ['shared/battle/sim/engine.ts', 'shared/battle/sim/rules.ts', 'src/battle/view/BattleTestApp.tsx', 'src/battle/view/BattleStage.tsx', 'src/battle/view/animation.ts', 'src/battle/sprites/loader.ts', 'src/battle/report/report.ts', 'src/battle/view/BattleReportApp.tsx', 'src/battle/view/reportArt.ts', 'src/battle/main.tsx']) {
         const code = fs.readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
         assert.doesNotMatch(code, /from\s+['"][^'"]*(contexts\/|services\/|lib\/firebase|firebase)/, `${file} imports app data`);
         assert.doesNotMatch(code, /localStorage|indexedDB|modifyResources|useGame\(|api\./, `${file} touches app data`);

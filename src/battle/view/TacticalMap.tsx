@@ -1,6 +1,6 @@
 import { COVER, HEIGHT, WALLS, WIDTH } from '../../expedition/engine';
 import type { UnitSnap } from '../report/report';
-import type { BattleEvent } from '../sim/engine';
+import type { BattleEvent } from '../../../shared/battle/sim';
 
 // A schematic, not a second renderer: it explains who stood where and what the
 // selected event did. Geometry only, read from the live map constants so there

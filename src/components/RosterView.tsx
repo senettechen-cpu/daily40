@@ -8,9 +8,12 @@ import {
     isDeployable, levelOf, maxHp, xpToNext,
 } from '../../shared/roster';
 import { RecruitTemplate, recruitError, validateSquad } from '../../shared/roster';
-import { deploymentFor } from '../battle/deployment';
+import { deploymentFor } from '../../shared/battle/deployment';
 import { DEPLOYMENT_KEY } from '../battle/handoff';
 import { portraitHead } from '../data/reportArtIndex';
+import { MAX_TRAINEES, SCENARIOS } from '../../shared/battle';
+
+const OUTCOME_LABELS: Record<string, string> = { victory: '勝利', defeat: '失敗', timeout: '超時' };
 
 // Each character keeps their own portrait; a duty with no delivered crop falls
 // back to a marked medallion rather than borrowing someone else's likeness.
@@ -89,6 +92,8 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
     const [authorized, setAuthorized] = useState<string[]>([]);
     const [balance, setBalance] = useState(0);
     const [recruitName, setRecruitName] = useState('');
+    const [scenarioId, setScenarioId] = useState('standard');
+    const [traineeIds, setTraineeIds] = useState<string[]>([]);
 
     const load = useCallback(async () => {
         try {
@@ -148,6 +153,8 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
             const token = await getToken();
             if (!token) return;
 
+            // The server re-checks everything and resolves the battle itself; these
+            // checks only save a round trip and give a clearer message.
             const squadError = validateSquad(activeSquad, characters, true);
             if (squadError) { setError(squadError); return; }
             if (members.length !== SQUAD_SIZE) {
@@ -155,14 +162,22 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
                 return;
             }
 
-            const gate = await api.getOperationGate(token);
-            if (!gate.allowed) { setError(gate.reason); return; }
+            const started = await api.startOperation(activeSquad.id, scenarioId, traineeIds, token);
+            sessionStorage.setItem(DEPLOYMENT_KEY, JSON.stringify({
+                crew: started.operation.crew,
+                unmodelled: started.unmodelled,
+                squadName: activeSquad.name,
+                scenarioId: started.operation.scenarioId,
+                seed: started.operation.seed,
+                lanes: started.operation.lanes,
+                outcome: started.operation.outcome,
+            }));
 
-            const armory = await api.getArmory(token);
-            const deployment = deploymentFor(members, armory.items);
-            sessionStorage.setItem(DEPLOYMENT_KEY, JSON.stringify({ ...deployment, squadName: activeSquad.name }));
-
-            setDeparture(gate.paysRequisition ? gate.reason : `${gate.reason}（本次不計軍需）`);
+            const gained = started.awards.filter(a => a.role === 'deployed')[0]?.amount ?? 0;
+            setDeparture(started.operation.paysXp
+                ? `行動結束：${OUTCOME_LABELS[started.operation.outcome]}，出戰者各 +${gained} XP`
+                : `行動結束：${OUTCOME_LABELS[started.operation.outcome]}（本次不計 XP）`);
+            await load();
             window.open(`${import.meta.env.BASE_URL}battle-test.html`, '_blank');
         } catch (err) {
             setError(err instanceof Error ? err.message : '無法出戰');
@@ -272,7 +287,13 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
                             <div className="mt-2 font-mono text-[11px] text-red-400">編成中有重傷人員，出發前必須替換。</div>
                         )}
 
-                        <div className="mt-3 flex items-center gap-3">
+                        <div className="mt-3 flex flex-wrap items-center gap-3">
+                            <Select size="small" value={scenarioId} onChange={setScenarioId} className="!w-36"
+                                options={SCENARIOS.map(s => ({ value: s.id, label: s.name }))} />
+                            <Select size="small" mode="multiple" allowClear value={traineeIds} onChange={setTraineeIds}
+                                maxTagCount={2} placeholder={`備訓（最多 ${MAX_TRAINEES}）`} className="!min-w-[180px]"
+                                options={characters.filter(c => !activeSquad.memberIds.includes(c.id))
+                                    .map(c => ({ value: c.id, label: c.name, disabled: traineeIds.length >= MAX_TRAINEES && !traineeIds.includes(c.id) }))} />
                             <Button size="small" icon={<Swords size={14} />} disabled={busy || members.length === 0}
                                 onClick={() => void depart()}
                                 className="!bg-transparent !border-imperial-gold !text-imperial-gold font-mono tracking-widest">

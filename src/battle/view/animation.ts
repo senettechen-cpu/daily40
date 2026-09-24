@@ -1,5 +1,5 @@
-import type { Unit } from '../sim/engine';
-import { ticks, TICKS_PER_SECOND } from '../sim/rules';
+import type { Unit } from '../../../shared/battle/sim';
+import { ticks, TICKS_PER_SECOND } from '../../../shared/battle/sim';
 import { frameAtClock, frameAtDistance, frameAtProgress, type ActionId, type ActorSprites, type Frame, type SpriteContract } from '../sprites/contract';
 
 // Maps simulation state to a contract frame. Engine actions play over their

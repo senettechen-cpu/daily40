@@ -3,9 +3,9 @@ const assert = require('node:assert/strict');
 const { loadTs } = require('./helpers/load-ts.cjs');
 
 const gate = loadTs('shared/battle/gate.ts');
-const deploy = loadTs('src/battle/deployment.ts');
-const engine = loadTs('src/battle/sim/engine.ts');
-const scenarios = loadTs('src/battle/sim/scenarios.ts');
+const deploy = loadTs('shared/battle/deployment.ts');
+const engine = loadTs('shared/battle/sim/engine.ts');
+const scenarios = loadTs('shared/battle/sim/scenarios.ts');
 
 const character = (id, extra = {}) => ({
     id, name: id, origin: 'cadian', duty: 'rifleman', xp: 0, health: 'fit',
@@ -106,8 +106,8 @@ test('the speed penalty is applied once, not compounded as the unit walks', () =
 });
 
 test('carapace changes movement only: cover, aim, reload and swap timings are untouched', () => {
-    const rules = loadTs('src/battle/sim/rules.ts');
-    const source = require('node:fs').readFileSync('src/battle/sim/engine.ts', 'utf8');
+    const rules = loadTs('shared/battle/sim/rules.ts');
+    const source = require('node:fs').readFileSync('shared/battle/sim/engine.ts', 'utf8');
     // The unit's speed is read for movement and nowhere else.
     const uses = [...source.matchAll(/u\.speed|\.speed\b/g)].length;
     assert.ok(uses <= 3, `unit speed is referenced ${uses} times; it should only drive movement`);

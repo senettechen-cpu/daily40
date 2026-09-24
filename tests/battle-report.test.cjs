@@ -2,8 +2,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const { loadTs } = require('./helpers/load-ts.cjs');
-const e = loadTs('src/battle/sim/engine.ts');
-const s = loadTs('src/battle/sim/scenarios.ts');
+const e = loadTs('shared/battle/sim/engine.ts');
+const s = loadTs('shared/battle/sim/scenarios.ts');
 const r = loadTs('src/battle/report/report.ts');
 const templates = JSON.parse(fs.readFileSync('src/battle/report/report-templates.json', 'utf8')).templates;
 

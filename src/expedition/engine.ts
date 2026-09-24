@@ -2,7 +2,13 @@
 export type WeaponId = 'lasgun' | 'shotgun' | 'longlas' | 'flamer';
 export type Role = 'armsman' | 'medic' | 'scout' | 'engineer';
 export type Order = 'nearest' | 'support' | 'weakest';
-export interface Point { x: number; y: number }
+// Terrain, line of sight and cover now live in shared so the server can replay a
+// battle on the same ground. Re-exported here so existing callers are unchanged
+// and there is still only one description of the map.
+export { WIDTH, HEIGHT, WALLS, COVER, distance, lineOfSight, protectedByCover } from '../../shared/battle/terrain';
+export type { Point } from '../../shared/battle/terrain';
+import type { Point } from '../../shared/battle/terrain';
+import { COVER, HEIGHT, WALLS, WIDTH, distance, lineOfSight, protectedByCover, samePoint } from '../../shared/battle/terrain';
 export type CombatWeaponId = WeaponId | 'laspistol';
 export const SIDEARM = { name: '雷射手槍', damage: 5, interval: 12, range: 2.5, penetration: 0, color: '#ffad87' };
 export const activeWeapon = (actor: Pick<Actor, 'weapon' | 'sidearm'>): CombatWeaponId => actor.sidearm ? 'laspistol' : actor.weapon;
@@ -29,12 +35,8 @@ export const DEFAULT_SQUAD: Assignment[] = [
     { role: 'scout', equipment: 'precision-01', lane: 6, order: 'support' },
     { role: 'engineer', equipment: 'las-02', lane: 8, order: 'nearest' },
 ];
-export const WIDTH = 16, HEIGHT = 10;
-export const WALLS: Point[] = [{ x: 5, y: 2 }, { x: 5, y: 3 }, { x: 5, y: 6 }, { x: 5, y: 7 }, { x: 10, y: 3 }, { x: 10, y: 4 }, { x: 10, y: 7 }];
-export const COVER: Point[] = [{ x: 3, y: 1 }, { x: 3, y: 4 }, { x: 3, y: 8 }, { x: 7, y: 1 }, { x: 7, y: 4 }, { x: 7, y: 8 }, { x: 9, y: 1 }, { x: 9, y: 6 }, { x: 12, y: 2 }, { x: 12, y: 6 }];
 export const BEACON = { x: 14, y: 5 };
-export const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
-const same = (a: Point, b: Point) => a.x === b.x && a.y === b.y;
+const same = samePoint;
 const blocked = (p: Point) => p.x < 0 || p.x >= WIDTH || p.y < 0 || p.y >= HEIGHT || [...WALLS, ...COVER].some(w => same(w, p));
 export type TacticState = 'positioning' | 'covered' | 'firing' | 'falling-back' | 'overwatch' | 'assault' | 'objective';
 export function compatible(role: Role, equipment: string) {
@@ -65,14 +67,6 @@ export interface Effect { id: number; kind: 'shot' | 'flame' | 'heal' | 'miss'; 
 export interface Battle {
     tick: number; random: number; status: 'running' | 'victory' | 'defeat' | 'retreated';
     actors: Actor[]; effects: Effect[]; log: string[]; wave: number; beacon: number; event: number;
-}
-export function lineOfSight(a: Point, b: Point): boolean {
-    const steps = Math.ceil(distance(a, b) * 4);
-    for (let i = 1; i < steps; i++) {
-        const p = { x: Math.round(a.x + (b.x - a.x) * i / steps), y: Math.round(a.y + (b.y - a.y) * i / steps) };
-        if (WALLS.some(w => same(w, p))) return false;
-    }
-    return true;
 }
 function roll(state: Battle) { state.random = (Math.imul(state.random, 1664525) + 1013904223) >>> 0; return state.random / 4294967296; }
 function record(state: Battle, text: string) { state.log = [`${(state.tick / 10).toFixed(1)}s · ${text}`, ...state.log].slice(0, 60); }
@@ -125,15 +119,6 @@ function effect(state: Battle, kind: Effect['kind'], from: Actor, to: Actor, col
 }
 // Low cover is a physical obstacle. Its protection is directional: the obstacle
 // must lie immediately in front of the defender, toward the incoming shot.
-export function protectedByCover(defender: Point, attacker: Point): boolean {
-    const dx = attacker.x - defender.x, dy = attacker.y - defender.y;
-    const length = Math.hypot(dx, dy);
-    if (length < 1.5) return false;
-    return COVER.some(c => {
-        const cx = c.x - defender.x, cy = c.y - defender.y;
-        return Math.hypot(cx, cy) <= 1.05 && cx * dx + cy * dy > 0 && Math.abs(cx * dy - cy * dx) / length <= .72;
-    });
-}
 const weaponRange = (actor: Actor) => actor.role === 'raider' ? 1.5 : actor.side === 'enemy' ? 11 : WEAPONS[actor.weapon].range;
 function reachable(actor: Actor, state: Battle) {
     const occupied = new Set(state.actors.filter(a => a.hp > 0 && a.id !== actor.id).map(a => `${a.x},${a.y}`));

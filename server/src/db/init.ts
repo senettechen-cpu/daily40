@@ -231,6 +231,23 @@ const initDb = async () => {
             PRIMARY KEY (user_id, template_id)
         )`);
 
+        // Operations are resolved by the server, which re-runs the deterministic
+        // simulation from what it stored. The client replays the same seed and
+        // sees the same battle, but never reports its own result.
+        await pool.query(`CREATE TABLE IF NOT EXISTS operations (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            squad_id TEXT NOT NULL,
+            scenario_id TEXT NOT NULL,
+            seed INTEGER NOT NULL,
+            crew JSONB NOT NULL,
+            trainee_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+            outcome TEXT NOT NULL,
+            pays_xp BOOLEAN NOT NULL DEFAULT TRUE,
+            started_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        )`);
+        await pool.query('CREATE INDEX IF NOT EXISTS idx_operations_user_id ON operations(user_id)');
+
         console.log('Migrations applied.');
 
         // Initialize default game state if not exists

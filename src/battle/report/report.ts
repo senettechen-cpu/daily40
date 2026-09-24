@@ -2,9 +2,9 @@
 // Every entry is traceable to its source event IDs; wording comes only from
 // GPT's templates (report-templates.json); nothing here touches the battle RNG,
 // so replays and report variants never change the outcome.
-import type { Battle, BattleEvent, BattleSetup, BattleStatus, Unit } from '../sim/engine';
-import { createBattle, stepBattle } from '../sim/engine';
-import { TICKS_PER_SECOND, WEAPONS, type Slot, type WeaponId } from '../sim/rules';
+import type { Battle, BattleEvent, BattleSetup, BattleStatus, Unit } from '../../../shared/battle/sim';
+import { createBattle, stepBattle } from '../../../shared/battle/sim';
+import { TICKS_PER_SECOND, WEAPONS, type Slot, type WeaponId } from '../../../shared/battle/sim';
 import templateFile from './report-templates.json';
 
 export const TEMPLATE_VERSION = templateFile.schemaVersion;

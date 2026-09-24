@@ -1,11 +1,20 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { CREW_SIZE, LANES, validateDeployment } from '../sim/engine';
-import { SCENARIOS, setupFor } from '../sim/scenarios';
-import type { BattleEvent, CrewProfile } from '../sim/engine';
+import { CREW_SIZE, LANES, validateDeployment } from '../../../shared/battle/sim';
+import { SCENARIOS, setupFor } from '../../../shared/battle/sim';
+import type { BattleEvent, CrewProfile } from '../../../shared/battle/sim';
 import { TacticalMap } from './TacticalMap';
 import { DEPLOYMENT_KEY } from '../handoff';
 
-interface Handoff { crew: CrewProfile[]; unmodelled: string[]; squadName: string }
+interface Handoff {
+    crew: CrewProfile[];
+    unmodelled: string[];
+    squadName: string;
+    /** The server already resolved this battle; the page only replays it. */
+    scenarioId?: string;
+    seed?: number;
+    lanes?: number[];
+    outcome?: 'victory' | 'defeat' | 'timeout';
+}
 
 /** A real squad handed over by the roster, or null for the built-in test crew. */
 function readDeployment(): Handoff | null {
@@ -17,7 +26,7 @@ function readDeployment(): Handoff | null {
         return null;
     }
 }
-import { TICKS_PER_SECOND, WEAPONS } from '../sim/rules';
+import { TICKS_PER_SECOND, WEAPONS } from '../../../shared/battle/sim';
 import { simulateWithReport, type ReportEntry, type SimulatedBattle, type UnitSnap, type UnitStats } from '../report/report';
 import { loadReportArt, NO_ART, type ReportArt } from './reportArt';
 import './battle-test.css';
@@ -103,10 +112,12 @@ function Results({ sim, names }: { sim: SimulatedBattle; names: Record<string, s
 
 export function BattleReportApp() {
     const [deployment] = useState<Handoff | null>(readDeployment);
-    const [scenarioId, setScenarioId] = useState(SCENARIOS[0].id);
+    // A handed-over operation pins the scenario, lanes and seed so the replay is
+    // the battle the server already resolved, not a fresh roll.
+    const [scenarioId, setScenarioId] = useState(deployment?.scenarioId ?? SCENARIOS[0].id);
     const scenario = SCENARIOS.find(s => s.id === scenarioId)!;
-    const [lanes, setLanes] = useState<number[]>(scenario.lanes);
-    const [seed, setSeed] = useState(scenario.seed);
+    const [lanes, setLanes] = useState<number[]>(deployment?.lanes ?? scenario.lanes);
+    const [seed, setSeed] = useState(deployment?.seed ?? scenario.seed);
     const deployError = validateDeployment(lanes);
     const [phase, setPhase] = useState<Phase>('deploy');
     const [speed, setSpeed] = useState(1);
@@ -209,7 +220,7 @@ export function BattleReportApp() {
             <p className="bt-hint">{scenario.description}</p>
             {deployment && (
                 <p className="bt-hint">
-                    使用「{deployment.squadName}」的實際編成與配裝。
+                    重播「{deployment.squadName}」的行動（結果由伺服器判定：{deployment.outcome === 'victory' ? '勝利' : deployment.outcome === 'defeat' ? '失敗' : '超時'}）。
                     {deployment.unmodelled.length > 0 && `目前模擬沒有這些裝備的戰鬥數值，本場不生效：${deployment.unmodelled.join('、')}。`}
                 </p>
             )}

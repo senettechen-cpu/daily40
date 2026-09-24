@@ -1,7 +1,7 @@
-import { Character, BASE_ACCURACY, maxHp } from '../../shared/roster';
-import { EquipmentItem, catalogItem } from '../../shared/armory';
-import type { CrewProfile } from './sim/engine';
-import type { WeaponId } from './sim/rules';
+import { Character, BASE_ACCURACY, maxHp } from '../roster';
+import { EquipmentItem, catalogItem } from '../armory';
+import type { CrewProfile } from './sim';
+import type { WeaponId } from './sim';
 
 // Turns roster records into the numbers the simulation runs on. Only the two
 // weapons with a benchmarked profile are modelled; everything else is carried

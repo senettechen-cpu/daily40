@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const { loadTs } = require('./helpers/load-ts.cjs');
 
 const report = loadTs('src/battle/report/report.ts');
-const scenarios = loadTs('src/battle/sim/scenarios.ts');
+const scenarios = loadTs('shared/battle/sim/scenarios.ts');
 const expedition = loadTs('src/expedition/engine.ts');
 const source = fs.readFileSync('src/battle/view/TacticalMap.tsx', 'utf8');
 

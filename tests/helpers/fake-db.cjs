@@ -3,7 +3,7 @@
 // (user_id, seq), preset upsert) and rolls back on error like a transaction.
 // It is not a SQL engine: an unknown statement throws so tests cannot pass silently.
 function createFakeDb() {
-    const tables = { expenses: [], reward_entries: [], ledger_presets: [], core_plans: [], tasks: [], projects: [], roster_characters: [], squads: [], equipment_items: [], equipment_authorizations: [], personnel_authorizations: [] };
+    const tables = { expenses: [], reward_entries: [], ledger_presets: [], core_plans: [], tasks: [], projects: [], roster_characters: [], squads: [], equipment_items: [], equipment_authorizations: [], personnel_authorizations: [], operations: [] };
     const log = [];
     const normalized = sql => sql.replace(/\s+/g, ' ').trim();
 
@@ -151,6 +151,19 @@ function createFakeDb() {
         if (s.startsWith('SELECT template_id FROM personnel_authorizations')) {
             const rows = tables.personnel_authorizations.filter(r => r.user_id === p[0]);
             return { rows, rowCount: rows.length };
+        }
+        if (s.startsWith('INSERT INTO operations')) {
+            tables.operations.push({
+                id: p[0], user_id: p[1], squad_id: p[2], scenario_id: p[3], seed: p[4],
+                crew: JSON.parse(p[5]), trainee_ids: JSON.parse(p[6]), outcome: p[7], pays_xp: p[8],
+                started_at: new Date(fake.now += 1000),
+            });
+            return { rows: [], rowCount: 1 };
+        }
+        if (s.startsWith('UPDATE roster_characters SET xp = xp + $1 WHERE id = $2 AND user_id = $3')) {
+            const row = tables.roster_characters.find(r => r.id === p[1] && r.user_id === p[2]);
+            if (row) row.xp = (row.xp ?? 0) + p[0];
+            return { rows: [], rowCount: row ? 1 : 0 };
         }
         throw new Error(`fake-db: unsupported statement: ${s}`);
     }

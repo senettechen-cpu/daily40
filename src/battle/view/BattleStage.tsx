@@ -1,7 +1,7 @@
 import { COVER, WALLS, type Point } from '../../expedition/engine';
 import { project } from '../../expedition/presentation';
-import type { Battle, BattleEvent, Unit } from '../sim/engine';
-import { TICKS_PER_SECOND, WEAPONS } from '../sim/rules';
+import type { Battle, BattleEvent, Unit } from '../../../shared/battle/sim';
+import { TICKS_PER_SECOND, WEAPONS } from '../../../shared/battle/sim';
 import { drawItems, GROUND, heldWeaponId, muzzleOf, type Vec } from '../sprites/contract';
 import type { BattleArt } from '../sprites/loader';
 import { flinch, poseFor, type Pose } from './animation';

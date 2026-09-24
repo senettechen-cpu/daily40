@@ -19,6 +19,18 @@ export interface ArmoryData { catalog: CatalogItem[]; items: EquipmentItem[]; au
 
 export interface OperationGate { allowed: boolean; paysRequisition: boolean; reason: string; completedCores: number; day: string }
 
+export interface XpAward { characterId: string; amount: number; role: 'deployed' | 'trainee' }
+
+/** The server's own result. The client replays it; it never reports one. */
+export interface StartedOperation {
+    operation: {
+        id: string; scenarioId: string; seed: number; lanes: number[];
+        crew: unknown[]; outcome: 'victory' | 'defeat' | 'timeout'; paysXp: boolean;
+    };
+    awards: XpAward[];
+    unmodelled: string[];
+}
+
 export interface RequisitionSummary {
     enabled: boolean;
     balance?: number;
@@ -325,6 +337,15 @@ export const api = {
         const response = await fetch(`${API_URL}/operations/gate`, { headers: getHeaders(token) });
         if (!response.ok) throw new Error('Failed to read operation gate');
         return response.json();
+    },
+
+    startOperation: async (squadId: string, scenarioId: string, traineeIds: string[], token?: string): Promise<StartedOperation> => {
+        const response = await fetch(`${API_URL}/operations`, {
+            method: 'POST', headers: getHeaders(token), body: JSON.stringify({ squadId, scenarioId, traineeIds }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || '無法出戰');
+        return data;
     },
 
     setProjectMilestones: async (projectId: string, milestoneIds: string[], token?: string): Promise<string[]> => {

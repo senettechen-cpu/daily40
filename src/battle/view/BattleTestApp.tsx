@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { createBattle, LANES, stepBattle, validateDeployment, CREW_SIZE, type Battle, type Unit } from '../sim/engine';
-import { SCENARIOS, setupFor } from '../sim/scenarios';
-import { TICKS_PER_SECOND, WEAPONS, type Slot } from '../sim/rules';
+import { createBattle, LANES, stepBattle, validateDeployment, CREW_SIZE, type Battle, type Unit } from '../../../shared/battle/sim';
+import { SCENARIOS, setupFor } from '../../../shared/battle/sim';
+import { TICKS_PER_SECOND, WEAPONS, type Slot } from '../../../shared/battle/sim';
 import { loadBattleArt, type BattleArt } from '../sprites/loader';
 import { heldWeaponId } from '../sprites/contract';
 import { poseFor } from './animation';

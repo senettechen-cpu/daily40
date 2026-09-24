@@ -3,7 +3,7 @@
 // imperial-ruins layout (locked by tests/battlefield-layout.test.cjs).
 // Facing is fixed: the crew holds the west and faces SE (+x), the enemy holds
 // the east and faces NW (−x); nobody may path behind the opposing line.
-import { COVER, HEIGHT, lineOfSight, protectedByCover, WALLS, WIDTH, type Point } from '../../expedition/engine';
+import { COVER, HEIGHT, lineOfSight, protectedByCover, WALLS, WIDTH, type Point } from '../terrain';
 import {
     BATTLE_TIME_LIMIT, damageFor, DISENGAGE_RANGE, ENGAGE_RANGE, ENTER_COVER_TICKS, FIRE_ACTION_TICKS, FIRE_WINDUP_TICKS,
     hitChance, HUMAN, RETRACT_TICKS, Slot, SWAP_TICKS, TICKS_PER_SECOND, ticks, WeaponId, WEAPONS,

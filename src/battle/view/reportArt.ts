@@ -1,7 +1,7 @@
 // Static art for the text report: identity portraits and equipment cards, from the
 // imported thumbnail manifest (public/battle-assets/report). Portraits show who a unit
 // is, never what it holds — the equipment card is the authority for the weapon.
-import type { WeaponId } from '../sim/rules';
+import type { WeaponId } from '../../../shared/battle/sim';
 
 export interface ThumbManifest {
     portraits: { assetId: string; role: string; head: string; half: string }[];
