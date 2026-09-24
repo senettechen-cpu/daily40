@@ -298,7 +298,7 @@ export const api = {
         return data;
     },
 
-    updateSquad: async (id: string, changes: { name?: string; memberIds?: string[] }, token?: string): Promise<Squad> => {
+    updateSquad: async (id: string, changes: { name?: string; memberIds?: string[]; placements?: unknown[] }, token?: string): Promise<Squad> => {
         const response = await fetch(`${API_URL}/roster/squads/${encodeURIComponent(id)}`, { method: 'PUT', headers: getHeaders(token), body: JSON.stringify(changes) });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error || '無法更新編成');

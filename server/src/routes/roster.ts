@@ -56,13 +56,15 @@ router.put('/squads/:id', async (req, res) => {
         const userId = req.user?.uid;
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-        const { name, memberIds } = req.body ?? {};
+        const { name, memberIds, placements } = req.body ?? {};
         if (name !== undefined && typeof name !== 'string') return res.status(400).json({ error: '名稱格式錯誤。' });
         if (memberIds !== undefined && (!Array.isArray(memberIds) || memberIds.some((id: unknown) => typeof id !== 'string'))) {
             return res.status(400).json({ error: 'memberIds 必須是人員 ID 的陣列。' });
         }
 
-        const result = await withTransaction(db => updateSquad(db, userId, req.params.id, { name, memberIds }));
+        // Placements are normalised in the service and only validated at
+        // departure, so a half-arranged formation can still be saved.
+        const result = await withTransaction(db => updateSquad(db, userId, req.params.id, { name, memberIds, placements }));
         if ('error' in result) return res.status(400).json({ error: result.error });
         res.json(result.squad);
     } catch (err) {

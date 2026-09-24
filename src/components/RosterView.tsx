@@ -9,7 +9,10 @@ import {
 } from '../../shared/roster';
 import { dayKey } from '../../shared/time';
 import { RecruitTemplate, recruitError, validateSquad } from '../../shared/roster';
-import { crewFor, damageOf, WEAPON_STATS } from '../../shared/battle/turn';
+import {
+    crewFor, damageOf, defaultPlacements, scenarioById, STANCES, Stance, WEAPON_STATS,
+} from '../../shared/battle/turn';
+import { StanceIcon, STANCE_ART } from './icons/stance/StanceIcon';
 import {
     EquipmentItem, SLOT_CAPACITY, SLOT_LABELS, Slot, assignmentError, catalogItem, itemsOf,
 } from '../../shared/armory';
@@ -101,6 +104,33 @@ const CharacterCard = ({ character, action, onAction, onOpen }: {
         </div>
     );
 };
+
+/**
+ * The one behaviour control the player has. The icon is decorative: the Chinese
+ * name stays beside it, because a shape alone is not a label.
+ */
+const StancePicker = ({ value, disabled, onChange }: {
+    value: Stance; disabled: boolean; onChange: (next: Stance) => void;
+}) => (
+    <div className="flex gap-1" role="group" aria-label="作戰姿態">
+        {STANCES.map(stance => (
+            <button
+                key={stance}
+                type="button"
+                disabled={disabled}
+                aria-pressed={value === stance}
+                title={STANCE_ART[stance].label}
+                onClick={e => { e.stopPropagation(); onChange(stance); }}
+                className={`flex items-center gap-1 px-1.5 py-1 border font-mono text-[10px] transition-colors ${value === stance
+                    ? 'border-imperial-gold text-imperial-gold bg-imperial-gold/10'
+                    : 'border-zinc-700 text-zinc-500 hover:border-imperial-gold/50 hover:text-imperial-gold/70'}`}
+            >
+                <StanceIcon stance={stance} size={14} />
+                <span>{STANCE_ART[stance].label}</span>
+            </button>
+        ))}
+    </div>
+);
 
 /** Catalogue art for one item; every catalogue entry has a delivered image. */
 const ItemArt = ({ catalogId, size = 28 }: { catalogId: string; size?: number }) => {
@@ -336,6 +366,32 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
         });
     };
 
+    /**
+     * The formation as the battle will build it: the saved one, or the default
+     * the server would fall back to. Shown rather than an empty state, so the
+     * squad's stances are never a surprise at departure.
+     */
+    const board = scenarioById(scenarioId)?.board;
+    const placements = useMemo(() => {
+        if (!activeSquad || !board) return [];
+        const saved = activeSquad.placements ?? [];
+        const roster = members.map(m => ({ id: m.id, duty: m.duty }));
+        const fallback = defaultPlacements(board, roster);
+        return roster.map(member =>
+            saved.find(p => p.characterId === member.id)
+            ?? fallback.find(p => p.characterId === member.id)
+            ?? { characterId: member.id, at: { col: 0, row: 0 }, stance: 'advance' as Stance });
+    }, [activeSquad, board, members]);
+
+    const stanceOf = (characterId: string): Stance =>
+        placements.find(p => p.characterId === characterId)?.stance ?? 'advance';
+
+    const setStance = (characterId: string, stance: Stance) => {
+        if (!activeSquad) return;
+        const next = placements.map(p => (p.characterId === characterId ? { ...p, stance } : p));
+        void run(token => api.updateSquad(activeSquad.id, { placements: next }, token).then(() => undefined));
+    };
+
     const setMembers = (memberIds: string[]) => {
         if (!activeSquad) return;
         void run(token => api.updateSquad(activeSquad.id, { memberIds }, token).then(() => undefined));
@@ -488,9 +544,13 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
                             {Array.from({ length: SQUAD_SIZE }).map((_, index) => {
                                 const member = members[index];
                                 return member ? (
-                                    <CharacterCard key={member.id} character={member} action="remove"
-                                        onOpen={() => setDossierId(member.id)}
-                                        onAction={() => setMembers(activeSquad.memberIds.filter(id => id !== member.id))} />
+                                    <div key={member.id} className="flex flex-col gap-1">
+                                        <CharacterCard character={member} action="remove"
+                                            onOpen={() => setDossierId(member.id)}
+                                            onAction={() => setMembers(activeSquad.memberIds.filter(id => id !== member.id))} />
+                                        <StancePicker value={stanceOf(member.id)} disabled={busy}
+                                            onChange={stance => setStance(member.id, stance)} />
+                                    </div>
                                 ) : (
                                     <div key={`empty-${index}`} className="flex items-center justify-center h-[68px] border border-dashed border-zinc-800 text-zinc-700 font-mono text-xs">
                                         空位
