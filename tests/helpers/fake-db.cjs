@@ -3,7 +3,7 @@
 // (user_id, seq), preset upsert) and rolls back on error like a transaction.
 // It is not a SQL engine: an unknown statement throws so tests cannot pass silently.
 function createFakeDb() {
-    const tables = { expenses: [], reward_entries: [], ledger_presets: [] };
+    const tables = { expenses: [], reward_entries: [], ledger_presets: [], core_plans: [], tasks: [], projects: [] };
     const log = [];
     const normalized = sql => sql.replace(/\s+/g, ' ').trim();
 
@@ -53,7 +53,63 @@ function createFakeDb() {
             tables.ledger_presets = tables.ledger_presets.filter(r => !(r.id === p[0] && r.user_id === p[1] && r.pinned));
             return { rows: [], rowCount: before - tables.ledger_presets.length };
         }
+        if (s.startsWith('SELECT day, task_ids, locked_cap FROM core_plans')) {
+            const rows = tables.core_plans.filter(r => r.user_id === p[0] && r.day === p[1]);
+            return { rows, rowCount: rows.length };
+        }
+        if (s.startsWith('INSERT INTO core_plans')) {
+            const [user_id, day, task_ids, locked_cap] = p;
+            let row = tables.core_plans.find(r => r.user_id === user_id && r.day === day);
+            const next = { user_id, day, task_ids: JSON.parse(task_ids), locked_cap };
+            if (row) Object.assign(row, next); else tables.core_plans.push(next);
+            return { rows: [], rowCount: 1 };
+        }
+        if (s.startsWith('SELECT id, status, last_completed_at FROM tasks WHERE user_id = $1')) {
+            const rows = tables.tasks.filter(t => t.user_id === p[0]);
+            return { rows, rowCount: rows.length };
+        }
+        if (s.startsWith('UPDATE tasks SET')) return applyUpdate(tables.tasks, s, p);
+        if (s.startsWith('SELECT sub_tasks, milestone_ids, created_at, closed_at FROM projects')) {
+            const rows = tables.projects.filter(r => r.id === p[0] && r.user_id === p[1]);
+            return { rows, rowCount: rows.length };
+        }
+        if (s.startsWith('INSERT INTO projects')) {
+            if (tables.projects.some(r => r.id === p[0])) return { rows: [], rowCount: 0 };
+            tables.projects.push({
+                id: p[0], title: p[1], month: p[2], difficulty: p[3], completed: p[4],
+                sub_tasks: JSON.parse(p[5]), user_id: p[6], milestone_ids: [],
+                created_at: new Date(fake.now += 1000), closed_at: null,
+            });
+            return { rows: [], rowCount: 1 };
+        }
+        if (s.startsWith('UPDATE projects SET closed_at = NULL WHERE id = $1 AND user_id = $2')) {
+            const row = tables.projects.find(r => r.id === p[0] && r.user_id === p[1]);
+            if (row) row.closed_at = null;
+            return { rows: [], rowCount: row ? 1 : 0 };
+        }
+        if (s.startsWith('UPDATE projects SET')) return applyUpdate(tables.projects, s, p);
+        if (s.startsWith('DELETE FROM projects WHERE id = $1 AND user_id = $2')) {
+            const before = tables.projects.length;
+            tables.projects = tables.projects.filter(r => !(r.id === p[0] && r.user_id === p[1]));
+            return { rows: [], rowCount: before - tables.projects.length };
+        }
         throw new Error(`fake-db: unsupported statement: ${s}`);
+    }
+
+    // Handles the routes' dynamically built "UPDATE <table> SET a = $1, b = $2
+    // WHERE id = $n AND user_id = $n+1" by mapping each assignment to its param.
+    const JSON_COLUMNS = new Set(['sub_tasks', 'milestone_ids']);
+    function applyUpdate(rows, sql, params) {
+        const [, setClause, idIdx, userIdx] = sql.match(/^UPDATE \w+ SET (.+) WHERE id = \$(\d+) AND user_id = \$(\d+)$/) ?? [];
+        if (!setClause) throw new Error(`fake-db: unsupported update: ${sql}`);
+        const row = rows.find(r => r.id === params[Number(idIdx) - 1] && r.user_id === params[Number(userIdx) - 1]);
+        if (!row) return { rows: [], rowCount: 0 };
+        for (const assignment of setClause.split(', ')) {
+            const [column, placeholder] = assignment.split(' = ');
+            const value = params[Number(placeholder.slice(1)) - 1];
+            row[column] = JSON_COLUMNS.has(column) ? JSON.parse(value) : value;
+        }
+        return { rows: [], rowCount: 1 };
     }
 
     async function withTransaction(work) {

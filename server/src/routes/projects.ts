@@ -1,8 +1,20 @@
 
 import { Router } from 'express';
-import { query } from '../db';
+import { query, withTransaction } from '../db';
+import { refreshClosedAt, saveMilestones, syncProjectRewards } from '../rewards/projectService';
+import { v15EconomyEnabled } from '../rewards/service';
 
 const router = Router();
+
+/** Re-settles a project's milestone and close rewards after its state changed. */
+async function settle(userId: string, projectId: string) {
+    if (!v15EconomyEnabled()) return;
+    const now = new Date();
+    await withTransaction(async db => {
+        await refreshClosedAt(db, userId, projectId, now);
+        await syncProjectRewards(db, userId, projectId, now);
+    });
+}
 
 // GET all projects
 router.get('/', async (req, res) => {
@@ -17,7 +29,10 @@ router.get('/', async (req, res) => {
             month: row.month,
             difficulty: row.difficulty,
             completed: row.completed,
-            subTasks: row.sub_tasks // JSONB automatic parsing
+            subTasks: row.sub_tasks, // JSONB automatic parsing
+            milestoneIds: row.milestone_ids ?? [],
+            createdAt: row.created_at,
+            closedAt: row.closed_at
         }));
         res.json(projects);
     } catch (err) {
@@ -67,10 +82,36 @@ router.put('/:id', async (req, res) => {
     const sql = `UPDATE projects SET ${fields.join(', ')} WHERE id = $${idx} AND user_id = $${idx + 1}`;
 
     try {
+        const userId = req.user?.uid;
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
         await query(sql, values);
+        await settle(userId, id);
         res.json({ message: 'Project updated' });
     } catch (err) {
         console.error('Error updating project:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// PUT designate this project's three milestones
+router.put('/:id/milestones', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const userId = req.user?.uid;
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+        if (!v15EconomyEnabled()) return res.status(409).json({ error: 'v1.5 經濟尚未啟用。' });
+
+        const ids = req.body?.milestoneIds;
+        if (!Array.isArray(ids) || ids.some(value => typeof value !== 'string')) {
+            return res.status(400).json({ error: 'milestoneIds 必須是子項 ID 的陣列。' });
+        }
+
+        const result = await withTransaction(db => saveMilestones(db, userId, id, ids, new Date()));
+        if ('error' in result) return res.status(400).json({ error: result.error });
+        res.json({ milestoneIds: result.milestoneIds });
+    } catch (err) {
+        console.error('Error setting milestones:', err);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
@@ -79,7 +120,12 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
     const { id } = req.params;
     try {
-        await query('DELETE FROM projects WHERE id = $1 AND user_id = $2', [id, req.user?.uid]);
+        const userId = req.user?.uid;
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        await query('DELETE FROM projects WHERE id = $1 AND user_id = $2', [id, userId]);
+        // Reverses every reward for the project now that its cause is gone.
+        await settle(userId, id);
         res.json({ message: 'Project deleted' });
     } catch (err) {
         console.error('Error deleting project:', err);

@@ -160,6 +160,22 @@ const initDb = async () => {
         )`);
         await pool.query('CREATE INDEX IF NOT EXISTS idx_expenses_user_created ON expenses(user_id, created_at)');
 
+        // v1.5 daily core: the committed task list for one day, plus the count
+        // frozen at 09:00 so later edits can swap but not add.
+        await pool.query(`CREATE TABLE IF NOT EXISTS core_plans (
+            user_id TEXT NOT NULL,
+            day TEXT NOT NULL,
+            task_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+            locked_cap INTEGER,
+            PRIMARY KEY (user_id, day)
+        )`);
+
+        // v1.5 project rewards: exactly three designated milestones, and the
+        // close timestamp needed to tell a same-day close from a later one.
+        await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS milestone_ids JSONB DEFAULT '[]'::jsonb`);
+        await pool.query('ALTER TABLE projects ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()');
+        await pool.query('ALTER TABLE projects ADD COLUMN IF NOT EXISTS closed_at TIMESTAMP WITH TIME ZONE');
+
         console.log('Migrations applied.');
 
         // Initialize default game state if not exists

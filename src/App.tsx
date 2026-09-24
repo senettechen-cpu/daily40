@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { ConfigProvider, Input, Typography, theme, Button } from 'antd'
 import zhTW from 'antd/locale/zh_TW'
-import { Plus, ShoppingCart, AlertTriangle, Map as MapIcon, Radar, Mail, Scroll, Activity } from 'lucide-react'
+import { Plus, ShoppingCart, AlertTriangle, Map as MapIcon, Radar, Mail, Scroll, Activity, Users } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { RadarView } from './components/RadarView' // Keep old one just in case, or remove
 import { OrbitalRadar } from './components/OrbitalRadar'
@@ -18,12 +18,13 @@ import { AscensionTracker } from './components/astartes/AscensionTracker'
 import { GameProvider, useGame } from './contexts/GameContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { useAuth } from './contexts/AuthContext'
+import { RequisitionProvider, useRequisition } from './contexts/RequisitionContext'
 import { AdminDashboard } from './pages/AdminDashboard'
 import { useLocalNotifications } from './hooks/useLocalNotifications'
 import { LEGACY_PENALTIES_FROZEN } from './game/legacyFreeze'
 import './App.css'
 import './command-deck.css'
-import { ResourceDisplay, CorruptionGauge } from './components/ResourceDisplay'
+import { ResourceDisplay } from './components/ResourceDisplay'
 
 const { Title, Text } = Typography;
 
@@ -186,19 +187,52 @@ const AppContent = () => {
 
   // Only render GameProvider when user is authenticated
   return (
-    <GameProvider>
-      <MainDashboard currentUser={user} onLogout={logout} />
-    </GameProvider>
+    <RequisitionProvider>
+      <GameProvider>
+        <MainDashboard currentUser={user} onLogout={logout} />
+      </GameProvider>
+    </RequisitionProvider>
+  );
+};
+
+/** Today's committed cores. After 09:00 the count is frozen, so the UI says so. */
+const CoreStatus = () => {
+  const { core, error, clearError } = useRequisition();
+  const count = core.taskIds?.length ?? 0;
+  const cap = core.cap ?? 0;
+  const locked = core.phase === 'locked';
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <span
+        className="font-mono text-xs tracking-widest text-imperial-gold/70"
+        title={locked ? '已過 09:00，今天的核心數量已鎖定，只能替換未完成的項目' : '09:00 前可自由增減今日核心'}
+      >
+        今日核心 {count}/{cap || 3}
+        {locked && <span className="text-imperial-gold/40"> · 已鎖定</span>}
+      </span>
+      {error && (
+        <button type="button" onClick={clearError} className="font-mono text-[11px] text-red-400 hover:text-red-300">
+          {error}（點擊關閉）
+        </button>
+      )}
+    </div>
   );
 };
 
 const MainDashboard = ({ currentUser, onLogout }: { currentUser: any, onLogout: () => void }) => {
+  const requisition = useRequisition();
   const {
-    tasks, resources, corruption, ownedUnits, isPenitentMode,
-    addTask, updateTask, purgeTask, deleteTask, buyUnit, cleanseCorruption, resetGame, viewMode, allTasks
+    tasks, ownedUnits, isPenitentMode,
+    addTask, updateTask, purgeTask, deleteTask, resetGame, viewMode, allTasks
   } = useGame();
 
   useLocalNotifications(allTasks);
+
+  // Completing a task may have paid a core, so re-read the balance whenever a
+  // task's completion state changes. The signature keeps this off other edits.
+  const completionSignature = allTasks.map(t => `${t.id}:${t.status}:${t.lastCompletedAt ?? ''}`).join('|');
+  useEffect(() => { void requisition.refresh(); }, [completionSignature, requisition.refresh]);
 
   // Clock State
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -301,16 +335,15 @@ const MainDashboard = ({ currentUser, onLogout }: { currentUser: any, onLogout: 
               {formatDate(currentTime).split(' ')[0]} <span className="text-xs xl:text-lg">{formatDate(currentTime).split(' ')[1]}</span>
             </span>
           </div>
-          <button type="button" className="flex gap-2 xl:hidden" onClick={openShop} aria-label="開啟徵召中心">
-            <ResourceDisplay kind="rp" value={resources.rp} compact />
-            <ResourceDisplay kind="glory" value={resources.glory} compact />
+          <button type="button" className="flex gap-2 xl:hidden" onClick={openArmory} aria-label="開啟軍械庫">
+            <ResourceDisplay kind="requisition" value={requisition.balance} compact />
           </button>
         </div>
 
-        <CorruptionGauge value={corruption} canCleanse={resources.rp >= 20} onCleanse={cleanseCorruption} />
+        <CoreStatus />
 
         <div className="hidden xl:flex gap-4 items-center">
-          <button type="button" onClick={openArmory} aria-label="開啟軍械庫"><ResourceDisplay kind="rp" value={resources.rp} /></button>
+          <button type="button" onClick={openArmory} aria-label="開啟軍械庫"><ResourceDisplay kind="requisition" value={requisition.balance} /></button>
           {currentUser && (
             <div className="flex gap-2">
               <Button
@@ -332,6 +365,15 @@ const MainDashboard = ({ currentUser, onLogout }: { currentUser: any, onLogout: 
 
               <Button
                 ghost
+                className="!border-imperial-gold/50 !text-imperial-gold hover:!bg-imperial-gold/20 font-mono"
+                icon={<Users size={16} />}
+                onClick={openShop}
+              >
+                徵召中心
+              </Button>
+
+              <Button
+                ghost
                 danger
                 className="!border-red-900 !text-red-700 hover:!bg-red-900/20 font-mono"
                 onClick={(e) => { e.stopPropagation(); onLogout(); }}
@@ -340,7 +382,6 @@ const MainDashboard = ({ currentUser, onLogout }: { currentUser: any, onLogout: 
               </Button>
             </div>
           )}
-          <button type="button" onClick={openShop} aria-label="開啟徵召中心"><ResourceDisplay kind="glory" value={resources.glory} /></button>
         </div>
       </header>
 

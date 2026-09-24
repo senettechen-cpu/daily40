@@ -3,6 +3,36 @@ import { Table, Button, Tag, Tooltip } from 'antd';
 import { Shield, Trash2, Target, Sword, Activity, Plus, FileEdit, Flame } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Task, Faction } from '../types';
+import { useRequisition } from '../contexts/RequisitionContext';
+
+/**
+ * Marks a task as one of today's three cores. Hidden while the old economy is
+ * running, and disabled once the core has already paid out.
+ */
+const CoreBadge = ({ taskId }: { taskId: string }) => {
+    const { enabled, isCore, isCorePaid, canAddCore, core, toggleCore } = useRequisition();
+    if (!enabled) return null;
+
+    const selected = isCore(taskId);
+    const paid = isCorePaid(taskId);
+    const locked = core.phase === 'locked';
+    const disabled = paid || (!selected && !canAddCore);
+
+    return (
+        <button
+            type="button"
+            disabled={disabled}
+            onClick={(e) => { e.stopPropagation(); void toggleCore(taskId); }}
+            title={paid ? '這個核心已結算，不能取消' : locked ? '已過 09:00：數量已鎖定，只能替換未完成的核心' : '設為今日核心（完成 +10 軍需）'}
+            className={`text-[10px] font-mono px-1.5 py-0.5 border tracking-widest transition-colors ${selected
+                ? 'border-imperial-gold text-imperial-gold bg-imperial-gold/10'
+                : 'border-zinc-700 text-zinc-500 hover:border-imperial-gold/50 hover:text-imperial-gold/70'
+                } ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
+        >
+            {paid ? '核心 ✓' : '核心'}
+        </button>
+    );
+};
 
 // Removed Text destructured from Typography to prevent accidental usage
 
@@ -426,6 +456,7 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
                                                                 task.faction === 'slaanesh' ? '色虐' :
                                                                     task.faction === 'necrons' ? '太空死靈' : '未知'}
                                             </span>
+                                            <CoreBadge taskId={task.id} />
                                         </div>
                                     </div>
                                     <div className="flex flex-col items-end gap-1">

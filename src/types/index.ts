@@ -67,6 +67,8 @@ export interface Project {
     difficulty: number;
     subTasks: SubTask[];
     completed: boolean;
+    /** v1.5: exactly three designated subtasks pay a milestone reward. */
+    milestoneIds?: string[];
 }
 
 export type UnitType = 'guardsmen' | 'space_marine' | 'custodes' | 'dreadnought' | 'baneblade' | 'wolf_guard' | 'phalanx_warder' | 'purifier' | 'pyroclast' | 'redemptor_dreadnought';

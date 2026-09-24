@@ -1,6 +1,8 @@
 
 import { Router } from 'express';
-import { query } from '../db';
+import { query, withTransaction } from '../db';
+import { rewardCoreCompleted } from '../rewards/coreService';
+import { v15EconomyEnabled } from '../rewards/service';
 
 const router = Router();
 
@@ -57,8 +59,8 @@ router.put('/:id', async (req, res) => {
     const updates = req.body;
 
     // Build dynamic query
-    const fields = [];
-    const values = [];
+    const fields: string[] = [];
+    const values: unknown[] = [];
     let idx = 1;
 
     if (updates.title !== undefined) { fields.push(`title = $${idx++}`); values.push(updates.title); }
@@ -78,8 +80,22 @@ router.put('/:id', async (req, res) => {
     const sql = `UPDATE tasks SET ${fields.join(', ')} WHERE id = $${idx} AND user_id = $${idx + 1}`;
 
     try {
-        await query(sql, values);
-        res.json({ message: 'Task updated' });
+        const userId = req.user?.uid;
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        // A task that just completed may be one of the day's cores. Update and pay
+        // in one transaction so a failed grant cannot leave the task marked done.
+        const completedAt = updates.lastCompletedAt ? new Date(updates.lastCompletedAt)
+            : updates.status === 'completed' ? new Date()
+                : null;
+
+        const requisition = await withTransaction(async db => {
+            await db.query(sql, values);
+            if (!completedAt || !v15EconomyEnabled()) return 0;
+            return rewardCoreCompleted(db, userId, id, completedAt);
+        });
+
+        res.json({ message: 'Task updated', requisition });
     } catch (err) {
         console.error('Error updating task:', err);
         res.status(500).json({ error: 'Internal Server Error' });

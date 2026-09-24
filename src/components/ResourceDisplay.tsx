@@ -1,6 +1,8 @@
 import { CSSProperties, useEffect, useRef, useState } from 'react';
 
 export const RESOURCE_META = {
+    // v1.5 runs a single spendable wallet; rp and glory stay only for read-only history.
+    requisition: { label: '軍需', short: '軍需', color: '#dfbc72', activity: '生活成果' },
     rp: { label: '帝皇之怒', short: 'RP', color: '#86c9da', activity: '完成任務' },
     glory: { label: '榮耀', short: 'GLORY', color: '#dfbc72', activity: '完成目標' },
     adamantium: { label: '精金', short: '精金', color: '#dd9c80', activity: '運動' },
@@ -14,7 +16,7 @@ export function ResourceSigil({ kind, size = 36 }: { kind: ResourceKind; size?: 
     return <svg width={size} height={size} viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
         <path d="M24 2 43 13v22L24 46 5 35V13Z" opacity=".28" />
         {kind === 'rp' ? <><path d="m26 9-12 17h9l-1 13 13-20h-9Z" fill="currentColor" fillOpacity=".2" /><path d="M10 16v16m28-16v16" /></>
-            : kind === 'glory' ? <><path d="m24 10 4 9 10 1-8 7 2 10-8-5-8 5 2-10-8-7 10-1Z" fill="currentColor" fillOpacity=".2" /><path d="M10 8 7 13m31-5 3 5" /></>
+            : kind === 'glory' || kind === 'requisition' ? <><path d="m24 10 4 9 10 1-8 7 2 10-8-5-8 5 2-10-8-7 10-1Z" fill="currentColor" fillOpacity=".2" /><path d="M10 8 7 13m31-5 3 5" /></>
             : kind === 'adamantium' ? <><path d="m9 28 7-13h18l6 13-6 8H15ZM9 28h31M16 15l4 13m14-13-5 13" fill="currentColor" fillOpacity=".16" /></>
             : kind === 'neuroData' ? <><path d="m24 9 11 8v15l-11 8-11-8V17ZM24 9v31M13 17l11 8 11-8M13 32l11-7 11 7" /><path d="M7 18v13m34-13v13" opacity=".5" /></>
             : kind === 'puritySeals' ? <><path d="m17 26-4 15 10-5 9 5-3-15" /><circle cx="24" cy="20" r="11" fill="currentColor" fillOpacity=".15" /><path d="m18 20 4 4 8-8" /></>

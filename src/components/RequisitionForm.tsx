@@ -7,7 +7,7 @@ import * as LucideIcons from 'lucide-react';
 import { Expense, ExpenseCategory, PaymentMethod } from '../types/ledger';
 import { EXPENSE_CATEGORIES, PAYMENT_METHODS } from '../constants/ledger';
 import { useAuth } from '../contexts/AuthContext';
-import { useGame } from '../contexts/GameContext';
+import { useRequisition } from '../contexts/RequisitionContext';
 import dayjs from 'dayjs';
 import { LedgerQuickMenu } from './ledger/LedgerQuickMenu';
 import type { LedgerQuickMenuData } from '../services/api';
@@ -23,7 +23,7 @@ type StatsViewMode = 'list' | 'category' | 'date';
 export const RequisitionForm: React.FC<RequisitionFormProps> = ({ visible, onClose }) => {
     // Auth
     const { getToken } = useAuth();
-    const { modifyResources } = useGame();
+    const { refresh: refreshRequisition } = useRequisition();
 
     // Form State
     const [date, setDate] = useState<string>(dayjs().format('YYYY-MM-DD'));
@@ -138,8 +138,8 @@ export const RequisitionForm: React.FC<RequisitionFormProps> = ({ visible, onClo
             if (!token) throw new Error("Offline");
 
             await import('../services/api').then(m => m.api.addExpense(newExpense, token));
-            // Legacy reward: stays until the v1.5 economy launch replaces it with the server ledger.
-            modifyResources(0, 50, "Requisition Filed");
+            // The server grants the v1.5 requisition for this entry; pull the new balance.
+            void refreshRequisition();
 
             const audio = new Audio('/sounds/deploy.mp3');
             audio.play().catch(() => { });
@@ -205,6 +205,8 @@ export const RequisitionForm: React.FC<RequisitionFormProps> = ({ visible, onClo
             if (!token) return;
             await import('../services/api').then(m => m.api.deleteExpense(id, token));
             setExpenses(prev => prev.filter(e => e.id !== id));
+            // Deleting a rewarded entry writes a reversal and frees the day's slot.
+            void refreshRequisition();
         } catch (e) {
             console.error("Delete failed", e);
         }

@@ -4,6 +4,30 @@ import type { LedgerPreset, PresetFields, Suggestion } from '../../shared/ledger
 
 export interface LedgerQuickMenuData { pinned: LedgerPreset[]; suggestions: Suggestion[] }
 
+export interface RequisitionSummary {
+    enabled: boolean;
+    balance?: number;
+    ledger?: { used: number; slots: number };
+}
+
+export type CorePhase = 'too-early' | 'upcoming' | 'open' | 'locked' | 'past';
+
+export interface CoreView {
+    enabled: boolean;
+    day?: string;
+    taskIds?: string[];
+    phase?: CorePhase;
+    /** How many cores the day may hold right now; drops to the 09:00 count once locked. */
+    cap?: number;
+    max?: number;
+    paidTaskIds?: string[];
+}
+
+export type CoreEdit =
+    | { day: string; action: 'add'; taskId: string }
+    | { day: string; action: 'remove'; taskId: string }
+    | { day: string; action: 'replace'; taskId: string; withTaskId: string };
+
 const fallbackUrl = import.meta.env.PROD ? window.location.origin : 'http://localhost:3001';
 const RAW_URL = import.meta.env.VITE_API_URL || fallbackUrl;
 const BASE_URL = RAW_URL.replace(/\/api\/?$/, '').replace(/\/+$/, '');
@@ -197,5 +221,35 @@ export const api = {
             headers: getHeaders(token)
         });
         if (!response.ok) throw new Error('Failed to archive expenses');
+    },
+
+    // v1.5 requisition. Every response carries `enabled`, which is false while
+    // the server still runs the old economy, so callers can hide the new UI.
+    getRequisition: async (token?: string): Promise<RequisitionSummary> => {
+        const response = await fetch(`${API_URL}/rewards`, { headers: getHeaders(token) });
+        if (!response.ok) throw new Error('Failed to fetch requisition');
+        return response.json();
+    },
+
+    getCorePlan: async (day: string, token?: string): Promise<CoreView> => {
+        const response = await fetch(`${API_URL}/rewards/core?day=${encodeURIComponent(day)}`, { headers: getHeaders(token) });
+        if (!response.ok) throw new Error('Failed to fetch core plan');
+        return response.json();
+    },
+
+    editCorePlan: async (edit: CoreEdit, token?: string): Promise<CoreView> => {
+        const response = await fetch(`${API_URL}/rewards/core`, { method: 'POST', headers: getHeaders(token), body: JSON.stringify(edit) });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || '無法更新今日核心');
+        return data;
+    },
+
+    setProjectMilestones: async (projectId: string, milestoneIds: string[], token?: string): Promise<string[]> => {
+        const response = await fetch(`${API_URL}/projects/${encodeURIComponent(projectId)}/milestones`, {
+            method: 'PUT', headers: getHeaders(token), body: JSON.stringify({ milestoneIds })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || '無法設定里程碑');
+        return data.milestoneIds;
     }
 };

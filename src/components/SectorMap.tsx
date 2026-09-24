@@ -2,6 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Card, Progress, Typography, Modal, Button, Form, Input, Select, Tag, Tooltip } from 'antd';
 import { Lock, Crosshair, Star, Briefcase, Plus, Check, ChevronRight, Swords, ShieldAlert, Shield, Settings, Skull, Church as ChurchIcon, CircleDashed, Pencil, Trash2 } from 'lucide-react';
 import { useGame } from '../contexts/GameContext';
+import { useRequisition } from '../contexts/RequisitionContext';
+import { useAuth } from '../contexts/AuthContext';
+import { api } from '../services/api';
 import { Project, SubTask } from '../types';
 import { GuardsmanIcon, MarineIcon, CustodesIcon } from './ImperiumIcons';
 import { PlanetaryTraitType, UnitType } from '../types';
@@ -31,6 +34,29 @@ export const SectorMap: React.FC = () => {
     const [subTaskTitle, setSubTaskTitle] = useState('');
     const [editingSubTaskId, setEditingSubTaskId] = useState<string | null>(null);
     const [editTitle, setEditTitle] = useState('');
+
+    // v1.5 milestones. The server is the authority; this holds the ids it just
+    // confirmed so the row updates without waiting for a full project reload.
+    const { enabled: economyOn, refresh: refreshRequisition } = useRequisition();
+    const { getToken } = useAuth();
+    const [milestoneOverride, setMilestoneOverride] = useState<Record<string, string[]>>({});
+    const [milestoneError, setMilestoneError] = useState<string | null>(null);
+    const milestonesFor = (p: Project) => milestoneOverride[p.id] ?? p.milestoneIds ?? [];
+
+    const toggleMilestone = async (p: Project, subTaskId: string) => {
+        const current = milestonesFor(p);
+        const next = current.includes(subTaskId) ? current.filter(id => id !== subTaskId) : [...current, subTaskId];
+        setMilestoneError(null);
+        try {
+            const token = await getToken();
+            if (!token) return;
+            const saved = await api.setProjectMilestones(p.id, next, token);
+            setMilestoneOverride(prev => ({ ...prev, [p.id]: saved }));
+            void refreshRequisition();
+        } catch (err) {
+            setMilestoneError(err instanceof Error ? err.message : '無法設定里程碑');
+        }
+    };
     const dialogRef = useRef<HTMLDivElement>(null);
     useEffect(() => {
         if (!isModalOpen) return;
@@ -218,6 +244,13 @@ export const SectorMap: React.FC = () => {
                                     </div>
                                     <div className="project-objectives">
                                         <span className="block text-imperial-gold/70 font-mono text-xs">任務日誌 ({activeProject.subTasks.filter(t => t.completed).length}/{activeProject.subTasks.length})</span>
+                                        {economyOn && (
+                                            <span className="block text-imperial-gold/50 font-mono text-[11px] mb-1">
+                                                里程碑 {milestonesFor(activeProject).length}/3
+                                                {milestonesFor(activeProject).length < 3 && '（指定滿三個才開始發放軍需）'}
+                                                {milestoneError && <span className="text-red-400"> · {milestoneError}</span>}
+                                            </span>
+                                        )}
                                         {activeProject.subTasks.length === 0 ? (
                                             <div className="p-8 border border-dashed border-zinc-800 rounded flex flex-col items-center justify-center text-zinc-600"><span className="font-mono text-xs">尚未建立目標</span></div>
                                         ) : (
@@ -238,6 +271,20 @@ export const SectorMap: React.FC = () => {
                                                     >
                                                         {st.completed && '✓'}
                                                     </div>
+
+                                                    {economyOn && (
+                                                        <button
+                                                            type="button"
+                                                            disabled={st.completed && !milestonesFor(activeProject).includes(st.id)}
+                                                            onClick={(e) => { e.stopPropagation(); void toggleMilestone(activeProject, st.id); }}
+                                                            title={st.completed ? '已完成的子項無法再改指定' : '指定為里程碑（完成 +20 軍需）'}
+                                                            className={`text-[10px] font-mono px-1.5 py-0.5 border tracking-widest flex-shrink-0 ${milestonesFor(activeProject).includes(st.id)
+                                                                ? 'border-imperial-gold text-imperial-gold bg-imperial-gold/10'
+                                                                : 'border-zinc-700 text-zinc-500 hover:border-imperial-gold/50'}`}
+                                                        >
+                                                            里程碑
+                                                        </button>
+                                                    )}
 
                                                     {editingSubTaskId === st.id ? (
                                                         <div className="flex-1 flex gap-2">

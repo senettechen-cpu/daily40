@@ -12,7 +12,7 @@ export const v15EconomyEnabled = () => process.env.V15_ECONOMY === 'on';
 // Per-user time zones are not stored yet; every user is on the approved default.
 const timeZone = DEFAULT_TIME_ZONE;
 
-async function loadWithStartingGrant(db: Db, userId: string, now: Date) {
+export async function loadWithStartingGrant(db: Db, userId: string, now: Date) {
     const book = await loadBook(db, userId);
     return appendEntries(db, userId, book, [planGrant(book, { ...STARTING_GRANT, day: dayKey(now, timeZone), at: now })]);
 }

@@ -17,3 +17,8 @@ server/.env
 
 # GPT handoff packages (~236 MB): kept locally, not versioned. Used assets are imported into public/.
 handoff-assets/
+
+# Database dumps and exports: local only, never versioned
+backup-*.sql
+backup-*.sql.gz
+/data/
