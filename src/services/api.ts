@@ -1,12 +1,19 @@
 
 import { Task, Project, ArmyStrength, SectorHistory, Resources } from '../types';
 import type { LedgerPreset, PresetFields, Suggestion } from '../../shared/ledger/presets';
-import type { Character, Squad } from '../../shared/roster';
+import type { Character, RecruitTemplate, Squad } from '../../shared/roster';
 import type { CatalogItem, EquipmentItem } from '../../shared/armory';
 
 export interface LedgerQuickMenuData { pinned: LedgerPreset[]; suggestions: Suggestion[] }
 
-export interface RosterData { characters: Character[]; squads: Squad[] }
+export interface RosterData {
+    characters: Character[];
+    squads: Squad[];
+    recruits: RecruitTemplate[];
+    /** Recruit template ids unlocked by a campaign or story. */
+    authorized: string[];
+    balance: number;
+}
 
 export interface ArmoryData { catalog: CatalogItem[]; items: EquipmentItem[]; authorized: string[]; balance: number }
 
@@ -257,6 +264,13 @@ export const api = {
         const response = await fetch(`${API_URL}/roster`, { headers: getHeaders(token) });
         if (!response.ok) throw new Error('Failed to fetch roster');
         return response.json();
+    },
+
+    recruitCharacter: async (templateId: string, name: string | undefined, token?: string): Promise<{ character: Character; spent: number }> => {
+        const response = await fetch(`${API_URL}/roster/recruit`, { method: 'POST', headers: getHeaders(token), body: JSON.stringify({ templateId, name }) });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || '無法招募');
+        return data;
     },
 
     createSquad: async (name: string, token?: string): Promise<Squad> => {

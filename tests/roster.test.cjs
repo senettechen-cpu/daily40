@@ -146,3 +146,84 @@ test('another user cannot read or change this roster', async () => {
     const res = await roster('PUT', '/squads/:id', { user: 'u2', params: { id: mine.squads[0].id }, body: { name: '奪取' } });
     assert.equal(res.code, 400);
 });
+
+// --- recruitment --------------------------------------------------------------
+
+const rewardsOn = () => { process.env.V15_ECONOMY = 'on'; };
+const balanceOf = db => db.tables.reward_entries.reduce((sum, row) => sum + row.amount, 0);
+const topUp = (db, amount) => db.tables.reward_entries.push({
+    user_id: 'u1', seq: db.tables.reward_entries.length + 1, source_key: `test:${db.tables.reward_entries.length}`,
+    kind: 'grant', amount, day: '2026-09-24', at: new Date().toISOString(), reason: 'test',
+});
+
+test('recruiting spends requisition and adds one distinct character', async () => {
+    rewardsOn();
+    const { db, roster } = setup();
+    await roster('GET', '/');
+    topUp(db, 400);
+    const before = balanceOf(db);
+
+    const res = await roster('POST', '/recruit', { body: { templateId: 'cadian-rifleman', name: '奧圖' } });
+    assert.equal(res.code, 201);
+    assert.equal(res.body.spent, 160);
+    assert.equal(res.body.character.name, '奧圖');
+    assert.equal(balanceOf(db), before - 160);
+    assert.equal(db.tables.roster_characters.length, 7);
+});
+
+test('recruiting is refused when requisition is short, and writes nothing', async () => {
+    rewardsOn();
+    const { db, roster } = setup();
+    await roster('GET', '/');
+
+    const res = await roster('POST', '/recruit', { body: { templateId: 'cadian-rifleman' } });
+    assert.equal(res.code, 400);
+    assert.match(res.body.error, /軍需不足/);
+    assert.equal(db.tables.roster_characters.length, 6);
+});
+
+test('an unauthorised origin cannot be bought at any balance', async () => {
+    rewardsOn();
+    const { db, roster } = setup();
+    await roster('GET', '/');
+    topUp(db, 5000);
+
+    const res = await roster('POST', '/recruit', { body: { templateId: 'battle-sister' } });
+    assert.equal(res.code, 400);
+    assert.match(res.body.error, /授權/);
+    assert.equal(db.tables.roster_characters.length, 6);
+});
+
+test('with the authorization the same recruit goes through', async () => {
+    rewardsOn();
+    const { db, roster } = setup();
+    await roster('GET', '/');
+    topUp(db, 5000);
+    db.tables.personnel_authorizations.push({ user_id: 'u1', template_id: 'battle-sister' });
+
+    const res = await roster('POST', '/recruit', { body: { templateId: 'battle-sister' } });
+    assert.equal(res.code, 201);
+    assert.equal(res.body.character.origin, 'sororitas');
+});
+
+test('an unnamed recruit still gets a name, and it is not a duplicate', async () => {
+    rewardsOn();
+    const { roster, db } = setup();
+    await roster('GET', '/');
+    topUp(db, 1000);
+
+    const first = (await roster('POST', '/recruit', { body: { templateId: 'cadian-rifleman' } })).body.character;
+    const second = (await roster('POST', '/recruit', { body: { templateId: 'cadian-rifleman' } })).body.character;
+    assert.ok(first.name);
+    assert.notEqual(first.name, second.name);
+});
+
+test('the roster stays uncapped: an eleventh recruit is allowed', async () => {
+    rewardsOn();
+    const { db, roster } = setup();
+    await roster('GET', '/');
+    topUp(db, 5000);
+
+    for (let i = 0; i < 5; i += 1) await roster('POST', '/recruit', { body: { templateId: 'cadian-rifleman' } });
+    assert.equal(db.tables.roster_characters.length, 11);
+});

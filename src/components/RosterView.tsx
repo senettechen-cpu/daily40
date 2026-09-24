@@ -1,13 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Input, Modal, Select } from 'antd';
-import { Plus, Swords, Trash2, UserPlus, X } from 'lucide-react';
+import { Button, Input, Modal, Select, Tabs } from 'antd';
+import { Lock, Plus, Swords, Trash2, UserPlus, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 import {
     Character, DUTY_LABELS, Duty, HEALTH_LABELS, ORIGIN_LABELS, SQUAD_SIZE, Squad,
     isDeployable, levelOf, maxHp, xpToNext,
 } from '../../shared/roster';
-import { validateSquad } from '../../shared/roster';
+import { RecruitTemplate, recruitError, validateSquad } from '../../shared/roster';
 import { deploymentFor } from '../battle/deployment';
 import { DEPLOYMENT_KEY } from '../battle/handoff';
 import { portraitHead } from '../data/reportArtIndex';
@@ -85,6 +85,10 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
     const [departure, setDeparture] = useState<string | null>(null);
+    const [recruits, setRecruits] = useState<RecruitTemplate[]>([]);
+    const [authorized, setAuthorized] = useState<string[]>([]);
+    const [balance, setBalance] = useState(0);
+    const [recruitName, setRecruitName] = useState('');
 
     const load = useCallback(async () => {
         try {
@@ -93,6 +97,9 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
             const data = await api.getRoster(token);
             setCharacters(data.characters);
             setSquads(data.squads);
+            setRecruits(data.recruits ?? []);
+            setAuthorized(data.authorized ?? []);
+            setBalance(data.balance ?? 0);
             setActiveSquadId(prev => (prev && data.squads.some(s => s.id === prev) ? prev : data.squads[0]?.id ?? null));
         } catch (err) {
             setError(err instanceof Error ? err.message : '無法載入名冊');
@@ -169,14 +176,52 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
         void run(token => api.createSquad(name, token).then(squad => { setActiveSquadId(squad.id); }));
     };
 
-    return (
-        <Modal open={visible} onCancel={onClose} footer={null} width={1100} className="imperial-shop"
-            title={<span className="eyebrow">星界軍名冊 / ROSTER</span>}>
-            <div className="flex flex-col gap-4">
-                {error && (
-                    <div className="border border-red-900/60 bg-red-950/40 text-red-400 font-mono text-xs p-2">{error}</div>
-                )}
+    const recruitPanel = (
+        <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+                <span className="font-mono text-xs text-imperial-gold/60">新兵姓名（留空自動取名）</span>
+                <Input size="small" value={recruitName} onChange={e => setRecruitName(e.target.value)}
+                    className="!w-40 !bg-black !border-imperial-gold/30 !text-imperial-gold font-mono" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[50vh] overflow-y-auto pr-1">
+                {recruits.map(template => {
+                    const blocked = recruitError(template, { balance, authorized });
+                    return (
+                        <div key={template.id} className="flex items-center gap-3 p-2 border border-zinc-700 bg-zinc-900/60">
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                    <span className="font-mono text-imperial-gold text-sm">{template.name}</span>
+                                    {template.restricted && !authorized.includes(template.id) && (
+                                        <span className="text-[10px] font-mono text-amber-500 border border-amber-800/60 px-1 flex items-center gap-1">
+                                            <Lock size={10} /> 未授權
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="text-[11px] font-mono text-zinc-500">
+                                    {ORIGIN_LABELS[template.origin]} · {DUTY_LABELS[template.duty]} · {template.price} 軍需
+                                </div>
+                                {template.note && <div className="text-[11px] font-mono text-zinc-600 truncate">{template.note}</div>}
+                            </div>
+                            <Button size="small" disabled={busy || !!blocked} title={blocked ?? '招募'}
+                                icon={<UserPlus size={14} />}
+                                onClick={() => void run(async token => {
+                                    await api.recruitCharacter(template.id, recruitName || undefined, token);
+                                    setRecruitName('');
+                                })}
+                                className="!bg-transparent !border-imperial-gold/40 !text-imperial-gold font-mono" />
+                        </div>
+                    );
+                })}
+            </div>
+            <div className="font-mono text-[11px] text-zinc-600">
+                新兵不附裝備，主武器與護甲需另外到軍械庫採購。名冊沒有人數上限，但每場最多部署六人。
+                價格為候選值，尚未依實際節奏校準。
+            </div>
+        </div>
+    );
 
+    const rosterPanel = (
+        <div className="flex flex-col gap-4">
                 <div className="flex items-center gap-2 flex-wrap">
                     {squads.map(squad => (
                         <button
@@ -262,7 +307,19 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
                         </div>
                     )}
                 </div>
-            </div>
+        </div>
+    );
+
+    return (
+        <Modal open={visible} onCancel={onClose} footer={null} width={1100} className="imperial-shop"
+            title={<span className="eyebrow">星界軍名冊 / ROSTER · 軍需 {balance}</span>}>
+            {error && <div className="mb-2 border border-red-900/60 bg-red-950/40 text-red-400 font-mono text-xs p-2">{error}</div>}
+            <Tabs
+                items={[
+                    { key: 'roster', label: `編成與名冊（${characters.length}）`, children: rosterPanel },
+                    { key: 'recruit', label: '招募中心', children: recruitPanel },
+                ]}
+            />
         </Modal>
     );
 };

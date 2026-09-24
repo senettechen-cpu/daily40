@@ -1,8 +1,12 @@
 import { randomUUID } from 'crypto';
 import type { Db } from '../db';
 import {
-    Character, Squad, STARTING_CHARACTERS, STARTING_SQUAD_NAME, setMembers, validateSquad,
+    Character, Squad, STARTING_CHARACTERS, STARTING_SQUAD_NAME, fallbackName, recruitError,
+    recruitTemplate, setMembers, validateSquad,
 } from '../shared/roster';
+import { DEFAULT_TIME_ZONE, balance, dayKey, planSpend } from '../shared/rewards';
+import { appendEntries } from '../rewards/store';
+import { loadWithStartingGrant } from '../rewards/service';
 
 interface CharacterRow {
     id: string; name: string; origin: string; duty: string;
@@ -63,10 +67,55 @@ export async function ensureStartingRoster(db: Db, userId: string): Promise<void
     );
 }
 
-export async function readRoster(db: Db, userId: string) {
+export async function readRoster(db: Db, userId: string, now = new Date()) {
     await ensureStartingRoster(db, userId);
-    const [characters, squads] = await Promise.all([loadCharacters(db, userId), loadSquads(db, userId)]);
-    return { characters, squads };
+    const [characters, squads, authorized, book] = await Promise.all([
+        loadCharacters(db, userId), loadSquads(db, userId),
+        loadPersonnelAuthorizations(db, userId), loadWithStartingGrant(db, userId, now),
+    ]);
+    return { characters, squads, authorized, balance: balance(book) };
+}
+
+export async function loadPersonnelAuthorizations(db: Db, userId: string): Promise<string[]> {
+    const result = await db.query('SELECT template_id FROM personnel_authorizations WHERE user_id = $1', [userId]);
+    return result.rows.map(row => row.template_id);
+}
+
+/**
+ * Hires one recruit. The spend and the new character land in the same
+ * transaction, so a failed insert cannot leave the requisition deducted, and
+ * the spend key is the new character's id, which makes a retry idempotent.
+ */
+export async function recruit(db: Db, userId: string, templateId: string, name: string | undefined, now: Date) {
+    const template = recruitTemplate(templateId);
+    const [authorized, book, roster] = await Promise.all([
+        loadPersonnelAuthorizations(db, userId), loadWithStartingGrant(db, userId, now), loadCharacters(db, userId),
+    ]);
+
+    const error = recruitError(template, { balance: balance(book), authorized });
+    if (error || !template) return { error: error ?? '名單裡沒有這個人員。' };
+
+    const id = randomUUID();
+    const spend = planSpend(book, {
+        sourceKey: `recruit:${id}`, amount: template.price, day: dayKey(now, DEFAULT_TIME_ZONE), at: now,
+        reason: `招募 ${template.name}`,
+    });
+    if (!spend) return { error: '軍需不足，無法招募。' };
+
+    const chosen = name?.trim() || fallbackName(roster.map(character => character.name));
+    await appendEntries(db, userId, book, [spend]);
+    await db.query(
+        'INSERT INTO roster_characters (id, user_id, name, origin, duty, asset_id, xp, health) VALUES ($1, $2, $3, $4, $5, $6, 0, $7)',
+        [id, userId, chosen, template.origin, template.duty, template.assetId ?? null, 'fit'],
+    );
+
+    return {
+        character: {
+            id, name: chosen, origin: template.origin, duty: template.duty,
+            assetId: template.assetId, xp: 0, health: 'fit', recruitedAt: now.toISOString(),
+        } as Character,
+        spent: template.price,
+    };
 }
 
 export async function createSquad(db: Db, userId: string, name: string): Promise<{ squad: Squad } | { error: string }> {

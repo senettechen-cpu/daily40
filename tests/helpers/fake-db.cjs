@@ -3,7 +3,7 @@
 // (user_id, seq), preset upsert) and rolls back on error like a transaction.
 // It is not a SQL engine: an unknown statement throws so tests cannot pass silently.
 function createFakeDb() {
-    const tables = { expenses: [], reward_entries: [], ledger_presets: [], core_plans: [], tasks: [], projects: [], roster_characters: [], squads: [], equipment_items: [], equipment_authorizations: [] };
+    const tables = { expenses: [], reward_entries: [], ledger_presets: [], core_plans: [], tasks: [], projects: [], roster_characters: [], squads: [], equipment_items: [], equipment_authorizations: [], personnel_authorizations: [] };
     const log = [];
     const normalized = sql => sql.replace(/\s+/g, ' ').trim();
 
@@ -146,6 +146,10 @@ function createFakeDb() {
         }
         if (s.startsWith('SELECT catalog_id FROM equipment_authorizations')) {
             const rows = tables.equipment_authorizations.filter(r => r.user_id === p[0]);
+            return { rows, rowCount: rows.length };
+        }
+        if (s.startsWith('SELECT template_id FROM personnel_authorizations')) {
+            const rows = tables.personnel_authorizations.filter(r => r.user_id === p[0]);
             return { rows, rowCount: rows.length };
         }
         throw new Error(`fake-db: unsupported statement: ${s}`);

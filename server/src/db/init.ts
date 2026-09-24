@@ -222,6 +222,15 @@ const initDb = async () => {
             PRIMARY KEY (user_id, catalog_id)
         )`);
 
+        // Recruiting an origin outside the ordinary Astra Militarum line needs a
+        // campaign or story authorization, the same gate restricted gear uses.
+        await pool.query(`CREATE TABLE IF NOT EXISTS personnel_authorizations (
+            user_id TEXT NOT NULL,
+            template_id TEXT NOT NULL,
+            granted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            PRIMARY KEY (user_id, template_id)
+        )`);
+
         console.log('Migrations applied.');
 
         // Initialize default game state if not exists
