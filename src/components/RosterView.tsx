@@ -9,6 +9,10 @@ import {
 } from '../../shared/roster';
 import { RecruitTemplate, recruitError, validateSquad } from '../../shared/roster';
 import { deploymentFor } from '../../shared/battle/deployment';
+import { WEAPONS, damageFor } from '../../shared/battle/sim';
+import {
+    EquipmentItem, SLOT_CAPACITY, SLOT_LABELS, Slot, assignmentError, catalogItem, itemsOf,
+} from '../../shared/armory';
 import { DEPLOYMENT_KEY } from '../battle/handoff';
 import { portraitHead } from '../data/reportArtIndex';
 import { MAX_TRAINEES, SCENARIOS } from '../../shared/battle';
@@ -41,14 +45,21 @@ const Portrait = ({ character, size = 48 }: { character: Character; size?: numbe
     );
 };
 
-const CharacterCard = ({ character, action, onAction }: {
-    character: Character; action: 'add' | 'remove' | null; onAction?: () => void;
+const CharacterCard = ({ character, action, onAction, onOpen }: {
+    character: Character; action: 'add' | 'remove' | null; onAction?: () => void; onOpen?: () => void;
 }) => {
     const level = levelOf(character.xp);
     const next = xpToNext(character.xp);
 
     return (
-        <div className="flex items-center gap-3 p-2 border border-zinc-700 bg-zinc-900/60 hover:border-imperial-gold/40 transition-colors">
+        <div
+            role={onOpen ? 'button' : undefined}
+            tabIndex={onOpen ? 0 : undefined}
+            onClick={onOpen}
+            onKeyDown={onOpen ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } } : undefined}
+            title={onOpen ? '檢視戰力與配裝' : undefined}
+            className={`flex items-center gap-3 p-2 border border-zinc-700 bg-zinc-900/60 hover:border-imperial-gold/40 transition-colors ${onOpen ? 'cursor-pointer' : ''}`}
+        >
             <Portrait character={character} />
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
@@ -69,13 +80,148 @@ const CharacterCard = ({ character, action, onAction }: {
                     size="small"
                     type="text"
                     aria-label={action === 'add' ? `加入 ${character.name}` : `移出 ${character.name}`}
-                    onClick={onAction}
+                    onClick={e => { e.stopPropagation(); onAction?.(); }}
                     className="!text-imperial-gold/70 hover:!text-imperial-gold"
                 >
                     {action === 'add' ? <UserPlus size={16} /> : <X size={16} />}
                 </Button>
             )}
         </div>
+    );
+};
+
+/** One equippable slot: what is in it now, and everything that could go in it. */
+const SlotRow = ({ label, current, options, disabled, onChange }: {
+    label: string;
+    current: EquipmentItem | null;
+    options: { item: EquipmentItem; blocked: string | null }[];
+    disabled: boolean;
+    onChange: (nextItemId: string | null) => void;
+}) => (
+    <div className="flex items-center gap-2">
+        <span className="w-14 flex-shrink-0 font-mono text-[11px] text-zinc-500">{label}</span>
+        <Select
+            size="small"
+            className="!flex-1"
+            disabled={disabled}
+            value={current?.id ?? ''}
+            onChange={value => onChange(value || null)}
+            options={[
+                { value: '', label: '— 空 —' },
+                ...options.map(({ item, blocked }) => ({
+                    value: item.id,
+                    disabled: !!blocked,
+                    label: `${catalogItem(item.catalogId)?.name ?? item.catalogId}${blocked ? `（${blocked}）` : ''}`,
+                })),
+            ]}
+        />
+    </div>
+);
+
+/**
+ * One soldier's combat numbers and their gear. The numbers come from the same
+ * deployment function the battle runs on, so what is shown here is what fights;
+ * gear the simulation cannot model yet says so instead of implying an effect.
+ */
+const SoldierDossier = ({ character, items, authorized, busy, onAssign, onClose }: {
+    character: Character;
+    items: EquipmentItem[];
+    authorized: string[];
+    busy: boolean;
+    onAssign: (currentItemId: string | null, nextItemId: string | null) => void;
+    onClose: () => void;
+}) => {
+    const { crew, unmodelled } = deploymentFor([character], items);
+    const profile = crew[0];
+    const primary = WEAPONS[profile.loadout.primary];
+    const secondary = WEAPONS[profile.loadout.secondary];
+    const carried = itemsOf(items, character.id);
+    const unmodelledSet = new Set(unmodelled);
+
+    const inSlot = (slot: Slot) =>
+        carried.filter(item => catalogItem(item.catalogId)?.category === slot);
+
+    // A swap frees the slot before it fills it, so the occupancy check must be
+    // made against a roster where the outgoing item has already been put back.
+    const choicesFor = (slot: Slot, current: EquipmentItem | null) => {
+        const afterRemoval = current
+            ? items.map(item => (item.id === current.id ? { ...item, assignedTo: null } : item))
+            : items;
+        return items
+            .filter(item => catalogItem(item.catalogId)?.category === slot)
+            .filter(item => !item.assignedTo || item.assignedTo === character.id)
+            .filter(item => !carried.some(held => held.id === item.id) || item.id === current?.id)
+            .map(item => ({ item, blocked: assignmentError(item, character, afterRemoval, authorized) }));
+    };
+
+    const stat = (label: string, value: string, note?: string) => (
+        <div className="flex items-baseline gap-2">
+            <span className="w-14 flex-shrink-0 font-mono text-[11px] text-zinc-500">{label}</span>
+            <span className="font-mono text-[12px] text-imperial-gold/90">{value}</span>
+            {note && <span className="font-mono text-[11px] text-zinc-600">{note}</span>}
+        </div>
+    );
+
+    const slotRows: { label: string; current: EquipmentItem | null }[] = [];
+    for (const slot of ['primary', 'sidearm', 'armour', 'tool'] as Slot[]) {
+        const held = inSlot(slot);
+        for (let index = 0; index < SLOT_CAPACITY[slot]; index += 1) {
+            slotRows.push({
+                label: SLOT_CAPACITY[slot] > 1 ? `${SLOT_LABELS[slot]}${index + 1}` : SLOT_LABELS[slot],
+                current: held[index] ?? null,
+            });
+        }
+    }
+
+    return (
+        <Modal open onCancel={onClose} footer={null} width={520}
+            title={<span className="eyebrow">{character.name} · 戰力與配裝</span>}>
+            <div className="flex items-center gap-3 mb-4">
+                <Portrait character={character} size={72} />
+                <div className="min-w-0">
+                    <div className="font-mono text-imperial-gold text-sm">{character.name}</div>
+                    <div className="font-mono text-[11px] text-zinc-500">
+                        {ORIGIN_LABELS[character.origin]} · {DUTY_LABELS[character.duty]} · Lv{levelOf(character.xp)} · {HEALTH_LABELS[character.health]}
+                    </div>
+                </div>
+            </div>
+
+            <div className="flex flex-col gap-1 mb-4 p-3 border border-zinc-800 bg-black/40">
+                {stat('火力', `${primary.name} · 每發 ${primary.damage}`, `有效射程 ${primary.effectiveRange} 格 · 彈匣 ${primary.magazine}`)}
+                {stat('副武器', `${secondary.name} · 每發 ${secondary.damage}`, `有效射程 ${secondary.effectiveRange} 格`)}
+                {stat('防禦', `護甲 ${profile.armor} · 生命 ${profile.maxHp}`,
+                    `敵方雷射步槍每發 ${WEAPONS.lasgun.damage} → ${damageFor(WEAPONS.lasgun, profile.armor)}`)}
+                {stat('機動', `${(profile.speed ?? 1.2).toFixed(2)} 格/秒`)}
+                {stat('命中', `${Math.round(profile.accuracy * 100)}%`)}
+            </div>
+
+            <div className="flex flex-col gap-2">
+                {slotRows.map((row, index) => {
+                    const slot = (['primary', 'sidearm', 'armour', 'tool', 'tool'] as Slot[])[index];
+                    return (
+                        <SlotRow
+                            key={`${slot}-${index}`}
+                            label={row.label}
+                            current={row.current}
+                            options={choicesFor(slot, row.current)}
+                            disabled={busy}
+                            onChange={next => onAssign(row.current?.id ?? null, next)}
+                        />
+                    );
+                })}
+            </div>
+
+            {unmodelledSet.size > 0 && (
+                <div className="mt-3 border border-amber-900/60 bg-amber-950/20 text-amber-500/90 font-mono text-[11px] p-2">
+                    模擬尚未涵蓋：{[...unmodelledSet].map(id => catalogItem(id)?.name ?? id).join('、')}。
+                    這些裝備會被帶上戰場，但目前不影響戰鬥結果。
+                </div>
+            )}
+
+            <div className="mt-3 font-mono text-[11px] text-zinc-600">
+                未配武器者以制式雷射槍與雷射手槍出戰。換裝立即生效，下一場行動就會採用。
+            </div>
+        </Modal>
     );
 };
 
@@ -94,17 +240,22 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
     const [recruitName, setRecruitName] = useState('');
     const [scenarioId, setScenarioId] = useState('standard');
     const [traineeIds, setTraineeIds] = useState<string[]>([]);
+    const [items, setItems] = useState<EquipmentItem[]>([]);
+    const [equipAuthorized, setEquipAuthorized] = useState<string[]>([]);
+    const [dossierId, setDossierId] = useState<string | null>(null);
 
     const load = useCallback(async () => {
         try {
             const token = await getToken();
             if (!token) return;
-            const data = await api.getRoster(token);
+            const [data, armoury] = await Promise.all([api.getRoster(token), api.getArmory(token)]);
             setCharacters(data.characters);
             setSquads(data.squads);
             setRecruits(data.recruits ?? []);
             setAuthorized(data.authorized ?? []);
             setBalance(data.balance ?? 0);
+            setItems(armoury.items ?? []);
+            setEquipAuthorized(armoury.authorized ?? []);
             setActiveSquadId(prev => (prev && data.squads.some(s => s.id === prev) ? prev : data.squads[0]?.id ?? null));
         } catch (err) {
             setError(err instanceof Error ? err.message : '無法載入名冊');
@@ -114,6 +265,7 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
     useEffect(() => { if (visible) void load(); }, [visible, load]);
 
     const activeSquad = squads.find(squad => squad.id === activeSquadId) ?? null;
+    const dossier = dossierId ? characters.find(character => character.id === dossierId) ?? null : null;
     const byId = useMemo(() => new Map(characters.map(c => [c.id, c])), [characters]);
     const members = activeSquad ? activeSquad.memberIds.map(id => byId.get(id)).filter((c): c is Character => !!c) : [];
 
@@ -133,6 +285,18 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
         } finally {
             setBusy(false);
         }
+    };
+
+    /**
+     * Moves one item into a slot. Clearing the old item first keeps the slot
+     * within capacity, which the server would otherwise refuse.
+     */
+    const assign = (currentItemId: string | null, nextItemId: string | null, characterId: string) => {
+        if (currentItemId === nextItemId) return;
+        void run(async token => {
+            if (currentItemId) await api.assignEquipment(currentItemId, null, token);
+            if (nextItemId) await api.assignEquipment(nextItemId, characterId, token);
+        });
     };
 
     const setMembers = (memberIds: string[]) => {
@@ -278,6 +442,7 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
                                 const member = members[index];
                                 return member ? (
                                     <CharacterCard key={member.id} character={member} action="remove"
+                                        onOpen={() => setDossierId(member.id)}
                                         onAction={() => setMembers(activeSquad.memberIds.filter(id => id !== member.id))} />
                                 ) : (
                                     <div key={`empty-${index}`} className="flex items-center justify-center h-[68px] border border-dashed border-zinc-800 text-zinc-700 font-mono text-xs">
@@ -324,6 +489,7 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
                     {available.map(character => (
                         <CharacterCard key={character.id} character={character}
                             action={activeSquad && activeSquad.memberIds.length < SQUAD_SIZE ? 'add' : null}
+                            onOpen={() => setDossierId(character.id)}
                             onAction={() => activeSquad && setMembers([...activeSquad.memberIds, character.id])} />
                     ))}
                     {available.length === 0 && (
@@ -345,6 +511,16 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
                     { key: 'recruit', label: '招募中心', children: recruitPanel },
                 ]}
             />
+            {dossier && (
+                <SoldierDossier
+                    character={dossier}
+                    items={items}
+                    authorized={equipAuthorized}
+                    busy={busy}
+                    onAssign={(currentItemId, nextItemId) => assign(currentItemId, nextItemId, dossier.id)}
+                    onClose={() => setDossierId(null)}
+                />
+            )}
         </Modal>
     );
 };
