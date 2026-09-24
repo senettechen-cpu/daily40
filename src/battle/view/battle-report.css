@@ -54,3 +54,38 @@
   .br-entry { grid-template-columns: 60px auto 1fr; padding: 6px 8px; }
   .br-feed { max-height: 55vh; }
 }
+
+/* Tactical map: a collapsible schematic beside the text report. */
+.bt-map-toggle {
+    align-self: flex-start;
+    margin: 8px 0;
+    padding: 4px 10px;
+    background: transparent;
+    border: 1px solid rgba(224, 182, 74, 0.5);
+    color: #e0b64a;
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+}
+
+.bt-map-toggle:hover { background: rgba(224, 182, 74, 0.12); }
+
+.bt-tactical { margin-bottom: 12px; }
+.bt-tactical svg { max-width: 720px; border: 1px solid #2a3330; }
+
+.bt-tactical-legend,
+.bt-tactical-units {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    margin: 6px 0 0;
+    padding: 0;
+    list-style: none;
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    color: #9a9a94;
+}
+
+.bt-tactical-units b { color: #d8d2c0; }
+.bt-tactical-units .is-down { opacity: 0.6; }

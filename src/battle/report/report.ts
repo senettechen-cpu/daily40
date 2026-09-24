@@ -35,7 +35,15 @@ export interface ReportEntry {
 export interface UnitStats extends ShotTally { id: string; name: string; side: Unit['side']; damageTaken: number; downTick: number | null; finalHp: number; maxHp: number; swaps: number; reloads: number }
 
 /** Compact per-tick unit state for the roster panel. */
-export interface UnitSnap { id: string; hp: number; active: Slot; weapon: WeaponId; ammo: Record<Slot, number>; action: Unit['action']['kind']; swapTo: Slot | null; swapProgress: number; reloadProgress: number | null }
+export interface UnitSnap {
+    id: string;
+    hp: number;
+    /**
+     * Where the unit stood on this tick. The tactical map replays historical
+     * positions, so it needs the position at the event, not the final one.
+     */
+    pos: { x: number; y: number };
+    side: 'crew' | 'enemy'; active: Slot; weapon: WeaponId; ammo: Record<Slot, number>; action: Unit['action']['kind']; swapTo: Slot | null; swapProgress: number; reloadProgress: number | null }
 
 type Shot = Extract<BattleEvent, { kind: 'shot' }>;
 
@@ -135,7 +143,7 @@ export function battleStats(events: BattleEvent[], final: Battle): UnitStats[] {
 function snap(u: Unit, tick: number): UnitSnap {
     const a = u.action;
     return {
-        id: u.id, hp: u.hp, active: u.active, weapon: u.loadout[u.active], ammo: { ...u.ammo }, action: a.kind,
+        id: u.id, hp: u.hp, pos: { x: u.pos.x, y: u.pos.y }, side: u.side, active: u.active, weapon: u.loadout[u.active], ammo: { ...u.ammo }, action: a.kind,
         swapTo: a.kind === 'swap' ? a.to : null,
         swapProgress: a.kind === 'swap' ? Math.min(1, (tick - a.start) / (a.end - a.start)) : 0,
         reloadProgress: a.kind === 'reload' ? Math.min(1, (tick - a.start) / (a.end - a.start)) : null,

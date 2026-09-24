@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { CREW_SIZE, LANES, validateDeployment } from '../sim/engine';
 import { SCENARIOS, setupFor } from '../sim/scenarios';
-import type { CrewProfile } from '../sim/engine';
+import type { BattleEvent, CrewProfile } from '../sim/engine';
+import { TacticalMap } from './TacticalMap';
 import { DEPLOYMENT_KEY } from '../handoff';
 
 interface Handoff { crew: CrewProfile[]; unmodelled: string[]; squadName: string }
@@ -112,6 +113,9 @@ export function BattleReportApp() {
     const [keyOnly, setKeyOnly] = useState(false);
     const [sim, setSim] = useState<SimulatedBattle | null>(null);
     const [playTick, setPlayTick] = useState(0);
+    // Collapsed by default so a phone keeps the text report as the main view and
+    // nothing is redrawn while it is closed.
+    const [mapOpen, setMapOpen] = useState(false);
     const feedRef = useRef<HTMLOListElement>(null);
     const playRef = useRef(0);
     const [art, setArt] = useState<ReportArt>(NO_ART);
@@ -148,6 +152,17 @@ export function BattleReportApp() {
 
     const names = useMemo(() => Object.fromEntries((sim?.initial.units ?? []).map(u => [u.id, u.name])), [sim]);
     const visible = useMemo(() => (sim ? sim.report.filter(e => e.startTick <= playTick && (!keyOnly || e.key)) : []), [sim, playTick, keyOnly]);
+    // The shot the map illustrates: the most recent one at or before the cursor,
+    // so the picture always matches the text the reader is on.
+    const currentShot = useMemo(() => {
+        if (!sim) return null;
+        const upto = Math.floor(playTick);
+        let latest: Extract<BattleEvent, { kind: 'shot' }> | null = null;
+        for (const event of sim.events) {
+            if (event.kind === 'shot' && event.tick <= upto) latest = event;
+        }
+        return latest;
+    }, [sim, playTick]);
     useEffect(() => { const el = feedRef.current; if (el) el.scrollTop = el.scrollHeight; }, [visible.length]);
     (window as any).__battleReport = { phase, playTick, sim, visible: visible.length };
     // Dev-only: jump playback to a tick and pause (reproducible screenshots where animation frames are throttled).
@@ -204,6 +219,11 @@ export function BattleReportApp() {
         {sim && <div className="br-layout">
             <section className="br-feed-wrap" aria-label="戰報">
                 <div className="br-clock">戰鬥時間 {seconds(Math.floor(playTick))}s／{seconds(sim.final.tick)}s{phase === 'paused' ? ' · 已暫停' : ''}</div>
+                <button type="button" className="bt-map-toggle" onClick={() => setMapOpen(open => !open)}
+                    aria-expanded={mapOpen}>
+                    {mapOpen ? '收合戰術圖' : '展開戰術圖'}
+                </button>
+                {mapOpen && <TacticalMap snaps={snaps ?? null} names={names} shot={currentShot} tick={Math.floor(playTick)} />}
                 <ol className="br-feed" ref={feedRef} aria-live="polite">{visible.map(e => <Entry key={e.id} entry={e} names={names} sim={sim} />)}</ol>
                 {phase === 'finished' && <Results sim={sim} names={names} />}
             </section>
