@@ -661,7 +661,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         let logMsg = `Task Completed: ${task.title}`;
         let rpChange = 0;
         let gloryChange = 0;
-        let corruptionChange = -2; // Default purification
+        let corruptionChange = 0; // v1.5: the corruption engine is frozen, so completing a task no longer purifies
         let ascensionRewards: Partial<AstartesResources> = {};
 
         const now = new Date();
@@ -690,20 +690,8 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 updatedTask.lastCompletedAt = now;
                 updatedTask.status = 'active'; // Recurring stays active
 
-                // Milestone Rewards detection
-                const streakRewards = {
-                    7: { glory: 50, rp: 20, msg: "Weekly Discipline Bonus!" },
-                    14: { glory: 150, rp: 50, msg: "Fortnight of Iron Will!" },
-                    21: { glory: 300, rp: 75, msg: "Tricenary of Faith!" },
-                    30: { glory: 500, rp: 100, msg: "Month of The Emperor's Grace!" }
-                };
-                // @ts-ignore
-                const bonus = streakRewards[newStreak];
-                if (bonus) {
-                    gloryChange += bonus.glory;
-                    rpChange += bonus.rp;
-                    logMsg += ` (Streak ${newStreak} Bonus)`;
-                }
+                // v1.5 removed the 7/14/21/30-day streak payouts. The streak count
+                // itself stays as a display of consistency.
             }
         } else {
             // Standard / Ascension Task
@@ -718,7 +706,8 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (task.ascensionCategory) {
                 // Ritual / Ascension Logic
                 const amount = difficulty;
-                gloryChange += difficulty * 5;
+                // No glory here either; the ascension materials below are the only
+                // thing a ritual pays until the ascension phase replaces them.
                 logMsg = `Ritual Completed: ${task.title}`;
 
                 switch (task.ascensionCategory) {
@@ -727,16 +716,10 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     case 'cleaning': ascensionRewards.puritySeals = amount; break;
                     case 'parenting': ascensionRewards.geneLegacy = amount; break;
                 }
-            } else {
-                // Standard Task
-                rpChange += 10; // Base RP
-                gloryChange += 5; // Base Glory
-
-                if (activeTacticalScan && difficulty >= 4) {
-                    rpChange *= 2;
-                    setActiveTacticalScan(false); // Consume charge
-                }
             }
+            // A standard task no longer pays RP or glory here. Under v1.5 the only
+            // requisition a task can earn is the +10 the server grants when it is
+            // one of that day's committed cores.
 
             // Apply Resource Changes
             // Ensure we use the centralized modify functions which handle Logging and isDirty
