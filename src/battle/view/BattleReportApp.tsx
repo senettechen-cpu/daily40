@@ -14,6 +14,8 @@ interface Handoff {
     seed?: number;
     lanes?: number[];
     outcome?: 'victory' | 'defeat' | 'timeout';
+    /** False on a rest day or exemption, when the operation runs but pays nothing. */
+    paysXp?: boolean;
 }
 
 /** A real squad handed over by the roster, or null for the built-in test crew. */
@@ -185,8 +187,6 @@ export function BattleReportApp() {
         return playRef.current;
     };
 
-    if (import.meta.env.VITE_BATTLE_TEST !== 'on') return <main className="bt-app"><p className="bt-notice">戰鬥測試版未啟用（VITE_BATTLE_TEST=on 才顯示）。</p></main>;
-
     const snaps = sim ? sim.timeline[Math.min(sim.timeline.length - 1, Math.floor(playTick))] : [];
     const unitsById = new Map((sim?.initial.units ?? []).map(u => [u.id, u]));
     const toggleLane = (lane: number) => setLanes(l => l.includes(lane) ? l.filter(x => x !== lane) : l.length < CREW_SIZE ? [...l, lane].sort((a, b) => a - b) : l);
@@ -196,7 +196,9 @@ export function BattleReportApp() {
     return <ArtContext.Provider value={art}><main className="bt-app br-app">
         <header className="bt-header">
             <div>
-                <p className="bt-eyebrow">第一階段戰鬥測試版 · 文字戰報 · 不扣資源、不發獎勵、無永久傷亡、不讀寫生活資料</p>
+                <p className="bt-eyebrow">{deployment
+                    ? `重播伺服器判定的行動 · ${deployment.paysXp === false ? '本場不計 XP' : 'XP 已於出戰時結算'} · 不扣軍需、無永久傷亡`
+                    : '沙盤演練 · 內建測試編成 · 不扣資源、不發獎勵、無永久傷亡、不讀寫生活資料'}</p>
                 <h1>帝國廢墟戰報 · 卡迪安 × 叛軍</h1>
             </div>
             <div className="bt-controls" role="group" aria-label="戰報控制">

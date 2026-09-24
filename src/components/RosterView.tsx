@@ -359,6 +359,7 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
                 seed: started.operation.seed,
                 lanes: started.operation.lanes,
                 outcome: started.operation.outcome,
+                paysXp: started.operation.paysXp,
             }));
 
             const gained = started.awards.filter(a => a.role === 'deployed')[0]?.amount ?? 0;
