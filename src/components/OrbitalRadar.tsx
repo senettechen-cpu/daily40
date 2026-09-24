@@ -23,7 +23,7 @@ interface OrbitalRadarProps {
 }
 
 export const OrbitalRadar: React.FC<OrbitalRadarProps> = ({ tasks, onSelectKey, selectedId }) => {
-    const { radarTheme, activeTacticalScan, activateTacticalScan, resources } = useGame();
+    const { radarTheme } = useGame();
 
     // Theme Colors
     const themeColor = useMemo(() => {
@@ -186,25 +186,6 @@ export const OrbitalRadar: React.FC<OrbitalRadarProps> = ({ tasks, onSelectKey, 
         }
       `}</style>
 
-            {/* Tactical Scan Button */}
-            <div className="absolute bottom-4 right-4 z-30">
-                <Tooltip title={activeTacticalScan ? "戰術掃描已啟動 (下個困難任務 RP x2)" : "啟動戰術掃描 (15 RP) - 獲得任務情報優勢"}>
-                    <Button
-                        type="primary"
-                        shape="circle"
-                        icon={<Radar size={20} className={activeTacticalScan ? "animate-spin-slow" : ""} />}
-                        size="large"
-                        className={`!border-none shadow-[0_0_15px_currentColor] transition-all duration-500
-                            ${activeTacticalScan
-                                ? '!bg-green-600 !text-white !shadow-[0_0_25px_#10b981]'
-                                : '!bg-zinc-900/80 !text-imperial-gold hover:!bg-imperial-gold hover:!text-black'
-                            }
-                        `}
-                        disabled={!activeTacticalScan && resources.rp < 15}
-                        onClick={activateTacticalScan}
-                    />
-                </Tooltip>
-            </div>
         </div>
     );
 };

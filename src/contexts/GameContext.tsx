@@ -21,9 +21,7 @@ export interface GameContextType {
     addTask: (title: string, faction: Faction, difficulty: number, dueDate: Date, isRecurring?: boolean, dueTime?: string, ascensionCategory?: AscensionCategory, subCategory?: string) => void;
     updateTask: (id: string, updates: Partial<Task>) => void;
     purgeTask: (id: string) => void;
-    deleteTask: (id: string) => void;
-    buyUnit: (unitId: string, cost: number) => void;
-    cleanseCorruption: () => void; // New Action
+    deleteTask: (id: string) => void; // New Action
     resetGame: () => void;
     // Armory
     radarTheme: string;
@@ -48,14 +46,9 @@ export interface GameContextType {
     allTasks: Task[]; // Unfiltered list for management
 
     // New Mechanics
-    activeTacticalScan: boolean;
-    activateTacticalScan: () => void;
     fortifiedSectors: string[];
-    fortifySector: (monthId: string) => void;
-    triggerBattlefieldMiracle: (monthId: string) => void;
     deployUnit: (monthId: string, unitType: UnitType, count: number) => void;
     recallUnit: (monthId: string, unitType: UnitType, count: number) => void;
-    recruitUnit: (type: UnitType) => boolean;
 
     // Settings
     notificationEmail: string;
@@ -765,20 +758,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
 
-    const buyUnit = (unitId: string, cost: number) => {
-        if (resources.glory >= cost && !ownedUnits.includes(unitId)) {
-            modifyResources(0, -cost, `Unit Purchased: ${unitId}`);
-            isDirty.current = true;
-            setOwnedUnits(prev => [...prev, unitId]);
-        }
-    };
 
-    const cleanseCorruption = () => {
-        if (resources.rp >= 20) {
-            modifyResources(-20, 0, "Ritual: Cleanse Corruption");
-            modifyCorruption(-30, "Ritual: Cleanse Corruption");
-        }
-    };
 
     const resetGame = () => {
         isDirty.current = true;
@@ -894,28 +874,6 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         });
     };
 
-    const recruitUnit = (type: UnitType) => {
-        const currentMonthIdx = new Date().getMonth();
-        const currentMonthId = `M${currentMonthIdx + 1}`;
-        const currentTrait = getTraitForMonth(currentMonthId);
-        const cost = getRecruitmentCost(type, currentTrait === 'hive');
-
-        if (resources.glory >= cost) {
-            modifyResources(0, -cost, `Recruited: ${type}`);
-            isDirty.current = true;
-            setArmyStrength(prev => {
-                return {
-                    ...prev,
-                    reserves: {
-                        ...prev.reserves,
-                        [type]: (prev.reserves[type] || 0) + 1
-                    }
-                };
-            });
-            return true;
-        }
-        return false;
-    };
 
     const deployUnit = (monthId: string, type: UnitType, count: number) => {
         isDirty.current = true;
@@ -1016,39 +974,8 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (glory > 0) modifyResources(0, glory, "Ascension Reward");
     };
 
-    const activateTacticalScan = () => {
-        if (resources.rp >= 15 && !activeTacticalScan) {
-            modifyResources(-15, 0, "Strategic Action: Tactical Scan");
-            setActiveTacticalScan(true);
-        }
-    };
 
-    const fortifySector = (monthId: string) => {
-        if (resources.rp >= 40 && !fortifiedSectors.includes(monthId)) {
-            modifyResources(-40, 0, `Strategic Action: Fortify Sector ${monthId}`);
-            setFortifiedSectors(prev => [...prev, monthId]);
-        }
-    };
 
-    const triggerBattlefieldMiracle = (monthId: string) => {
-        if (resources.glory >= 500) {
-            // Check completion rate
-            const sectorTasks = projects.filter(p => p.month === monthId);
-            const total = sectorTasks.length;
-            const completed = sectorTasks.filter(p => p.completed).length;
-            const rate = total > 0 ? completed / total : 0;
-
-            if (rate > 0.7) {
-                modifyResources(100, -500, "Miracle: Battlefield Miracle Triggered");
-                // Clear corruption logic? Global or specific?
-                // "Clear all corruption penalties for that month" - usually implies sector traits or just reduce corruption massively
-                modifyCorruption(-50, "Miracle: Divine Light");
-                console.log("Miracle Triggered!");
-            } else {
-                console.warn("Faith is insufficient.");
-            }
-        }
-    };
 
     const exportSTC = () => {
         const resetTime = new Date();
@@ -1201,16 +1128,16 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 return lastComp !== now;
             }),
             resources, corruption, ownedUnits, isPenitentMode,
-            addTask, updateTask, purgeTask, deleteTask, buyUnit, cleanseCorruption, resetGame,
+            addTask, updateTask, purgeTask, deleteTask, resetGame,
             radarTheme,
             viewMode, setViewMode, projects, addProject,
-            addSubTask, completeSubTask, updateSubTask, deleteSubTask, deleteProject, recruitUnit,
+            addSubTask, completeSubTask, updateSubTask, deleteSubTask, deleteProject,
             deployUnit, recallUnit,
             armyStrength,
             getTraitForMonth, exportSTC, importSTC,
             currentMonth, sectorHistory, resolveSector, advanceMonth,
             allTasks: tasks,
-            activeTacticalScan, activateTacticalScan, fortifiedSectors, fortifySector, triggerBattlefieldMiracle,
+            fortifiedSectors,
             debugSetResources, debugSetCorruption, debugSetArmyStrength,
             notificationEmail, emailEnabled, updateSettings,
             modifyResources, modifyCorruption,

@@ -10,7 +10,6 @@ import { GuardsmanIcon, MarineIcon, CustodesIcon } from './ImperiumIcons';
 import { PlanetaryTraitType, UnitType } from '../types';
 import { BASE_UNITS, UNIT_POWER, UNIT_VISUALS, getGarrisonPower } from '../data/unitVisuals';
 import { UnitPortrait } from './UnitPortrait';
-import { DeploymentPanel } from './DeploymentPanel';
 import { SectorNode } from './SectorNode';
 import { CampaignBoard } from './CampaignBoard';
 
@@ -25,10 +24,10 @@ const TRAIT_CONFIG: Record<PlanetaryTraitType, { name: string, effect: string, i
 const POWER_VALUES = UNIT_POWER;
 
 export const SectorMap: React.FC = () => {
-    const { armyStrength, ownedUnits, projects, addProject, addSubTask, completeSubTask, updateSubTask, deleteSubTask, deleteProject, getTraitForMonth, deployUnit, recallUnit, currentMonth, sectorHistory, resolveSector, fortifySector, fortifiedSectors, triggerBattlefieldMiracle, resources } = useGame();
+    const { armyStrength, ownedUnits, projects, addProject, addSubTask, completeSubTask, updateSubTask, deleteSubTask, deleteProject, getTraitForMonth, currentMonth, sectorHistory, resolveSector, fortifiedSectors } = useGame();
     const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-    const [activeTab, setActiveTab] = useState<'projects' | 'deployment'>('projects');
+    const [activeTab, setActiveTab] = useState<'projects' | 'resolve'>('projects');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSimulating, setIsSimulating] = useState(false);
     const [subTaskTitle, setSubTaskTitle] = useState('');
@@ -184,35 +183,13 @@ export const SectorMap: React.FC = () => {
                         <div className="sector-dialog__header">
                             <div className="flex">
                                 <button className={`px-6 py-4 font-mono font-bold transition-all ${activeTab === 'projects' ? 'text-black bg-imperial-gold' : 'text-zinc-500 hover:text-white'}`} onClick={() => setActiveTab('projects')}>戰略專案</button>
-                                <button className={`px-6 py-4 font-mono font-bold transition-all ${activeTab === 'deployment' ? 'text-black bg-imperial-gold' : 'text-zinc-500 hover:text-white'}`} onClick={() => setActiveTab('deployment')}>部隊部署</button>
+                                <button className={`px-6 py-4 font-mono font-bold transition-all ${activeTab === 'resolve' ? 'text-black bg-imperial-gold' : 'text-zinc-500 hover:text-white'}`} onClick={() => setActiveTab('resolve')}>戰役結算</button>
                             </div>
                             <div className="sector-dialog__actions">
                                 <span>星區: {selectedMonth}</span>
-                                {selectedMonth && !fortifiedSectors.includes(selectedMonth) && (
-                                    <Tooltip title="消耗 40 RP 將此星區要塞化，減少 50% 腐壞增長">
-                                        <Button
-                                            size="small"
-                                            className="!bg-purple-900/20 !border-purple-500 !text-purple-400 font-bold"
-                                            onClick={() => fortifySector(selectedMonth)}
-                                            disabled={resources.rp < 40}
-                                        >
-                                            <Shield size={14} className="mr-1" /> 要塞化 (40 RP)
-                                        </Button>
-                                    </Tooltip>
-                                )}
                                 {selectedMonth && fortifiedSectors.includes(selectedMonth) && (
                                     <Tag color="purple" className="font-mono m-0 flex items-center"><Shield size={14} className="mr-1" /> 已要塞化</Tag>
                                 )}
-                                <Tooltip title="消耗 500 Glory 發動神蹟 (需任務完成率 > 70%)">
-                                    <Button
-                                        size="small"
-                                        className="!bg-imperial-gold/20 !border-imperial-gold !text-imperial-gold font-bold animate-pulse"
-                                        onClick={() => triggerBattlefieldMiracle(selectedMonth!)}
-                                        disabled={resources.glory < 500}
-                                    >
-                                        <Star size={14} className="mr-1" /> 神蹟 (500 G)
-                                    </Button>
-                                </Tooltip>
                             </div>
                             <button onClick={() => setIsModalOpen(false)} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white font-mono text-xl p-2 hover:bg-zinc-800 rounded">X</button>
                         </div>
@@ -220,9 +197,11 @@ export const SectorMap: React.FC = () => {
                         <div className="sector-banner" style={{ backgroundImage: `linear-gradient(90deg, #080c12 5%, rgba(8,12,18,.5)), url("/planets/m${Number(selectedMonth?.slice(1))}.png")` }}><span className="eyebrow">PLANETARY COMMAND</span><h2>{selectedMonth} · {TRAIT_CONFIG[getTraitForMonth(selectedMonth!)].name}</h2><p>{monthProjects.length} 項戰略專案 · {monthProjects.filter(p => p.completed).length} 項已確保</p></div>
                         {/* Content */}
                         <div className="sector-dialog__body">
-                            {activeTab === 'deployment' && selectedMonth ? (
+                            {activeTab === 'resolve' && selectedMonth ? (
                                 <div className="flex flex-col gap-6 animate-fade-in">
-                                    <DeploymentPanel month={selectedMonth} />
+                                    <p className="font-mono text-xs text-zinc-500">
+                                        兵種預備隊制已由名冊取代，部隊部署面板已移除。星區結算仍會推進月份。
+                                    </p>
                                     {parseInt(selectedMonth!.slice(1)) - 1 === currentMonth && (
                                         <div className="mt-4 pt-4 border-t border-zinc-800">
                                             <Button danger size="large" block className="!h-16 !text-xl font-bold tracking-widest uppercase animate-pulse" onClick={() => {
