@@ -108,7 +108,7 @@ export const SectorMap: React.FC = () => {
                         {MONTHS.map((month, idx) => {
                             const sectorProjects = projects.filter(p => p.month === month.id);
                             const trait = TRAIT_CONFIG[getTraitForMonth(month.id)];
-                            return <SectorNode key={month.id} month={month.id} index={idx} active={month.status === 'active'} past={month.status === 'past'} result={sectorHistory[month.id]} trait={trait} count={sectorProjects.length} completed={sectorProjects.filter(p => p.completed).length} fortified={fortifiedSectors.includes(month.id)} onClick={() => handleMonthClick(month.id)} />;
+                            return <SectorNode key={month.id} month={month.id} index={idx} active={month.status === 'active'} past={month.status === 'past'} result={sectorHistory[month.id]} trait={trait} traitId={getTraitForMonth(month.id)} count={sectorProjects.length} completed={sectorProjects.filter(p => p.completed).length} fortified={fortifiedSectors.includes(month.id)} onClick={() => handleMonthClick(month.id)} />;
                         })}
                     </div>
                 </div>

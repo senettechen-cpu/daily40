@@ -73,3 +73,34 @@ test('no duty borrows the plain rifleman portrait', () => {
         assert.notEqual(hash(path.join(PORTRAITS, `${assetId}-head.webp`)), rifleman, `${assetId} reuses the rifleman portrait`);
     }
 });
+
+const SECTOR = 'public/battle-assets/sector';
+
+test('every world type has planet art on disk, at both sizes and within budget', () => {
+    // SECTOR_PLANET_TYPES is a const tuple rather than a Set, so read it directly.
+    const tuple = source.slice(source.indexOf('SECTOR_PLANET_TYPES = ['));
+    const types = [...tuple.slice(0, tuple.indexOf(']')).matchAll(/'([^']+)'/g)].map(m => m[1]);
+    assert.ok(types.length >= 5, 'the five world types must all be declared');
+
+    for (const type of types) {
+        for (const [width, budget] of [[96, 4000], [192, 12000]]) {
+            const file = path.join(SECTOR, `sector-${type}-${width}.webp`);
+            assert.ok(fs.existsSync(file), `missing ${file}`);
+            const buf = fs.readFileSync(file);
+            assert.ok(buf.length <= budget, `${file} is ${buf.length} bytes, over ${budget}`);
+            assert.equal(buf.toString('ascii', 8, 12), 'WEBP', `${file} is not a WebP`);
+            // VP8X carries the alpha flag: opaque corners would show as a square.
+            if (buf.toString('ascii', 12, 16) === 'VP8X') {
+                assert.ok((buf.readUInt8(20) & 0x10) !== 0, `${file} has no alpha channel`);
+            }
+        }
+    }
+});
+
+test('the world types with art are the ones the game can actually assign', () => {
+    // getTraitForMonth returns exactly these; art keyed to anything else is dead.
+    const assigned = ['barren', 'hive', 'shrine', 'forge', 'death'];
+    const tuple = source.slice(source.indexOf('SECTOR_PLANET_TYPES = ['));
+    const declared = [...tuple.slice(0, tuple.indexOf(']')).matchAll(/'([^']+)'/g)].map(m => m[1]);
+    assert.deepEqual([...declared].sort(), [...assigned].sort());
+});

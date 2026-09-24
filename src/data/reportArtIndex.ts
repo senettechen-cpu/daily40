@@ -44,3 +44,17 @@ export const EQUIPMENT_ASSETS = new Set([
 /** Catalogue art at the requested width, or null when that item has none. */
 export const equipmentArt = (catalogId: string, width: 96 | 192 = 96): string | null =>
     EQUIPMENT_ASSETS.has(catalogId) ? `${BASE}equipment/${catalogId}-${width}.webp` : null;
+
+// Sector node planets (GPT, 2026-09-24). Keyed by world type rather than by
+// month: a month's type is recomputed from its project count, so the art has to
+// follow the type. Keep in step with public/battle-assets/sector/.
+const SECTOR_BASE = `${import.meta.env.BASE_URL}battle-assets/sector/`;
+
+export const SECTOR_PLANET_TYPES = ['barren', 'hive', 'shrine', 'forge', 'death'] as const;
+export type SectorPlanetType = typeof SECTOR_PLANET_TYPES[number];
+
+const HAS_PLANET = new Set<string>(SECTOR_PLANET_TYPES);
+
+/** Planet art for a world type, or null when that type has none delivered. */
+export const sectorPlanetArt = (type: string, width: 96 | 192 = 96): string | null =>
+    HAS_PLANET.has(type) ? `${SECTOR_BASE}sector-${type}-${width}.webp` : null;
