@@ -2,6 +2,8 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 
 interface Props {
     children: ReactNode;
+    /** Replaces the default screen, whose reset button clears this origin's storage. */
+    fallback?: ReactNode;
 }
 
 interface State {
@@ -25,6 +27,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
     public render() {
         if (this.state.hasError) {
+            if (this.props.fallback !== undefined) return this.props.fallback;
             return (
                 <div className="p-8 bg-red-950 text-white min-h-screen flex flex-col items-center justify-center font-mono">
                     <h1 className="text-2xl font-bold mb-4">CRITICAL SYSTEM FAILURE</h1>

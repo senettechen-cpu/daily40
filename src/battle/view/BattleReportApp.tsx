@@ -150,9 +150,12 @@ export function BattleReportApp() {
         if (document.hidden) { setPhase('paused'); return; } // animation frames never fire in a hidden page
         let last = performance.now(), frame = 0;
         const tick = (now: number) => {
-            const dt = Math.min(250, now - last);
+            // A frame can carry a timestamp from before this effect ran, which makes
+            // `now - last` negative and would walk the cursor off the front of the
+            // timeline. Clamping keeps the clock monotonic.
+            const dt = Math.max(0, Math.min(250, now - last));
             last = now;
-            playRef.current = Math.min(sim.final.tick, playRef.current + dt * speed * TICKS_PER_SECOND / 1000);
+            playRef.current = Math.min(sim.final.tick, Math.max(0, playRef.current + dt * speed * TICKS_PER_SECOND / 1000));
             setPlayTick(playRef.current);
             if (playRef.current >= sim.final.tick) { setPhase('finished'); return; }
             frame = requestAnimationFrame(tick);
@@ -181,13 +184,14 @@ export function BattleReportApp() {
     // Dev-only: jump playback to a tick and pause (reproducible screenshots where animation frames are throttled).
     if (import.meta.env.DEV) (window as any).__reportSeek = (tick: number) => {
         if (!sim) return 'start a battle first';
-        playRef.current = Math.min(sim.final.tick, tick);
+        playRef.current = Math.min(sim.final.tick, Math.max(0, tick));
         setPlayTick(playRef.current);
         setPhase(playRef.current >= sim.final.tick ? 'finished' : 'paused');
         return playRef.current;
     };
 
-    const snaps = sim ? sim.timeline[Math.min(sim.timeline.length - 1, Math.floor(playTick))] : [];
+    const cursor = sim ? Math.min(sim.timeline.length - 1, Math.max(0, Math.floor(playTick))) : 0;
+    const snaps = (sim ? sim.timeline[cursor] : []) ?? [];
     const unitsById = new Map((sim?.initial.units ?? []).map(u => [u.id, u]));
     const toggleLane = (lane: number) => setLanes(l => l.includes(lane) ? l.filter(x => x !== lane) : l.length < CREW_SIZE ? [...l, lane].sort((a, b) => a - b) : l);
     const roster = (side: 'crew' | 'enemy') => snaps.filter(s => unitsById.get(s.id)?.side === side)
