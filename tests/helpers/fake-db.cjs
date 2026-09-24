@@ -3,7 +3,7 @@
 // (user_id, seq), preset upsert) and rolls back on error like a transaction.
 // It is not a SQL engine: an unknown statement throws so tests cannot pass silently.
 function createFakeDb() {
-    const tables = { expenses: [], reward_entries: [], ledger_presets: [], core_plans: [], tasks: [], projects: [] };
+    const tables = { expenses: [], reward_entries: [], ledger_presets: [], core_plans: [], tasks: [], projects: [], roster_characters: [], squads: [] };
     const log = [];
     const normalized = sql => sql.replace(/\s+/g, ' ').trim();
 
@@ -93,12 +93,40 @@ function createFakeDb() {
             tables.projects = tables.projects.filter(r => !(r.id === p[0] && r.user_id === p[1]));
             return { rows: [], rowCount: before - tables.projects.length };
         }
+        if (s.startsWith('SELECT COUNT(*)::int AS count FROM roster_characters')) {
+            return { rows: [{ count: tables.roster_characters.filter(r => r.user_id === p[0]).length }], rowCount: 1 };
+        }
+        if (s.startsWith('SELECT id, name, origin, duty, asset_id, xp, health, recruited_at FROM roster_characters')) {
+            const rows = tables.roster_characters.filter(r => r.user_id === p[0]);
+            return { rows, rowCount: rows.length };
+        }
+        if (s.startsWith('INSERT INTO roster_characters')) {
+            tables.roster_characters.push({
+                id: p[0], user_id: p[1], name: p[2], origin: p[3], duty: p[4],
+                asset_id: p[5], xp: 0, health: p[6], recruited_at: new Date(fake.now += 1000),
+            });
+            return { rows: [], rowCount: 1 };
+        }
+        if (s.startsWith('SELECT id, name, member_ids FROM squads')) {
+            const rows = tables.squads.filter(r => r.user_id === p[0]);
+            return { rows, rowCount: rows.length };
+        }
+        if (s.startsWith('INSERT INTO squads')) {
+            tables.squads.push({ id: p[0], user_id: p[1], name: p[2], member_ids: JSON.parse(p[3]), created_at: new Date(fake.now += 1000) });
+            return { rows: [], rowCount: 1 };
+        }
+        if (s.startsWith('UPDATE squads SET')) return applyUpdate(tables.squads, s, p);
+        if (s.startsWith('DELETE FROM squads WHERE id = $1 AND user_id = $2')) {
+            const before = tables.squads.length;
+            tables.squads = tables.squads.filter(r => !(r.id === p[0] && r.user_id === p[1]));
+            return { rows: [], rowCount: before - tables.squads.length };
+        }
         throw new Error(`fake-db: unsupported statement: ${s}`);
     }
 
     // Handles the routes' dynamically built "UPDATE <table> SET a = $1, b = $2
     // WHERE id = $n AND user_id = $n+1" by mapping each assignment to its param.
-    const JSON_COLUMNS = new Set(['sub_tasks', 'milestone_ids']);
+    const JSON_COLUMNS = new Set(['sub_tasks', 'milestone_ids', 'member_ids']);
     function applyUpdate(rows, sql, params) {
         const [, setClause, idIdx, userIdx] = sql.match(/^UPDATE \w+ SET (.+) WHERE id = \$(\d+) AND user_id = \$(\d+)$/) ?? [];
         if (!setClause) throw new Error(`fake-db: unsupported update: ${sql}`);

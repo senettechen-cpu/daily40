@@ -176,6 +176,30 @@ const initDb = async () => {
         await pool.query('ALTER TABLE projects ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()');
         await pool.query('ALTER TABLE projects ADD COLUMN IF NOT EXISTS closed_at TIMESTAMP WITH TIME ZONE');
 
+        // v1.5 roster: character instances and saved formations. A squad stores
+        // only ids, so saving one never copies a character or their equipment.
+        await pool.query(`CREATE TABLE IF NOT EXISTS roster_characters (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            origin TEXT NOT NULL,
+            duty TEXT NOT NULL,
+            asset_id TEXT,
+            xp INTEGER NOT NULL DEFAULT 0,
+            health TEXT NOT NULL DEFAULT 'fit',
+            recruited_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        )`);
+        await pool.query('CREATE INDEX IF NOT EXISTS idx_roster_user_id ON roster_characters(user_id)');
+
+        await pool.query(`CREATE TABLE IF NOT EXISTS squads (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            member_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        )`);
+        await pool.query('CREATE INDEX IF NOT EXISTS idx_squads_user_id ON squads(user_id)');
+
         console.log('Migrations applied.');
 
         // Initialize default game state if not exists

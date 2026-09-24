@@ -1,8 +1,11 @@
 
 import { Task, Project, ArmyStrength, SectorHistory, Resources } from '../types';
 import type { LedgerPreset, PresetFields, Suggestion } from '../../shared/ledger/presets';
+import type { Character, Squad } from '../../shared/roster';
 
 export interface LedgerQuickMenuData { pinned: LedgerPreset[]; suggestions: Suggestion[] }
+
+export interface RosterData { characters: Character[]; squads: Squad[] }
 
 export interface RequisitionSummary {
     enabled: boolean;
@@ -242,6 +245,32 @@ export const api = {
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error || '無法更新今日核心');
         return data;
+    },
+
+    // v1.5 roster. The first read also grants the six free starting soldiers.
+    getRoster: async (token?: string): Promise<RosterData> => {
+        const response = await fetch(`${API_URL}/roster`, { headers: getHeaders(token) });
+        if (!response.ok) throw new Error('Failed to fetch roster');
+        return response.json();
+    },
+
+    createSquad: async (name: string, token?: string): Promise<Squad> => {
+        const response = await fetch(`${API_URL}/roster/squads`, { method: 'POST', headers: getHeaders(token), body: JSON.stringify({ name }) });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || '無法建立編成');
+        return data;
+    },
+
+    updateSquad: async (id: string, changes: { name?: string; memberIds?: string[] }, token?: string): Promise<Squad> => {
+        const response = await fetch(`${API_URL}/roster/squads/${encodeURIComponent(id)}`, { method: 'PUT', headers: getHeaders(token), body: JSON.stringify(changes) });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || '無法更新編成');
+        return data;
+    },
+
+    deleteSquad: async (id: string, token?: string): Promise<void> => {
+        const response = await fetch(`${API_URL}/roster/squads/${encodeURIComponent(id)}`, { method: 'DELETE', headers: getHeaders(token) });
+        if (!response.ok) throw new Error('無法刪除編成');
     },
 
     setProjectMilestones: async (projectId: string, milestoneIds: string[], token?: string): Promise<string[]> => {

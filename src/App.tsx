@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { RadarView } from './components/RadarView' // Keep old one just in case, or remove
 import { OrbitalRadar } from './components/OrbitalRadar'
 import { WeaponDeck } from './components/WeaponDeck'
-import { UnitShop } from './components/UnitShop'
+import { RosterView } from './components/RosterView'
 import { AddTaskModal } from './components/AddTaskModal'
 import { VoxLinkModal } from './components/VoxLinkModal'
 import { Armory } from './components/Armory'
@@ -393,7 +393,7 @@ const MainDashboard = ({ currentUser, onLogout }: { currentUser: any, onLogout: 
                 icon={<Users size={16} />}
                 onClick={openShop}
               >
-                徵召中心
+                名冊
               </Button>
 
               <Button
@@ -502,7 +502,7 @@ const MainDashboard = ({ currentUser, onLogout }: { currentUser: any, onLogout: 
 
       <NavigationArray onOpenArmory={openArmory} onOpenLedger={openLedger} onOpenAscension={openAscension} />
 
-      <UnitShop visible={isShopOpen} onClose={() => setIsShopOpen(false)} />
+      <RosterView visible={isShopOpen} onClose={() => setIsShopOpen(false)} />
 
       <AddTaskModal
         visible={isAddModalOpen}

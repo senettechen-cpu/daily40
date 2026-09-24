@@ -38,6 +38,9 @@ app.use('/api/ledger', verifyToken, ledgerRoutes);
 import rewardRoutes from './routes/rewards';
 app.use('/api/rewards', verifyToken, rewardRoutes);
 
+import rosterRoutes from './routes/roster';
+app.use('/api/roster', verifyToken, rosterRoutes);
+
 import notificationRoutes from './routes/notifications';
 app.use('/api/notifications', verifyToken, notificationRoutes);
 
