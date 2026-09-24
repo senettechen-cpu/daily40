@@ -4,6 +4,7 @@ const { loadTs } = require('./helpers/load-ts.cjs');
 const { createFakeDb } = require('./helpers/fake-db.cjs');
 
 const xp = loadTs('shared/battle/xp.ts');
+const sim = loadTs('shared/battle/sim/index.ts');
 
 function mount(file, db) {
     const handlers = {};
@@ -170,14 +171,23 @@ test('a trainee who is also deployed is paid once, as deployed', async () => {
     assert.equal(forFirst[0].role, 'deployed');
 });
 
-test('the same setup always resolves the same way, so a replay matches the server', async () => {
-    const outcomes = [];
-    for (let i = 0; i < 2; i += 1) {
-        const { db, ops, roster } = setup();
-        const { squads } = (await roster('GET', '/')).body;
-        completeCore(db);
-        const res = await ops('POST', '/', { body: { squadId: squads[0].id, scenarioId: 'standard' } });
-        outcomes.push(res.body.operation.outcome);
-    }
-    assert.equal(outcomes[0], outcomes[1]);
+test('the stored seed replays the battle the server resolved, exactly', async () => {
+    const { db, ops, roster } = setup();
+    const { squads } = (await roster('GET', '/')).body;
+    completeCore(db);
+
+    const res = await ops('POST', '/', { body: { squadId: squads[0].id, scenarioId: 'standard' } });
+    const { seed, lanes, crew, outcome } = res.body.operation;
+    const stored = db.tables.operations[0];
+    assert.equal(stored.seed, seed);
+
+    // What the report does: re-run from the stored seed and get the same battle.
+    const scenario = sim.SCENARIOS.find(s => s.id === 'standard');
+    const replay = sim.runBattle(sim.createBattle(sim.setupFor(scenario, lanes, seed, crew)));
+    const replayed = replay.status === 'running' ? 'timeout' : replay.status;
+    assert.equal(replayed, outcome);
+
+    // And a different seed is a different battle, not the same one relabelled.
+    const other = sim.runBattle(sim.createBattle(sim.setupFor(scenario, lanes, seed + 1, crew)));
+    assert.notDeepEqual(other.units.map(u => u.hp), replay.units.map(u => u.hp));
 });

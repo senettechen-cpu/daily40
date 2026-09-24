@@ -113,6 +113,21 @@ function createFakeDb() {
             }
             return { rows: [], rowCount: n };
         }
+        if (s.startsWith("SELECT COUNT(*)::int AS won FROM operations")) {
+            return { rows: [{ won: tables.operations.filter(o => o.user_id === p[0] && o.outcome === 'victory').length }], rowCount: 1 };
+        }
+        if (s.startsWith('INSERT INTO equipment_authorizations')) {
+            if (!tables.equipment_authorizations.some(r => r.user_id === p[0] && r.catalog_id === p[1])) {
+                tables.equipment_authorizations.push({ user_id: p[0], catalog_id: p[1] });
+            }
+            return { rows: [], rowCount: 1 };
+        }
+        if (s.startsWith('INSERT INTO personnel_authorizations')) {
+            if (!tables.personnel_authorizations.some(r => r.user_id === p[0] && r.template_id === p[1])) {
+                tables.personnel_authorizations.push({ user_id: p[0], template_id: p[1] });
+            }
+            return { rows: [], rowCount: 1 };
+        }
         if (s.startsWith('INSERT INTO roster_characters')) {
             tables.roster_characters.push({
                 id: p[0], user_id: p[1], name: p[2], origin: p[3], duty: p[4],

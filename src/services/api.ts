@@ -31,6 +31,8 @@ export interface StartedOperation {
     unmodelled: string[];
     /** Who a defeat put out of action for the rest of the day. */
     woundedIds?: string[];
+    /** Authorizations this victory just earned. */
+    unlocked?: { equipment: string[]; personnel: string[]; victories?: number };
 }
 
 export interface RequisitionSummary {

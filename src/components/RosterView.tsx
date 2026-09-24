@@ -20,6 +20,11 @@ import { MAX_TRAINEES, SCENARIOS } from '../../shared/battle';
 
 const OUTCOME_LABELS: Record<string, string> = { victory: '勝利', defeat: '失敗', timeout: '超時' };
 
+/** Recruit templates are named by the roster payload; this covers the unlock notice. */
+const RECRUIT_NAMES: Record<string, string> = {
+    kasrkin: '卡斯爾金', 'catachan-fighter': '卡塔昌叢林戰士', 'krieg-infantry': '克里格步兵',
+};
+
 // Each character keeps their own portrait; a duty with no delivered crop falls
 // back to a marked medallion rather than borrowing someone else's likeness.
 const portraitFor = (character: Character) => portraitHead(character.assetId);
@@ -374,7 +379,12 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
                 ? `行動結束：${OUTCOME_LABELS[started.operation.outcome]}，出戰者各 +${gained} XP`
                 : `行動結束：${OUTCOME_LABELS[started.operation.outcome]}（本次不計 XP）`;
             const wounded = started.woundedIds?.length ?? 0;
-            const result = wounded > 0 ? `${base} · ${wounded} 人負傷，今日不得再出戰` : base;
+            const earned = [...(started.unlocked?.equipment ?? []), ...(started.unlocked?.personnel ?? [])];
+            const result = [
+                base,
+                wounded > 0 ? `${wounded} 人負傷，今日不得再出戰` : '',
+                earned.length > 0 ? `獲得嘉獎，解鎖 ${earned.map(id => catalogItem(id)?.name ?? RECRUIT_NAMES[id] ?? id).join('、')}` : '',
+            ].filter(Boolean).join(' · ');
             await load();
 
             // The result is already recorded; the report tab only replays it. A blocked

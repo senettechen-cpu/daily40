@@ -6,6 +6,7 @@ import {
 } from '../shared/battle';
 import { SQUAD_SIZE, validateSquad } from '../shared/roster';
 import { DEFAULT_TIME_ZONE, dayKey } from '../shared/rewards';
+import { newlyUnlocked } from '../shared/progression';
 import { loadBook } from '../rewards/store';
 import { loadCharacters, loadSquads } from '../roster/service';
 import { loadItems } from '../armory/service';
@@ -95,6 +96,10 @@ export async function startOperation(db: Db, userId: string, request: StartReque
             [award.amount, award.characterId, userId]);
     }
 
+    // A victory may earn a commendation, which is the only thing in v1.5 that
+    // writes an authorization: without it the restricted catalogue is unreachable.
+    const unlocked = outcome === 'victory' ? await grantCommendations(db, userId) : { equipment: [], personnel: [] };
+
     // A defeat puts the squad that fought it out of action for the rest of the
     // day. Trainees stayed behind, so they are untouched.
     const woundedIds = outcome === 'defeat' ? squad.memberIds : [];
@@ -110,5 +115,30 @@ export async function startOperation(db: Db, userId: string, request: StartReque
         awards,
         unmodelled,
         woundedIds,
+        unlocked,
     };
+}
+
+/**
+ * Counts the account's won operations and writes any authorization that count
+ * has just earned. Inserts ignore a row that is already there, so replaying or
+ * retrying never double-grants, and an authorization is never taken away.
+ */
+async function grantCommendations(db: Db, userId: string) {
+    const counted = await db.query(
+        "SELECT COUNT(*)::int AS won FROM operations WHERE user_id = $1 AND outcome = 'victory'", [userId]);
+    const victories = counted.rows[0]?.won ?? 0;
+    const earned = newlyUnlocked(victories);
+
+    for (const catalogId of earned.equipment) {
+        await db.query(
+            'INSERT INTO equipment_authorizations (user_id, catalog_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+            [userId, catalogId]);
+    }
+    for (const templateId of earned.personnel) {
+        await db.query(
+            'INSERT INTO personnel_authorizations (user_id, template_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+            [userId, templateId]);
+    }
+    return { ...earned, victories };
 }
