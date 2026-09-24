@@ -7,6 +7,7 @@ import { getRecruitmentCost, UNIT_POWER } from '../data/unitVisuals';
 import { useCampaign } from '../game/useCampaign';
 import { LEGACY_PENALTIES_FROZEN } from '../game/legacyFreeze';
 import { localDay, type CampaignState, type Site, type Tactic } from '../game/campaign';
+import { completeNextSlot, normalizeSlots, slotsMet } from '../../shared/tasks';
 
 
 export interface GameContextType {
@@ -578,7 +579,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }, [corruption, isPenitentMode]);
 
     // Actions
-    const addTask = async (title: string, faction: Faction, difficulty: number, dueDate: Date, isRecurring: boolean = false, dueTime?: string, ascensionCategory?: AscensionCategory, subCategory?: string) => {
+    const addTask = async (title: string, faction: Faction, difficulty: number, dueDate: Date, isRecurring: boolean = false, dueTime?: string, ascensionCategory?: AscensionCategory, subCategory?: string, dueTimes?: string[]) => {
         const newTask: Task = {
             id: Date.now().toString(36) + Math.random().toString(36).substr(2),
             title,
@@ -590,6 +591,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             isRecurring,
             streak: 0,
             dueTime,
+            dueTimes: normalizeSlots(dueTimes),
             ascensionCategory,
             subCategory
         };
@@ -627,7 +629,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const purgeTask = async (id: string) => {
         // Optimistic
         const taskToPurge = tasks.find(t => t.id === id);
-        if (taskToPurge && taskToPurge.isRecurring) {
+        if (taskToPurge && taskToPurge.isRecurring && normalizeSlots(taskToPurge.dueTimes).length === 0) {
             const now = new Date();
             let deadline = new Date(taskToPurge.dueDate);
             if (taskToPurge.dueTime) {
@@ -659,12 +661,27 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const now = new Date();
         const todayStr = now.toDateString();
 
+        // A task with several times of day settles one slot per press; the day is
+        // only met, and only pays, when the last of them is done.
+        const slots = normalizeSlots(task.dueTimes);
+        const slotDay = localDay();
+        const doneToday = task.slotsDay === slotDay ? normalizeSlots(task.slotsDone) : [];
+        const advanced = slots.length > 0 ? completeNextSlot(slots, doneToday) : null;
+        const dayMet = slots.length === 0 || (advanced !== null && slotsMet(slots, advanced));
+
+        if (slots.length > 0) {
+            updatedTask.slotsDay = slotDay;
+            updatedTask.slotsDone = advanced ?? doneToday;
+            if (advanced === null) shouldReward = false; // every slot already settled
+        }
+
         if (task.isRecurring) {
             const lastCompStr = task.lastCompletedAt ? new Date(task.lastCompletedAt).toDateString() : '';
 
             // Prevent multi-click spam on same day
-            if (lastCompStr === todayStr) {
-                shouldReward = false; // Already done today
+            if (lastCompStr === todayStr || !dayMet) {
+                shouldReward = shouldReward && slots.length > 0 && advanced !== null;
+                updatedTask.status = 'active';
             } else {
                 // Check streak logic
                 const yesterday = new Date();
@@ -736,7 +753,11 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         getToken().then(token => {
             if (token) {
                 const payload: any = { status: updatedTask.status };
-                if (task.isRecurring) {
+                if (updatedTask.slotsDone) {
+                    payload.slotsDone = updatedTask.slotsDone;
+                    payload.slotsDay = updatedTask.slotsDay;
+                }
+                if (task.isRecurring && updatedTask.lastCompletedAt !== task.lastCompletedAt) {
                     payload.lastCompletedAt = updatedTask.lastCompletedAt;
                     payload.streak = updatedTask.streak;
                 }

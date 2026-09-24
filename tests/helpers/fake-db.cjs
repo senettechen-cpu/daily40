@@ -64,6 +64,11 @@ function createFakeDb() {
             if (row) Object.assign(row, next); else tables.core_plans.push(next);
             return { rows: [], rowCount: 1 };
         }
+        if (s.startsWith('SELECT due_times, slots_done, slots_day FROM tasks WHERE id = $1')) {
+            const rows = tables.tasks.filter(t => t.id === p[0] && t.user_id === p[1])
+                .map(t => ({ due_times: t.due_times ?? null, slots_done: t.slots_done ?? null, slots_day: t.slots_day ?? null }));
+            return { rows, rowCount: rows.length };
+        }
         if (s.startsWith('SELECT id, status, last_completed_at FROM tasks WHERE user_id = $1')) {
             const rows = tables.tasks.filter(t => t.user_id === p[0]);
             return { rows, rowCount: rows.length };

@@ -32,7 +32,10 @@ const schemaSql = `
         is_recurring BOOLEAN DEFAULT FALSE,
         last_completed_at TIMESTAMP WITH TIME ZONE,
         streak INTEGER DEFAULT 0,
-        due_time TEXT
+        due_time TEXT,
+        due_times JSONB,
+        slots_done JSONB,
+        slots_day TEXT
     );
 
     -- Projects Table
@@ -107,6 +110,10 @@ const initDb = async () => {
         // Migrations: Add new columns if they don't exist (for existing DBs)
         await pool.query('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS streak INTEGER DEFAULT 0');
         await pool.query('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS due_time TEXT');
+        // Several times of day for one recurring task, plus that day's progress.
+        await pool.query('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS due_times JSONB');
+        await pool.query('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS slots_done JSONB');
+        await pool.query('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS slots_day TEXT');
 
         // Multi-tenancy Migrations
         await pool.query('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS user_id TEXT');

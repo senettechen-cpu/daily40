@@ -3,6 +3,8 @@ import { Router } from 'express';
 import { query, withTransaction } from '../db';
 import { rewardCoreCompleted } from '../rewards/coreService';
 import { v15EconomyEnabled } from '../rewards/service';
+import { DEFAULT_TIME_ZONE, dayKey } from '../shared/rewards';
+import { normalizeSlots, slotsMet } from '../shared/tasks';
 
 const router = Router();
 
@@ -25,7 +27,10 @@ router.get('/', async (req, res) => {
             isRecurring: row.is_recurring,
             lastCompletedAt: row.last_completed_at,
             streak: row.streak,
-            dueTime: row.due_time
+            dueTime: row.due_time,
+            dueTimes: normalizeSlots(row.due_times),
+            slotsDone: normalizeSlots(row.slots_done),
+            slotsDay: row.slots_day,
         }));
         res.json(tasks);
     } catch (err) {
@@ -41,10 +46,12 @@ router.post('/', async (req, res) => {
         const userId = req.user?.uid;
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
+        const dueTimes = normalizeSlots(req.body.dueTimes);
         await query(
-            `INSERT INTO tasks (id, title, faction, difficulty, due_date, created_at, status, is_recurring, streak, due_time, user_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-            [id, title, faction, difficulty, dueDate, createdAt, status, isRecurring || false, 0, req.body.dueTime, userId]
+            `INSERT INTO tasks (id, title, faction, difficulty, due_date, created_at, status, is_recurring, streak, due_time, due_times, user_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+            [id, title, faction, difficulty, dueDate, createdAt, status, isRecurring || false, 0,
+                req.body.dueTime, JSON.stringify(dueTimes), userId]
         );
         res.status(201).json({ message: 'Task created' });
     } catch (err) {
@@ -72,6 +79,9 @@ router.put('/:id', async (req, res) => {
     if (updates.lastCompletedAt !== undefined) { fields.push(`last_completed_at = $${idx++}`); values.push(updates.lastCompletedAt); }
     if (updates.streak !== undefined) { fields.push(`streak = $${idx++}`); values.push(updates.streak); }
     if (updates.dueTime !== undefined) { fields.push(`due_time = $${idx++}`); values.push(updates.dueTime); }
+    if (updates.dueTimes !== undefined) { fields.push(`due_times = $${idx++}`); values.push(JSON.stringify(normalizeSlots(updates.dueTimes))); }
+    if (updates.slotsDone !== undefined) { fields.push(`slots_done = $${idx++}`); values.push(JSON.stringify(normalizeSlots(updates.slotsDone))); }
+    if (updates.slotsDay !== undefined) { fields.push(`slots_day = $${idx++}`); values.push(updates.slotsDay); }
 
     if (fields.length === 0) return res.status(400).json({ error: 'No fields to update' });
 
@@ -92,6 +102,17 @@ router.put('/:id', async (req, res) => {
         const requisition = await withTransaction(async db => {
             await db.query(sql, values);
             if (!completedAt || !v15EconomyEnabled()) return 0;
+
+            // A task with several times of day is only met when every one of them
+            // is done, so the client cannot claim the core by reporting the first.
+            const stored = await db.query('SELECT due_times, slots_done, slots_day FROM tasks WHERE id = $1 AND user_id = $2', [id, userId]);
+            const row = stored.rows[0];
+            const slots = normalizeSlots(row?.due_times);
+            if (slots.length > 0) {
+                const today = dayKey(completedAt, DEFAULT_TIME_ZONE);
+                const done = row?.slots_day === today ? row?.slots_done : [];
+                if (!slotsMet(slots, done)) return 0;
+            }
             return rewardCoreCompleted(db, userId, id, completedAt);
         });
 

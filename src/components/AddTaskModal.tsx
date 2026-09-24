@@ -4,6 +4,7 @@ import { Task, Faction, AscensionCategory } from '../types';
 import { useGame } from '../contexts/GameContext';
 import { Home, Activity, Book, Heart, Hammer, Cpu } from 'lucide-react'; // Icons for factions
 import dayjs from 'dayjs';
+import { MAX_SLOTS, generateSlots, isTime, normalizeSlots } from '../../shared/tasks';
 
 const { useBreakpoint } = Grid;
 const { Option } = Select;
@@ -11,7 +12,7 @@ const { Option } = Select;
 interface AddTaskModalProps {
     visible: boolean;
     onClose: () => void;
-    onAdd: (title: string, faction: Faction, difficulty: number, dueDate: Date, isRecurring: boolean, dueTime?: string, ascensionCategory?: AscensionCategory, subCategory?: string) => void;
+    onAdd: (title: string, faction: Faction, difficulty: number, dueDate: Date, isRecurring: boolean, dueTime?: string, ascensionCategory?: AscensionCategory, subCategory?: string, dueTimes?: string[]) => void;
     initialKeyword?: string;
     initialTask?: Task | null;
 }
@@ -24,6 +25,19 @@ const FACTION_OPTIONS: { value: Faction; label: string; icon: React.ReactNode; c
     { value: 'orks', label: '獸人 (雜務)', icon: <Hammer />, color: '#f97316' },
     { value: 'necrons', label: '死靈 (Debug)', icon: <Cpu />, color: '#94a3b8' },
 ];
+
+/** A plain HH:mm field: faster to set eight of these than to open a picker. */
+const TimeField = ({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) => (
+    <div className="flex flex-col gap-1">
+        <span className="text-[10px] font-mono text-zinc-500">{label}</span>
+        <input
+            type="time"
+            value={value}
+            onChange={e => onChange(e.target.value)}
+            className="bg-zinc-900 border border-imperial-gold/30 text-white font-mono px-2 h-10"
+        />
+    </div>
+);
 
 export const AddTaskModal: React.FC<AddTaskModalProps> = ({ visible, onClose, onAdd, initialKeyword = '', initialTask }) => {
     const { projects } = useGame();
@@ -39,6 +53,11 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ visible, onClose, on
     const [difficulty, setDifficulty] = useState(1);
     const [faction, setFaction] = useState<Faction>('orks');
     const [isRecurring, setIsRecurring] = useState(false);
+    // Several times of day for one recurring task, generated in one go.
+    const [dueTimes, setDueTimes] = useState<string[]>([]);
+    const [slotStart, setSlotStart] = useState('08:00');
+    const [slotEnd, setSlotEnd] = useState('22:00');
+    const [slotEvery, setSlotEvery] = useState(120);
     const [ascensionCategory, setAscensionCategory] = useState<AscensionCategory | undefined>();
     const [subCategory, setSubCategory] = useState<string>('');
     // @ts-ignore
@@ -53,6 +72,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ visible, onClose, on
                 setDifficulty(initialTask.difficulty);
                 setFaction(initialTask.faction);
                 setIsRecurring(initialTask.isRecurring || false);
+                setDueTimes(normalizeSlots(initialTask.dueTimes));
                 setAscensionCategory(initialTask.ascensionCategory);
                 setSubCategory(initialTask.subCategory || '');
                 // @ts-ignore
@@ -64,6 +84,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ visible, onClose, on
                 setDifficulty(1);
                 setFaction('orks');
                 setIsRecurring(false);
+                setDueTimes([]);
                 setAscensionCategory(undefined);
                 setSubCategory('');
                 // @ts-ignore
@@ -86,9 +107,13 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ visible, onClose, on
 
     const handleSubmit = () => {
         if (!title.trim()) return;
-        const dueTime = isRecurring ? dueDate.format('HH:mm') : undefined;
-        onAdd(title, faction, difficulty, dueDate.toDate(), isRecurring, dueTime, ascensionCategory, subCategory);
+        const slots = isRecurring ? normalizeSlots(dueTimes) : [];
+        // With a list of times the first one is the day's nominal deadline, so the
+        // sorting and overdue checks that read dueTime keep working unchanged.
+        const dueTime = isRecurring ? (slots[0] ?? dueDate.format('HH:mm')) : undefined;
+        onAdd(title, faction, difficulty, dueDate.toDate(), isRecurring, dueTime, ascensionCategory, subCategory, slots);
         setTitle('');
+        setDueTimes([]);
         setAscensionCategory(undefined);
         setSubCategory('');
         setIsRecurring(false);
@@ -230,20 +255,73 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ visible, onClose, on
                     )
                 }
 
-                <div>
-                    <label className="text-imperial-gold/70 font-mono block mb-2 text-xs">
-                        {isRecurring ? '每日執行時間 (DAILY TIME)' : '截止時間 (ETA)'}
-                    </label>
-                    <DatePicker
-                        showTime
-                        format={isRecurring ? "HH:mm" : "YYYY-MM-DD HH:mm"}
-                        picker={isRecurring ? "time" : "date"}
-                        value={dueDate}
-                        onChange={val => setDueDate(val || dayjs())}
-                        className="w-full !bg-zinc-900 !border-imperial-gold/30 !text-white !h-12 !text-lg"
-                        popupClassName="imperial-datepicker-popup"
-                    />
-                </div>
+                {isRecurring ? (
+                    <div>
+                        <label className="text-imperial-gold/70 font-mono block mb-2 text-xs">
+                            每日執行時間 (DAILY TIMES)
+                        </label>
+                        <div className="flex flex-wrap items-end gap-2 mb-3">
+                            <TimeField label="從" value={slotStart} onChange={setSlotStart} />
+                            <TimeField label="到" value={slotEnd} onChange={setSlotEnd} />
+                            <div className="flex flex-col gap-1">
+                                <span className="text-[10px] font-mono text-zinc-500">每隔</span>
+                                <Select
+                                    size="large"
+                                    value={slotEvery}
+                                    onChange={setSlotEvery}
+                                    className="!w-28"
+                                    options={[30, 60, 90, 120, 180, 240].map(m => ({ value: m, label: m < 60 ? `${m} 分鐘` : `${m / 60} 小時` }))}
+                                />
+                            </div>
+                            <Button
+                                size="large"
+                                onClick={() => setDueTimes(generateSlots(slotStart, slotEnd, slotEvery))}
+                                className="!bg-imperial-gold/10 !border-imperial-gold/50 !text-imperial-gold font-mono"
+                            >
+                                產生時段
+                            </Button>
+                        </div>
+
+                        {dueTimes.length > 0 ? (
+                            <div className="flex flex-wrap gap-1.5">
+                                {dueTimes.map(time => (
+                                    <button
+                                        type="button"
+                                        key={time}
+                                        title="移除這個時段"
+                                        onClick={() => setDueTimes(prev => prev.filter(t => t !== time))}
+                                        className="px-2 py-0.5 border border-imperial-gold/40 text-imperial-gold font-mono text-xs hover:border-red-500 hover:text-red-400"
+                                    >
+                                        {time} ×
+                                    </button>
+                                ))}
+                                <span className="self-center font-mono text-[11px] text-zinc-500">共 {dueTimes.length} 次／天</span>
+                            </div>
+                        ) : (
+                            <div className="flex items-end gap-2">
+                                <TimeField label="或只設一個時間" value={dueDate.format('HH:mm')}
+                                    onChange={value => { if (isTime(value)) setDueDate(dayjs(`${dayjs().format('YYYY-MM-DD')} ${value}`)); }} />
+                                <span className="font-mono text-[11px] text-zinc-500 pb-3">設定起訖與間隔後按「產生時段」，即可一次排完一整天</span>
+                            </div>
+                        )}
+                        <div className="mt-2 font-mono text-[10px] text-zinc-600">
+                            每個時段各自完成，全部完成才算今天達成（最多 {MAX_SLOTS} 個）。
+                        </div>
+                    </div>
+                ) : (
+                    <div>
+                        <label className="text-imperial-gold/70 font-mono block mb-2 text-xs">截止時間 (ETA)</label>
+                        <DatePicker
+                            showTime
+                            format="YYYY-MM-DD HH:mm"
+                            picker="date"
+                            value={dueDate}
+                            onChange={val => setDueDate(val || dayjs())}
+                            className="w-full !bg-zinc-900 !border-imperial-gold/30 !text-white !h-12 !text-lg"
+                            popupClassName="imperial-datepicker-popup"
+                        />
+                    </div>
+                )}
 
                 <div>
                     <label className="text-imperial-gold/70 font-mono block mb-2 text-xs">威脅等級 (THREAT): {difficulty}</label>

@@ -75,6 +75,35 @@ test('completing a committed core pays +10 once, even if the update is retried',
     assert.equal(balanceOf(db), 40 + 10);
 });
 
+test('a core with several times of day pays only when every slot is done', async () => {
+    const { db, rewards, tasks } = setup();
+    seedTask(db, 't1');
+    const task = db.tables.tasks.find(t => t.id === 't1');
+    task.due_times = ['08:00', '10:00', '12:00'];
+
+    await rewards('POST', '/core', { body: { day: TOMORROW, action: 'add', taskId: 't1' } });
+
+    // Reporting a completion with only part of the day settled earns nothing, even
+    // though the client asked to be paid.
+    task.slots_day = TOMORROW;
+    task.slots_done = ['08:00', '10:00'];
+    const early = await completeTask(tasks, 't1', TOMORROW);
+    assert.equal(early.body.requisition, 0);
+    // Nothing was written at all: not even the opening grant the reward path makes.
+    assert.equal(db.tables.reward_entries.length, 0);
+
+    // Yesterday's finished day does not stand in for today's.
+    task.slots_day = '2020-01-01';
+    task.slots_done = ['08:00', '10:00', '12:00'];
+    const stale = await completeTask(tasks, 't1', TOMORROW);
+    assert.equal(stale.body.requisition, 0);
+
+    task.slots_day = TOMORROW;
+    const met = await completeTask(tasks, 't1', TOMORROW);
+    assert.equal(met.body.requisition, 10);
+    assert.equal(balanceOf(db), 40 + 10);
+});
+
 test('completing a task that is not a core pays nothing', async () => {
     const { db, rewards, tasks } = setup();
     seedTask(db, 't1');

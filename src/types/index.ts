@@ -12,6 +12,11 @@ export interface Task {
     lastCompletedAt?: Date; // 上次完成日期
     streak?: number; // 連續達成次數
     dueTime?: string; // 每日截止時間 "HH:mm"
+    /** Several times of day for one recurring task; replaces dueTime when set. */
+    dueTimes?: string[];
+    /** Times already completed for `slotsDay`; earlier days are stale and ignored. */
+    slotsDone?: string[];
+    slotsDay?: string; // YYYY-MM-DD
     ascensionCategory?: AscensionCategory;
     subCategory?: string; // 子項目描述 (e.g. "跑步 5km")
 }

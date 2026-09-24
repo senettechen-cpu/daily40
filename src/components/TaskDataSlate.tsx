@@ -4,6 +4,15 @@ import { Shield, Trash2, Target, Sword, Activity, Plus, FileEdit, Flame } from '
 import { motion, AnimatePresence } from 'framer-motion';
 import { Task, Faction } from '../types';
 import { useRequisition } from '../contexts/RequisitionContext';
+import { nextSlot, normalizeSlots, slotProgress, slotsMet } from '../../shared/tasks';
+
+/** Today's settled times for a task, ignoring a day that has already rolled over. */
+const slotsOf = (task: Task) => {
+    const slots = normalizeSlots(task.dueTimes);
+    const today = new Date();
+    const key = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+    return { slots, done: task.slotsDay === key ? normalizeSlots(task.slotsDone) : [] };
+};
 
 /**
  * Marks a task as one of today's three cores. Hidden while the old economy is
@@ -198,10 +207,17 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
                 if (record.isRecurring) {
                     const timeStr = record.dueTime || new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
                     const streak = record.streak || 0;
+                    const { slots, done } = slotsOf(record);
+                    const progress = slotProgress(slots, done);
+                    const upcoming = nextSlot(slots, done);
 
                     return (
                         <div className="flex flex-col">
-                            <span className="font-mono text-xs text-cyan-400">每日 {timeStr} 截止</span>
+                            <span className="font-mono text-xs text-cyan-400">
+                                {slots.length > 0
+                                    ? `今日 ${progress.done}/${progress.total}${upcoming ? ` · 下一次 ${upcoming}` : ' · 已完成'}`
+                                    : `每日 ${timeStr} 截止`}
+                            </span>
                             <div className={`flex items-center gap-1 mt-0.5 ${streak > 0 ? 'animate-pulse' : 'opacity-50'}`}>
                                 <Flame size={12} className={streak > 0 ? "text-orange-500 fill-orange-500" : "text-zinc-600"} />
                                 <span className={`text-[10px] font-bold font-mono ${streak > 0 ? "text-orange-400" : "text-zinc-600"}`}>STREAK: {streak}</span>
@@ -244,9 +260,11 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
                                 COMPLETED
                             </Tag>
                         ) : (() => {
-                            // Inline Overdue Check for Recurring
+                            // Inline Overdue Check for Recurring. A task with several
+                            // times of day keeps its outstanding slots open: being late
+                            // for the 10:00 glass is no reason to forbid drinking it.
                             let isOverdue = false;
-                            if (isRecurring) {
+                            if (isRecurring && slotsOf(record).slots.length === 0) {
                                 const now = new Date();
                                 let deadline = new Date(record.dueDate);
                                 if (record.dueTime) {
