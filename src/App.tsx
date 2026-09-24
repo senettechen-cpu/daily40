@@ -245,7 +245,7 @@ const CoreStatus = () => {
 const MainDashboard = ({ currentUser, onLogout }: { currentUser: any, onLogout: () => void }) => {
   const requisition = useRequisition();
   const {
-    tasks, ownedUnits, isPenitentMode,
+    tasks, isPenitentMode,
     addTask, updateTask, purgeTask, deleteTask, resetGame, viewMode, allTasks
   } = useGame();
 
@@ -451,8 +451,6 @@ const MainDashboard = ({ currentUser, onLogout }: { currentUser: any, onLogout: 
                 </Button>
               </div>
               <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                {ownedUnits.includes('dreadnought') && <div className="absolute top-[20%] right-[20%] text-imperial-gold/20 animate-pulse font-mono">[無畏機甲 DEPLOYED]</div>}
-                {ownedUnits.includes('barge') && <div className="absolute top-[10%] text-imperial-gold/10 text-6xl tracking-[1em] w-full text-center font-mono">/// 軌道支援 ///</div>}
               </div>
             </div>
           </>

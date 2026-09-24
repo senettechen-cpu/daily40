@@ -8,8 +8,6 @@ import { api } from '../services/api';
 import { Project, SubTask } from '../types';
 import { GuardsmanIcon, MarineIcon, CustodesIcon } from './ImperiumIcons';
 import { PlanetaryTraitType, UnitType } from '../types';
-import { BASE_UNITS, UNIT_POWER, UNIT_VISUALS, getGarrisonPower } from '../data/unitVisuals';
-import { UnitPortrait } from './UnitPortrait';
 import { SectorNode } from './SectorNode';
 import { CampaignBoard } from './CampaignBoard';
 
@@ -21,15 +19,13 @@ const TRAIT_CONFIG: Record<PlanetaryTraitType, { name: string, effect: string, i
     'barren': { name: '荒蕪世界 (Lv0)', effect: '專案數 0', icon: <CircleDashed size={14} />, color: '#71717a' },
 };
 
-const POWER_VALUES = UNIT_POWER;
 
 export const SectorMap: React.FC = () => {
-    const { armyStrength, ownedUnits, projects, addProject, addSubTask, completeSubTask, updateSubTask, deleteSubTask, deleteProject, getTraitForMonth, currentMonth, sectorHistory, resolveSector, fortifiedSectors } = useGame();
+    const { projects, addProject, addSubTask, completeSubTask, updateSubTask, deleteSubTask, deleteProject, getTraitForMonth, currentMonth, sectorHistory, resolveSector, fortifiedSectors } = useGame();
     const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
     const [activeTab, setActiveTab] = useState<'projects' | 'resolve'>('projects');
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [isSimulating, setIsSimulating] = useState(false);
     const [subTaskTitle, setSubTaskTitle] = useState('');
     const [editingSubTaskId, setEditingSubTaskId] = useState<string | null>(null);
     const [editTitle, setEditTitle] = useState('');
@@ -77,23 +73,7 @@ export const SectorMap: React.FC = () => {
     }, [isModalOpen]);
 
     const currentMonthIdx = currentMonth;
-    const abaddonProgress = ((currentMonthIdx + 1) / 12) * 100;
-    const currentThreat = (currentMonthIdx + 1) * 5000;
-    const defenseTarget = 50000;
-    const defenseProgress = Math.min(100, (armyStrength.totalActivePower / defenseTarget) * 100);
-    const isThreatCritical = armyStrength.totalActivePower < currentThreat;
 
-    const handleSimulation = () => {
-        setIsSimulating(true);
-        setTimeout(() => {
-            setIsSimulating(false);
-            if (armyStrength.totalActivePower >= currentThreat) {
-                Modal.success({ title: '防線穩固', content: '帝皇的防禦堅不可摧。 (勝利預測: 100%)', okText: '為了帝皇！', className: 'imperial-modal' });
-            } else {
-                Modal.error({ title: '警告：防線瀕臨崩潰！', content: '預計傷亡率 99%。請立即徵兵！', okText: '誓死堅守！', className: 'imperial-modal-error' });
-            }
-        }, 2000);
-    };
 
     const MONTHS = Array.from({ length: 12 }, (_, i) => ({
         id: `M${i + 1}`,
@@ -117,59 +97,18 @@ export const SectorMap: React.FC = () => {
 
     return (
         <div className="strategy-shell">
-            {/* LEFT SIDEBAR: STRATEGIC RESERVES */}
-            <div className="strategy-reserves">
-                <div className="p-4 border-b border-imperial-gold/20 bg-black text-center">
-                    <h3 className="text-imperial-gold font-mono tracking-[0.2em] font-bold text-lg uppercase">戰略軍力</h3>
-                    <div className="text-zinc-500 font-mono text-[10px] tracking-wider mt-1">STRATEGIC RESERVES</div>
-                </div>
-
-                <div className="strategy-reserves__list">
-                    {(Object.keys(UNIT_POWER) as UnitType[]).filter(type => BASE_UNITS.includes(type) || armyStrength.reserves[type] > 0).map(type => <div key={type} className="reserve-unit"><UnitPortrait unit={type} compact /><div><h5>{UNIT_VISUALS[type].name}</h5><span>{UNIT_VISUALS[type].role}</span></div><strong>{armyStrength.reserves[type] || 0}</strong></div>)}
-                </div>
-            </div>
-
             {/* RIGHT MAIN CONTENT */}
             <div className="strategy-main">
                 <div className="absolute inset-0 bg-[linear-gradient(rgba(20,20,20,0.5)_1px,transparent_1px),linear-gradient(90deg,rgba(20,20,20,0.5)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none z-0 opacity-20" />
 
                 <div className="strategy-content">
                     <CampaignBoard />
-                    {/* THREAT MONITOR */}
-                    <div className="w-full mb-4 border border-red-900/50 bg-black/80 backdrop-blur-sm p-4 rounded relative overflow-hidden">
-                        <div className="strategy-threat-heading">
-                            <div className="flex flex-col">
-                                <h4 className="!text-red-500 !font-mono !m-0 tracking-widest uppercase text-lg font-bold">阿巴頓的遠征</h4>
-                                <span className="text-red-400/60 font-mono text-xs">黑色遠征威脅等級</span>
-                            </div>
-                            <div className="strategy-threat-actions">
-                                <span className="text-imperial-gold font-mono font-bold text-xl">
-                                    <span>{currentThreat}</span> 侵襲度 vs <span>{armyStrength.totalActivePower}</span> 防禦力
-                                </span>
-                                <Button type="primary" className="!bg-red-900/20 !border-red-500 !text-red-500 font-bold font-mono tracking-widest animate-pulse hover:!bg-red-500 hover:!text-black transition-all" icon={<Swords size={16} />} loading={isSimulating} onClick={handleSimulation}>執行防禦演習</Button>
-                            </div>
-                        </div>
-                        <div className="relative h-6 bg-black rounded-full overflow-hidden border border-zinc-800">
-                            <div className="absolute top-0 left-0 h-full bg-gradient-to-r from-red-900 to-red-600 transition-all duration-1000 ease-out" style={{ width: `${abaddonProgress}%` }} />
-                        </div>
-                        <div className="mt-4">
-                            <div className="flex justify-between items-end mb-1">
-                                <h5 className="!text-imperial-gold !font-mono !m-0 tracking-widest uppercase text-sm font-bold">帝國防禦網</h5>
-                            </div>
-                            <div className="relative h-4 bg-black rounded-full overflow-hidden border border-zinc-800">
-                                <div className={`absolute top-0 left-0 h-full transition-all duration-1000 ease-out ${isThreatCritical ? 'bg-red-600 animate-pulse' : 'bg-gradient-to-r from-yellow-900 to-imperial-gold'}`} style={{ width: `${defenseProgress}%` }} />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="campaign-heading"><div><span className="eyebrow">ANNUAL CRUSADE / 12 SECTORS</span><h2>年度遠征航線</h2></div><p>外環：專案完成度 · 盾牌：防禦狀態</p></div>
+                    <div className="campaign-heading"><div><span className="eyebrow">ANNUAL CRUSADE / 12 SECTORS</span><h2>年度遠征航線</h2></div><p>外環：專案完成度</p></div>
                     <div className="campaign-route">
                         {MONTHS.map((month, idx) => {
                             const sectorProjects = projects.filter(p => p.month === month.id);
                             const trait = TRAIT_CONFIG[getTraitForMonth(month.id)];
-                            const threat = Math.floor(500 * Math.pow(1.52, idx));
-                            const power = getGarrisonPower(armyStrength.garrisons[month.id] || {}, ownedUnits);
-                            return <SectorNode key={month.id} month={month.id} index={idx} active={month.status === 'active'} past={month.status === 'past'} result={sectorHistory[month.id]} trait={trait} count={sectorProjects.length} completed={sectorProjects.filter(p => p.completed).length} defended={power >= threat} fortified={fortifiedSectors.includes(month.id)} power={power} threat={threat} onClick={() => handleMonthClick(month.id)} />;
+                            return <SectorNode key={month.id} month={month.id} index={idx} active={month.status === 'active'} past={month.status === 'past'} result={sectorHistory[month.id]} trait={trait} count={sectorProjects.length} completed={sectorProjects.filter(p => p.completed).length} fortified={fortifiedSectors.includes(month.id)} onClick={() => handleMonthClick(month.id)} />;
                         })}
                     </div>
                 </div>
