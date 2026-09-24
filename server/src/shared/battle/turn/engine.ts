@@ -1,4 +1,4 @@
-import { Hex, distance, hexKey, reachable, ruleAt, sameHex } from '../hex';
+import { Hex, deploymentZone, distance, hexKey, reachable, ruleAt, sameHex } from '../hex';
 import {
     canReach, coverMultiplier, damageOf, expectedDamage, FISTS, hitChance, MAX_ROUNDS, threatOf,
 } from './rules';
@@ -17,6 +17,9 @@ interface Battle {
     round: number;
     random: number;
     activations: Activation[];
+    /** Stable tie-break for equal initiative, drawn from the seed, not from side. */
+    order: Map<string, number>;
+    zones: Record<Side, Set<string>>;
 }
 
 const roll = (battle: Battle): number => {
@@ -33,23 +36,21 @@ const STANCE_VERB: Record<Stance, string> = {
 };
 
 /**
- * Sides take turns: crew, enemy, crew, enemy. When one side runs out of bodies
- * the other finishes its own order, so a numbers advantage shows up as more
- * actions rather than as a free round.
+ * One order across both sides, highest initiative first. Alternating sides gave
+ * whoever went first a 71% edge in a mirror match, and the user chose global
+ * initiative over evening that out with numbers: initiative is now something a
+ * loadout can actually buy, and carapace's -1 is a real cost.
+ *
+ * Ties break on a key drawn from the seed rather than on side or id, so equal
+ * initiative is a coin toss that still replays exactly.
  */
 function activationOrder(battle: Battle): Unit[] {
-    const queue = (side: Side) => battle.units
-        .filter(u => u.side === side && !u.down)
-        .sort((a, b) => b.initiative - a.initiative || (a.id < b.id ? -1 : 1));
-
-    const crew = queue('crew');
-    const enemy = queue('enemy');
-    const order: Unit[] = [];
-    for (let i = 0; i < Math.max(crew.length, enemy.length); i += 1) {
-        if (crew[i]) order.push(crew[i]);
-        if (enemy[i]) order.push(enemy[i]);
-    }
-    return order;
+    return battle.units
+        .filter(u => !u.down)
+        .sort((a, b) =>
+            b.initiative - a.initiative
+            || (battle.order.get(a.id) ?? 0) - (battle.order.get(b.id) ?? 0)
+            || (a.id < b.id ? -1 : 1));
 }
 
 const snapshot = (battle: Battle) =>
@@ -98,21 +99,40 @@ function stanceBonus(battle: Battle, unit: Unit, tile: Hex, target: Unit | null)
         ? foes.reduce((best, foe) => (distance(tile, foe.at) < distance(tile, best.at) ? foe : best))
         : null;
 
+    const sheltered = (ruleAt(board, tile).incoming ?? 1) < 1;
+
     switch (unit.stance) {
         case 'hold':
-            // Stay put, take shelter, shoot what comes. Moving at all is a cost.
-            return (sameHex(tile, unit.at) ? 8 : -distance(unit.at, tile) * 4)
-                + ((ruleAt(board, tile).incoming ?? 1) < 1 ? 10 : 0);
-        case 'advance':
-            return nearest ? -distance(tile, nearest.at) * 3 : 0;
-        case 'flank':
+            // Hold the ground you were given: leaving the deployment zone is not
+            // a preference the score can outweigh, it is refused outright.
+            if (!battle.zones[unit.side].has(hexKey(tile))) return -Infinity;
+            return (sameHex(tile, unit.at) ? 8 : -distance(unit.at, tile) * 4) + (sheltered ? 10 : 0);
+
+        case 'advance': {
+            if (!nearest) return 0;
+            // With a shot already available, closing further only invites return
+            // fire: prefer to shoot from where you are, and from cover.
+            if (target) return (sameHex(tile, unit.at) ? 6 : -distance(unit.at, tile) * 2) + (sheltered ? 6 : 0);
+            // Without one, close the ground — but toward a firing position rather
+            // than into the enemy's face.
+            const wanted = Math.max(1, Math.floor(unit.weapon.range / 2));
+            return -Math.abs(distance(tile, nearest.at) - wanted) * 3;
+        }
+
+        case 'flank': {
             // Worth a walk to reach someone their cover does not protect.
-            return target && (ruleAt(board, target.at).incoming ?? 1) === 1 ? 12 : 0;
+            if (target) return (ruleAt(board, target.at).incoming ?? 1) === 1 ? 12 : 0;
+            // With nothing to shoot, keep working around rather than stalling.
+            return nearest ? -distance(tile, nearest.at) * 2 + (sheltered ? 4 : 0) : 0;
+        }
+
         case 'guard': {
             const ward = unit.guardTargetId ? byId(battle, unit.guardTargetId) : null;
-            if (!ward || ward.down) return 0;
+            // A ward who is down is not a position to run back to: hold here.
+            if (!ward || ward.down) return sameHex(tile, unit.at) ? 8 : -distance(unit.at, tile) * 4;
             return -Math.max(0, distance(tile, ward.at) - 2) * 8;
         }
+
         default:
             return 0;
     }
@@ -244,7 +264,16 @@ export function runBattle(setup: BattleSetup): BattleResult {
         round: 0,
         random: setup.seed >>> 0,
         activations: [],
+        order: new Map(),
+        zones: {
+            crew: new Set(deploymentZone(setup.board, 'crew').map(hexKey)),
+            enemy: new Set(deploymentZone(setup.board, 'enemy').map(hexKey)),
+        },
     };
+
+    // Drawn once, before anything else touches the generator, so the tie-break is
+    // fixed for the battle and identical on replay.
+    for (const unit of battle.units) battle.order.set(unit.id, roll(battle));
 
     const maxRounds = setup.maxRounds ?? MAX_ROUNDS;
     let ending = endingOf(battle);

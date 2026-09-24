@@ -66,17 +66,6 @@ test('the same seed replays exactly, a different one does not', () => {
     assert.notEqual(summary(run(units())), summary(run(units(), { seed: 999 })));
 });
 
-test('sides alternate, and the order inside a side follows initiative', () => {
-    const result = run([
-        unit('c-slow', 'crew', { at: at(4, 8), initiative: 1, stance: 'hold', movement: 0 }),
-        unit('c-fast', 'crew', { at: at(6, 8), initiative: 9, stance: 'hold', movement: 0 }),
-        unit('e-slow', 'enemy', { at: at(4, 0), initiative: 2, stance: 'hold', movement: 0 }),
-        unit('e-fast', 'enemy', { at: at(6, 0), initiative: 8, stance: 'hold', movement: 0 }),
-    ]);
-    // Spread first: arrays crossing the loadTs realm are not reference-equal.
-    const firstRound = [...result.activations].filter(a => a.round === 1).map(a => a.unitId);
-    assert.deepEqual(firstRound, ['c-fast', 'e-fast', 'c-slow', 'e-slow']);
-});
 
 test('every activation says why, and leaves a snapshot of the whole field', () => {
     const result = run([
@@ -199,4 +188,65 @@ test('hazard ground costs health at the end of a round', () => {
     });
     const survivor = result.units.find(u => u.id === 'c0');
     assert.ok(survivor.hp < 100, 'standing in hazard must cost something');
+});
+
+test('initiative orders both sides at once, so neither side owns the first move', () => {
+    // A low-initiative crewman must not act before a high-initiative enemy.
+    const result = run([
+        unit('c-slow', 'crew', { at: at(4, 8), initiative: 2, stance: 'hold', movement: 0 }),
+        unit('e-fast', 'enemy', { at: at(4, 0), initiative: 20, stance: 'hold', movement: 0 }),
+        unit('c-fast', 'crew', { at: at(6, 8), initiative: 15, stance: 'hold', movement: 0 }),
+        unit('e-slow', 'enemy', { at: at(6, 0), initiative: 5, stance: 'hold', movement: 0 }),
+    ]);
+    const firstRound = [...result.activations].filter(a => a.round === 1).map(a => a.unitId);
+    assert.deepEqual(firstRound, ['e-fast', 'c-fast', 'e-slow', 'c-slow']);
+});
+
+test('a mirror match is a coin toss, not a first-mover win', () => {
+    // The whole reason initiative went global: alternating sides gave whoever
+    // moved first a 71% edge over an identical opponent.
+    let crew = 0;
+    let enemy = 0;
+    const rounds = 120;
+    for (let i = 1; i <= rounds; i += 1) {
+        const result = e.runBattle({
+            board: board({ '3,4': 'cover', '7,4': 'cover' }),
+            units: [
+                ...[0, 1, 2].map(j => unit('c' + j, 'crew', { at: at(4 + j, 7) })),
+                ...[0, 1, 2].map(j => unit('e' + j, 'enemy', { at: at(4 + j, 1) })),
+            ],
+            seed: i * 104729,
+        });
+        if (result.outcome === 'victory') crew += 1;
+        if (result.outcome === 'defeat') enemy += 1;
+    }
+    const share = crew / (crew + enemy);
+    assert.ok(share > 0.35 && share < 0.65, `mirror win share was ${(share * 100).toFixed(1)}%`);
+});
+
+test('a held position never leaves its deployment zone, whatever the score says', () => {
+    // Put a juicy target far up the board: holding must still refuse to chase it.
+    const result = run([
+        unit('c0', 'crew', { at: at(5, 8), stance: 'hold', movement: 3 }),
+        unit('e0', 'enemy', { at: at(5, 0), duty: 'medic', stance: 'hold', movement: 0 }),
+    ]);
+    for (const step of result.activations) {
+        if (step.unitId !== 'c0') continue;
+        const me = step.snapshot.find(s => s.id === 'c0');
+        assert.ok(me.at.row >= 7, `a holding soldier walked to row ${me.at.row}`);
+    }
+});
+
+test('an advance that can already shoot does not keep closing', () => {
+    // In range from the start: the right move is to fire, not to walk into range
+    // of everything else.
+    const start = at(5, 6);
+    const result = run([
+        unit('c0', 'crew', { at: start, stance: 'advance', movement: 3 }),
+        unit('e0', 'enemy', { at: at(5, 3), stance: 'hold', movement: 0, maxHp: 400 }),
+    ]);
+    const first = [...result.activations].find(a => a.unitId === 'c0');
+    const after = first.snapshot.find(s => s.id === 'c0');
+    assert.equal(after.at.row, start.row, 'it charged despite having a shot');
+    assert.ok(first.activities.some(a => a.kind === 'attack'));
 });
