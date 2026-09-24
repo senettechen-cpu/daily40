@@ -14,7 +14,7 @@ import {
     EquipmentItem, SLOT_CAPACITY, SLOT_LABELS, Slot, assignmentError, catalogItem, itemsOf,
 } from '../../shared/armory';
 import { DEPLOYMENT_KEY } from '../battle/handoff';
-import { portraitHead } from '../data/reportArtIndex';
+import { equipmentArt, portraitHead } from '../data/reportArtIndex';
 import { MAX_TRAINEES, SCENARIOS } from '../../shared/battle';
 
 const OUTCOME_LABELS: Record<string, string> = { victory: '勝利', defeat: '失敗', timeout: '超時' };
@@ -90,6 +90,18 @@ const CharacterCard = ({ character, action, onAction, onOpen }: {
     );
 };
 
+/** Catalogue art for one item; every catalogue entry has a delivered image. */
+const ItemArt = ({ catalogId, size = 28 }: { catalogId: string; size?: number }) => {
+    const src = equipmentArt(catalogId, 96);
+    return src
+        ? <img src={src} alt="" width={size} height={size} className="flex-shrink-0 border border-imperial-gold/20 bg-[#2d3331] object-contain" />
+        : <div style={{ width: size, height: size }} className="flex-shrink-0 border border-dashed border-zinc-700 bg-zinc-900" title="尚無裝備圖" />;
+};
+
+const EmptySlotArt = ({ size = 40 }: { size?: number }) => (
+    <div style={{ width: size, height: size }} className="flex-shrink-0 border border-dashed border-zinc-800 bg-black/40" title="此欄位是空的" />
+);
+
 /** One equippable slot: what is in it now, and everything that could go in it. */
 const SlotRow = ({ label, current, options, disabled, onChange }: {
     label: string;
@@ -100,19 +112,31 @@ const SlotRow = ({ label, current, options, disabled, onChange }: {
 }) => (
     <div className="flex items-center gap-2">
         <span className="w-14 flex-shrink-0 font-mono text-[11px] text-zinc-500">{label}</span>
+        {current ? <ItemArt catalogId={current.catalogId} size={40} /> : <EmptySlotArt />}
         <Select
             size="small"
             className="!flex-1"
             disabled={disabled}
             value={current?.id ?? ''}
             onChange={value => onChange(value || null)}
+            optionLabelProp="title"
             options={[
-                { value: '', label: '— 空 —' },
-                ...options.map(({ item, blocked }) => ({
-                    value: item.id,
-                    disabled: !!blocked,
-                    label: `${catalogItem(item.catalogId)?.name ?? item.catalogId}${blocked ? `（${blocked}）` : ''}`,
-                })),
+                { value: '', title: '— 空 —', label: <span className="font-mono text-[12px] text-zinc-500">— 空 —</span> },
+                ...options.map(({ item, blocked }) => {
+                    const name = catalogItem(item.catalogId)?.name ?? item.catalogId;
+                    return {
+                        value: item.id,
+                        disabled: !!blocked,
+                        title: name,
+                        label: (
+                            <span className="flex items-center gap-2">
+                                <ItemArt catalogId={item.catalogId} />
+                                <span className="font-mono text-[12px]">{name}</span>
+                                {blocked && <span className="font-mono text-[11px] text-zinc-600">（{blocked}）</span>}
+                            </span>
+                        ),
+                    };
+                }),
             ]}
         />
     </div>
