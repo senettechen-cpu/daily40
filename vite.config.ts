@@ -1,3 +1,4 @@
+import { resolve } from 'path'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -43,6 +44,12 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
+      // The battle report is a second page: without this entry it is left out of
+      // the build and the report tab falls through to the SPA's index.html.
+      input: {
+        main: resolve(__dirname, 'index.html'),
+        battle: resolve(__dirname, 'battle-test.html'),
+      },
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom'],

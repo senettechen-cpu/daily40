@@ -174,11 +174,15 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
             }));
 
             const gained = started.awards.filter(a => a.role === 'deployed')[0]?.amount ?? 0;
-            setDeparture(started.operation.paysXp
+            const result = started.operation.paysXp
                 ? `行動結束：${OUTCOME_LABELS[started.operation.outcome]}，出戰者各 +${gained} XP`
-                : `行動結束：${OUTCOME_LABELS[started.operation.outcome]}（本次不計 XP）`);
+                : `行動結束：${OUTCOME_LABELS[started.operation.outcome]}（本次不計 XP）`;
             await load();
-            window.open(`${import.meta.env.BASE_URL}battle-test.html`, '_blank');
+
+            // The result is already recorded; the report tab only replays it. A blocked
+            // popup must say so, or the battle looks like it silently did nothing.
+            const report = window.open(`${import.meta.env.BASE_URL}battle-test.html`, '_blank');
+            setDeparture(report ? result : `${result} · 戰報分頁被瀏覽器擋下，請允許此站的彈出視窗`);
         } catch (err) {
             setError(err instanceof Error ? err.message : '無法出戰');
         } finally {
