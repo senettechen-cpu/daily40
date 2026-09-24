@@ -1,10 +1,7 @@
 ﻿import { createRoot } from 'react-dom/client';
 import { ErrorBoundary } from '../components/ErrorBoundary';
-import { BattleReportApp } from './view/BattleReportApp';
-import { BattleTestApp } from './view/BattleTestApp';
+import { HexReportApp } from './view/HexReportApp';
 
-// Default: text battle report (user decision 2026-09-22). ?view=animated opens the paused animated view.
-const animated = new URLSearchParams(location.search).get('view') === 'animated';
 // The default failure screen offers to clear this origin's storage, which here
 // would be the main app's own data. The report only ever needs a reload.
 const failed = (
@@ -15,5 +12,5 @@ const failed = (
 );
 
 createRoot(document.getElementById('root')!).render(
-    <ErrorBoundary fallback={failed}>{animated ? <BattleTestApp /> : <BattleReportApp />}</ErrorBoundary>,
+    <ErrorBoundary fallback={failed}><HexReportApp /></ErrorBoundary>,
 );

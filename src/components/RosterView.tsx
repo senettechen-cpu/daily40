@@ -9,14 +9,14 @@ import {
 } from '../../shared/roster';
 import { dayKey } from '../../shared/time';
 import { RecruitTemplate, recruitError, validateSquad } from '../../shared/roster';
-import { deploymentFor } from '../../shared/battle/deployment';
-import { WEAPONS, damageFor } from '../../shared/battle/sim';
+import { crewFor, damageOf, WEAPON_STATS } from '../../shared/battle/turn';
 import {
     EquipmentItem, SLOT_CAPACITY, SLOT_LABELS, Slot, assignmentError, catalogItem, itemsOf,
 } from '../../shared/armory';
 import { DEPLOYMENT_KEY } from '../battle/handoff';
 import { equipmentArt, portraitHead } from '../data/reportArtIndex';
-import { MAX_TRAINEES, SCENARIOS } from '../../shared/battle';
+import { MAX_TRAINEES } from '../../shared/battle';
+import { SCENARIOS } from '../../shared/battle/turn';
 
 const OUTCOME_LABELS: Record<string, string> = { victory: '勝利', defeat: '失敗', timeout: '超時' };
 
@@ -167,12 +167,12 @@ const SoldierDossier = ({ character, items, authorized, busy, onAssign, onClose 
     onAssign: (currentItemId: string | null, nextItemId: string | null) => void;
     onClose: () => void;
 }) => {
-    const { crew, unmodelled } = deploymentFor([character], items);
-    const profile = crew[0];
-    const primary = WEAPONS[profile.loadout.primary];
-    const secondary = WEAPONS[profile.loadout.secondary];
+    // The same function the battle uses, so the card cannot disagree with the field.
+    const built = crewFor([character], items, [{ characterId: character.id, at: { col: 0, row: 0 }, stance: 'advance' }]);
+    const profile = built.units[0];
+    const weapon = profile.weapon;
     const carried = itemsOf(items, character.id);
-    const unmodelledSet = new Set(unmodelled);
+    const unmodelledSet = new Set(built.unmodelled);
 
     const inSlot = (slot: Slot) =>
         carried.filter(item => catalogItem(item.catalogId)?.category === slot);
@@ -223,11 +223,12 @@ const SoldierDossier = ({ character, items, authorized, busy, onAssign, onClose 
             </div>
 
             <div className="flex flex-col gap-1 mb-4 p-3 border border-zinc-800 bg-black/40">
-                {stat('火力', `${primary.name} · 每發 ${primary.damage}`, `有效射程 ${primary.effectiveRange} 格 · 彈匣 ${primary.magazine}`)}
-                {stat('副武器', `${secondary.name} · 每發 ${secondary.damage}`, `有效射程 ${secondary.effectiveRange} 格`)}
-                {stat('防禦', `護甲 ${profile.armor} · 生命 ${profile.maxHp}`,
-                    `敵方雷射步槍每發 ${WEAPONS.lasgun.damage} → ${damageFor(WEAPONS.lasgun, profile.armor)}`)}
-                {stat('機動', `${(profile.speed ?? 1.2).toFixed(2)} 格/秒`)}
+                {stat('火力', `${weapon.name} · 每發 ${weapon.damage} × ${weapon.hits} 發`,
+                    `射程 ${weapon.range} 格${weapon.penetration > 0 ? ` · 穿甲 ${weapon.penetration}` : ''}`)}
+                {stat('防禦', `護甲 ${profile.armour} · 生命 ${profile.maxHp}`,
+                    `敵方雷射槍每發 ${WEAPON_STATS.lasgun.damage} → ${damageOf(WEAPON_STATS.lasgun, profile.armour)}`)}
+                {stat('機動', `每回合 ${profile.movement} 格`)}
+                {stat('先攻', `${profile.initiative}`, '同隊內數字高的先行動')}
                 {stat('命中', `${Math.round(profile.accuracy * 100)}%`)}
             </div>
 
@@ -255,7 +256,7 @@ const SoldierDossier = ({ character, items, authorized, busy, onAssign, onClose 
             )}
 
             <div className="mt-3 font-mono text-[11px] text-zinc-600">
-                未配武器者以制式雷射槍與雷射手槍出戰。換裝立即生效，下一場行動就會採用。
+                未配武器者徒手出戰。換裝立即生效，下一場行動就會採用。數值為未校準的候選值。
             </div>
         </Modal>
     );
@@ -365,13 +366,15 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
             const started = await api.startOperation(activeSquad.id, scenarioId, traineeIds, token);
             sessionStorage.setItem(DEPLOYMENT_KEY, JSON.stringify({
                 crew: started.operation.crew,
+                board: started.operation.board,
                 unmodelled: started.unmodelled,
                 squadName: activeSquad.name,
                 scenarioId: started.operation.scenarioId,
                 seed: started.operation.seed,
-                lanes: started.operation.lanes,
                 outcome: started.operation.outcome,
+                rounds: started.operation.rounds,
                 paysXp: started.operation.paysXp,
+                woundedIds: started.woundedIds,
             }));
 
             const gained = started.awards.filter(a => a.role === 'deployed')[0]?.amount ?? 0;

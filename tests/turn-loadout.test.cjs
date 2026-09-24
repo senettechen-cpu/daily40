@@ -138,3 +138,13 @@ test('every weapon the catalogue can equip has a combat profile or is declared i
         assert.ok(r.ARMOUR_STATS[item.id], `${item.id} can be worn but protects nothing`);
     }
 });
+
+test("another soldier's equipment never leaks into this one", () => {
+    const items = [gear('i1', 'a', 'plasma-gun'), gear('i2', 'b', 'carapace-armour')];
+    const { units } = l.crewFor([character('a'), character('b')], items, [place('a'), place('b', { at: at(6, 8) })]);
+    const [a, b] = units;
+    assert.equal(a.weapon.name, r.WEAPON_STATS['plasma-gun'].name);
+    assert.equal(a.armour, 0, 'a wore b armour');
+    assert.equal(b.weapon.name, r.FISTS.name, 'b took a weapon');
+    assert.equal(b.armour, 40);
+});

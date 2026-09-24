@@ -89,3 +89,10 @@
 
 .bt-tactical-units b { color: #d8d2c0; }
 .bt-tactical-units .is-down { opacity: 0.6; }
+
+/* The hex map is drawn at its natural size and scaled to fit: the board is 11
+   tiles wide, which on a phone means the whole battlefield or nothing. */
+.hex-map { display: block; width: 100%; max-width: 560px; height: auto; margin: 14px auto; background: #0b111a; border: 1px solid #2b3946; }
+.br-feed { list-style: none; margin: 0; padding: 0; max-height: 40vh; overflow-y: auto; }
+.br-feed li { padding: 6px 10px; border-bottom: 1px solid #ffffff10; font-size: 12px; color: #b9c8d6; }
+.br-feed li.is-current { background: #1b2735; color: #ecd9a8; }

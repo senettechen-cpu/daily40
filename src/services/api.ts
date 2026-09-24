@@ -24,9 +24,11 @@ export interface XpAward { characterId: string; amount: number; role: 'deployed'
 /** The server's own result. The client replays it; it never reports one. */
 export interface StartedOperation {
     operation: {
-        id: string; scenarioId: string; seed: number; lanes: number[];
-        crew: unknown[]; outcome: 'victory' | 'defeat' | 'timeout'; paysXp: boolean;
+        id: string; scenarioId: string; seed: number; engine: 'v2';
+        crew: unknown[]; board: unknown; rounds: number; placements: unknown[];
+        outcome: 'victory' | 'defeat' | 'timeout'; paysXp: boolean;
     };
+    activations?: unknown[];
     awards: XpAward[];
     unmodelled: string[];
     /** Who a defeat put out of action for the rest of the day. */
