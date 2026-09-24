@@ -1,5 +1,6 @@
 import type { Board, Hex } from '../../../shared/battle/hex';
 import { terrainAt } from '../../../shared/battle/hex';
+import { portraitHead } from '../../data/reportArtIndex';
 
 // A flat drawing of the hex board. It shows the state after the activation the
 // reader is on, so the picture always matches the line of text beside it.
@@ -38,13 +39,16 @@ const corners = (cx: number, cy: number) => Array.from({ length: 6 }, (_, i) => 
 
 export interface Snap { id: string; at: Hex; hp: number; down: boolean }
 
-export function HexMap({ board, snapshot, names, sides, acting }: {
+export function HexMap({ board, snapshot, names, sides, faces, acting }: {
     board: Board;
     snapshot: Snap[];
     names: Map<string, string>;
     sides: Map<string, 'crew' | 'enemy'>;
+    /** Portrait id per unit; a unit with no art keeps the lettered token. */
+    faces?: Map<string, string | undefined>;
     acting?: string;
 }) {
+    const TOKEN = HEX_W * 0.26;
     const width = HEX_W * (board.cols + 0.5);
     const height = ROW_STEP * (board.rows - 1) + HEX_H;
     const tiles = Array.from({ length: board.rows }).flatMap((_, row) =>
@@ -107,18 +111,41 @@ export function HexMap({ board, snapshot, names, sides, acting }: {
                 );
             })}
 
+            <defs>
+                {snapshot.map(unit => (
+                    <clipPath key={`c${unit.id}`} id={`token-${unit.id}`}>
+                        <circle cx={centre(unit.at).x} cy={centre(unit.at).y - 6} r={TOKEN} />
+                    </clipPath>
+                ))}
+            </defs>
+
             {snapshot.map(unit => {
                 const { x, y } = centre(unit.at);
                 const mine = sides.get(unit.id) === 'crew';
                 const colour = unit.down ? '#4a5563' : mine ? '#7fd6a4' : '#e08a76';
+                const face = unit.down ? null : portraitHead(faces?.get(unit.id));
                 return (
                     <g key={unit.id} opacity={unit.down ? 0.5 : 1}>
-                        <circle cx={x} cy={y - 6} r={HEX_W * 0.26} fill={colour}
+                        <circle cx={x} cy={y - 6} r={TOKEN} fill={colour}
                             stroke={unit.id === acting ? '#dfbc72' : '#0b1118'}
                             strokeWidth={unit.id === acting ? 5 : 3} />
-                        <text x={x} y={y + 2} textAnchor="middle" fontSize={22} fill="#0b1118" fontWeight="bold">
-                            {unit.down ? '×' : (names.get(unit.id) ?? '?').slice(0, 1)}
-                        </text>
+                        {face
+                            ? (
+                                <>
+                                    <image href={face} x={x - TOKEN} y={y - 6 - TOKEN} width={TOKEN * 2} height={TOKEN * 2}
+                                        clipPath={`url(#token-${unit.id})`} preserveAspectRatio="xMidYMid slice" />
+                                    {/* The ring is the side, so it is redrawn over the face. */}
+                                    <circle cx={x} cy={y - 6} r={TOKEN} fill="none" stroke={colour} strokeWidth={4} />
+                                    <circle cx={x} cy={y - 6} r={TOKEN} fill="none"
+                                        stroke={unit.id === acting ? '#dfbc72' : '#0b1118'}
+                                        strokeWidth={unit.id === acting ? 4 : 2} />
+                                </>
+                            )
+                            : (
+                                <text x={x} y={y + 2} textAnchor="middle" fontSize={22} fill="#0b1118" fontWeight="bold">
+                                    {unit.down ? '×' : (names.get(unit.id) ?? '?').slice(0, 1)}
+                                </text>
+                            )}
                         {!unit.down && (
                             <text x={x} y={y + HEX_H * 0.34} textAnchor="middle" fontSize={16} fill="#e6eef6"
                                 style={{ paintOrder: 'stroke' }} stroke="#0b111a" strokeWidth={4}>

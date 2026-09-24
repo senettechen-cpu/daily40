@@ -60,7 +60,8 @@ export const WEAPON_STATS: Record<string, Weapon> = {
  * Carapace costs initiative rather than movement. The v1 penalty was a 0.90
  * speed multiplier, which on whole tiles would round three down to two — a
  * third of a soldier's movement for a plate that is supposed to be a trade, not
- * a crippling. This is an explicit v2 replacement and needs the user's sign-off.
+ * a crippling. An explicit v2 replacement of the v1 rule, approved by the user
+ * on 2026-09-25.
  */
 export const ARMOUR_STATS: Record<string, { armour: number; type: ArmourType; initiative?: number }> = {
     'flak-armour': { armour: 20, type: 'flak' },

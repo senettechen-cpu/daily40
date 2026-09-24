@@ -76,6 +76,9 @@ function traitorFrom(entry: RosterEntry, index: number): UnitSpec {
         name: `${NAMES[entry.duty] ?? '叛軍'}${index + 1}`,
         side: 'enemy',
         duty: entry.duty,
+        // One shared traitor face until per-duty rebel art exists; the duty is
+        // carried by the label, never implied by borrowing a Cadian portrait.
+        assetId: 'traitor-guardsman',
         maxHp: entry.maxHp,
         armour: plate?.armour ?? 0,
         armourType: (plate?.type ?? 'none') as ArmourType,

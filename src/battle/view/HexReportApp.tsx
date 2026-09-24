@@ -77,6 +77,10 @@ export function HexReportApp() {
         ...handoff.crew.map(unit => [unit.id, unit.name] as [string, string]),
         ...(scenarioById(handoff.scenarioId)?.enemies ?? []).map(unit => [unit.id, unit.name] as [string, string]),
     ]);
+    const faces = new Map<string, string | undefined>([
+        ...handoff.crew.map(unit => [unit.id, unit.assetId] as [string, string | undefined]),
+        ...(scenarioById(handoff.scenarioId)?.enemies ?? []).map(unit => [unit.id, unit.assetId] as [string, string | undefined]),
+    ]);
     const sides = new Map<string, 'crew' | 'enemy'>([
         ...handoff.crew.map(unit => [unit.id, unit.side] as [string, 'crew' | 'enemy']),
         ...(scenarioById(handoff.scenarioId)?.enemies ?? []).map(unit => [unit.id, unit.side] as [string, 'crew' | 'enemy']),
@@ -111,7 +115,7 @@ export function HexReportApp() {
                 我方存活 {alive('crew')} / 敵方存活 {alive('enemy')}
             </p>
 
-            <HexMap board={handoff.board} snapshot={current?.snapshot ?? []} names={names} sides={sides} acting={current?.unitId} />
+            <HexMap board={handoff.board} snapshot={current?.snapshot ?? []} names={names} sides={sides} faces={faces} acting={current?.unitId} />
 
             <ol className="br-feed">
                 {shown.map((activation, index) => {

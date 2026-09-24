@@ -81,6 +81,7 @@ function specFor(character: Character, carried: EquipmentItem[], placement: Plac
         name: character.name,
         side: 'crew',
         duty: character.duty,
+        assetId: character.assetId,
         maxHp: maxHp(character),
         armour,
         armourType,

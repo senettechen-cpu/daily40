@@ -39,6 +39,8 @@ export interface UnitSpec {
     side: Side;
     /** Drives the threat weighting: a medic is worth shooting first. */
     duty: string;
+    /** Portrait id, so the token on the map is the face from the roster. */
+    assetId?: string;
     maxHp: number;
     armour: number;
     /** Follows the plate actually worn, never guessed from the duty. */
