@@ -7,14 +7,14 @@ import { api } from '../services/api';
 import { CatalogItem, EquipmentItem, SLOT_LABELS, catalogItem, purchaseError } from '../../shared/armory';
 import { REFUND_RATE } from '../../shared/rewards';
 import { Character, DUTY_LABELS, ORIGIN_LABELS } from '../../shared/roster';
+import { equipmentArt } from '../data/reportArtIndex';
 
-const EQUIPMENT_ART = `${import.meta.env.BASE_URL}battle-assets/report/equipment/`;
-// Only three pieces have delivered art; everything else shows its name only.
-const ART_IDS = new Set(['lasgun', 'laspistol', 'flak-armour']);
-
-const ItemArt = ({ catalogId }: { catalogId: string }) => ART_IDS.has(catalogId)
-    ? <img src={`${EQUIPMENT_ART}${catalogId}-96.webp`} alt="" width={48} height={48} className="flex-shrink-0 border border-imperial-gold/20 bg-[#2d3331] object-contain" />
-    : <div className="w-12 h-12 flex-shrink-0 border border-dashed border-zinc-700 bg-zinc-900" title="尚無裝備圖" />;
+const ItemArt = ({ catalogId }: { catalogId: string }) => {
+    const src = equipmentArt(catalogId, 96);
+    return src
+        ? <img src={src} alt="" width={48} height={48} className="flex-shrink-0 border border-imperial-gold/20 bg-[#2d3331] object-contain" />
+        : <div className="w-12 h-12 flex-shrink-0 border border-dashed border-zinc-700 bg-zinc-900" title="尚無裝備圖" />;
+};
 
 export const Armory = ({ visible, onClose }: { visible: boolean; onClose: () => void }) => {
     const { getToken } = useAuth();

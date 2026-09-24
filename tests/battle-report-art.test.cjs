@@ -29,8 +29,23 @@ test('imported thumbnails are real WebP files with the declared sizes, and the r
         assert.deepEqual(webpSize(fs.readFileSync(path.join(dir, e.small))), e.smallSize);
         assert.deepEqual(webpSize(fs.readFileSync(path.join(dir, e.large))), e.largeSize);
     }
-    const total = fs.readdirSync(dir, { recursive: true }).filter(f => f.endsWith('.webp')).reduce((sum, f) => sum + fs.statSync(path.join(dir, f)).size, 0);
-    assert.ok(total < 150 * 1024, `${total} bytes`);
+    // Budget by what a screen actually fetches, not by directory total: a list
+    // pulls head crops or 96px equipment, while half-bodies load only when a
+    // character is opened. One directory number would hide a regression in the
+    // part that matters and fail on art that is never fetched together.
+    const bytesIn = (folder, match) => fs.readdirSync(path.join(dir, folder))
+        .filter(f => f.endsWith('.webp') && match(f))
+        .map(f => fs.statSync(path.join(dir, folder, f)).size);
+    const total = sizes => sizes.reduce((sum, size) => sum + size, 0);
+
+    const heads = bytesIn('portraits', f => f.includes('-head'));
+    const halves = bytesIn('portraits', f => f.includes('-half'));
+    const small = bytesIn('equipment', f => f.includes('-96'));
+
+    assert.ok(total(heads) < 80 * 1024, `roster list loads ${total(heads)} bytes of head crops`);
+    assert.ok(total(small) < 60 * 1024, `armoury list loads ${total(small)} bytes of equipment art`);
+    assert.ok(Math.max(...heads) < 30 * 1024, `a head crop is ${Math.max(...heads)} bytes`);
+    assert.ok(Math.max(...halves) < 120 * 1024, `a half-body crop is ${Math.max(...halves)} bytes`);
 });
 
 test('the generic Cadian rifleman portrait is not the sergeant', () => {

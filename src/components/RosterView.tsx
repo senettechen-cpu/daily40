@@ -10,13 +10,11 @@ import {
 import { validateSquad } from '../../shared/roster';
 import { deploymentFor } from '../battle/deployment';
 import { DEPLOYMENT_KEY } from '../battle/handoff';
+import { portraitHead } from '../data/reportArtIndex';
 
-// Only the plain Cadian rifleman has delivered art. Giving another duty that
-// portrait would misrepresent them, so everyone else gets an initials medallion
-// that is visibly a placeholder until GPT delivers their crop.
-const PORTRAIT_BASE = `${import.meta.env.BASE_URL}battle-assets/report/portraits/`;
-const portraitFor = (character: Character) =>
-    character.origin === 'cadian' && character.duty === 'rifleman' ? `${PORTRAIT_BASE}cadian-rifleman-head.webp` : null;
+// Each character keeps their own portrait; a duty with no delivered crop falls
+// back to a marked medallion rather than borrowing someone else's likeness.
+const portraitFor = (character: Character) => portraitHead(character.assetId);
 
 const HEALTH_STYLES: Record<Character['health'], string> = {
     fit: 'text-green-400 border-green-700/60',
