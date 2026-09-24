@@ -133,7 +133,14 @@ export function BattleReportApp() {
     const playRef = useRef(0);
     const [art, setArt] = useState<ReportArt>(NO_ART);
     useEffect(() => { loadReportArt().then(setArt); }, []);
-    useEffect(() => { setLanes(scenario.lanes); setSeed(scenario.seed); }, [scenarioId]);
+    // Switching scenario by hand takes that scenario's defaults, but the first
+    // run must keep the seed the server rolled or the replay is a different battle.
+    const pinned = useRef(!!deployment);
+    useEffect(() => {
+        if (pinned.current) { pinned.current = false; return; }
+        setLanes(scenario.lanes);
+        setSeed(scenario.seed);
+    }, [scenarioId]);
 
     const start = () => {
         if (deployError) return;

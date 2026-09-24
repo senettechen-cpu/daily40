@@ -194,9 +194,12 @@ const initDb = async () => {
             asset_id TEXT,
             xp INTEGER NOT NULL DEFAULT 0,
             health TEXT NOT NULL DEFAULT 'fit',
+            wounded_day TEXT,
             recruited_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
         )`);
         await pool.query('CREATE INDEX IF NOT EXISTS idx_roster_user_id ON roster_characters(user_id)');
+        // The day a lost battle took someone out of action; the bar lapses with the day.
+        await pool.query('ALTER TABLE roster_characters ADD COLUMN IF NOT EXISTS wounded_day TEXT');
 
         await pool.query(`CREATE TABLE IF NOT EXISTS squads (
             id TEXT PRIMARY KEY,

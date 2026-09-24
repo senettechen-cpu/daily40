@@ -6,6 +6,8 @@ import { addDays, dayKey } from '../../shared/time';
 interface RequisitionContextType {
     /** False while the server still runs the old economy; the new UI stays hidden. */
     enabled: boolean;
+    /** True when the last refresh failed, so the UI can say why it is empty. */
+    offline: boolean;
     balance: number;
     ledger: { used: number; slots: number } | null;
     core: CoreView;
@@ -30,6 +32,7 @@ export const RequisitionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const [summary, setSummary] = useState<RequisitionSummary>({ enabled: false });
     const [core, setCore] = useState<CoreView>({ enabled: false });
     const [error, setError] = useState<string | null>(null);
+    const [offline, setOffline] = useState(false);
 
     // Recomputed on every render is fine: it only changes at midnight in Taipei.
     const today = dayKey(new Date());
@@ -44,9 +47,13 @@ export const RequisitionProvider: React.FC<{ children: React.ReactNode }> = ({ c
             const [nextSummary, nextCore] = await Promise.all([api.getRequisition(token), api.getCorePlan(selectedDay, token)]);
             setSummary(nextSummary);
             setCore(nextCore);
+            setOffline(false);
         } catch {
-            // Keep the previous values. The balance shown here is informational;
-            // the server remains the only authority on what was granted.
+            // Keep the previous values: the balance here is informational and the
+            // server stays the only authority on what was granted. But say so. A
+            // silent failure hides the whole requisition UI, which then looks like
+            // a feature that was never built rather than a service that is down.
+            setOffline(true);
         }
     }, [getToken, user, selectedDay]);
 
@@ -69,6 +76,7 @@ export const RequisitionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         const paid = core.paidTaskIds ?? [];
         return {
             enabled: !!summary.enabled,
+            offline,
             balance: summary.balance ?? 0,
             ledger: summary.ledger ?? null,
             core,
@@ -84,7 +92,7 @@ export const RequisitionProvider: React.FC<{ children: React.ReactNode }> = ({ c
             toggleCore,
             refresh,
         };
-    }, [summary, core, today, tomorrow, selectedDay, error, toggleCore, refresh]);
+    }, [summary, core, today, tomorrow, selectedDay, error, offline, toggleCore, refresh]);
 
     return <RequisitionContext.Provider value={value}>{children}</RequisitionContext.Provider>;
 };

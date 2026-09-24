@@ -101,9 +101,17 @@ function createFakeDb() {
         if (s.startsWith('SELECT COUNT(*)::int AS count FROM roster_characters')) {
             return { rows: [{ count: tables.roster_characters.filter(r => r.user_id === p[0]).length }], rowCount: 1 };
         }
-        if (s.startsWith('SELECT id, name, origin, duty, asset_id, xp, health, recruited_at FROM roster_characters')) {
+        if (s.startsWith('SELECT id, name, origin, duty, asset_id, xp, health, wounded_day, recruited_at FROM roster_characters')) {
             const rows = tables.roster_characters.filter(r => r.user_id === p[0]);
             return { rows, rowCount: rows.length };
+        }
+        if (s.startsWith('UPDATE roster_characters SET wounded_day =')) {
+            const ids = new Set(p[2]);
+            let n = 0;
+            for (const row of tables.roster_characters) {
+                if (row.user_id === p[1] && ids.has(row.id)) { row.wounded_day = p[0]; n += 1; }
+            }
+            return { rows: [], rowCount: n };
         }
         if (s.startsWith('INSERT INTO roster_characters')) {
             tables.roster_characters.push({

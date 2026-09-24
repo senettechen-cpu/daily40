@@ -29,6 +29,8 @@ export interface StartedOperation {
     };
     awards: XpAward[];
     unmodelled: string[];
+    /** Who a defeat put out of action for the rest of the day. */
+    woundedIds?: string[];
 }
 
 export interface RequisitionSummary {

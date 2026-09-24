@@ -17,6 +17,8 @@ export interface Character {
     assetId?: string;
     xp: number;
     health: Health;
+    /** The day a lost battle put them out of action (YYYY-MM-DD), or absent. */
+    woundedDay?: string;
     recruitedAt: string;
 }
 
@@ -76,6 +78,14 @@ export function maxHp(character: Pick<Character, 'origin' | 'xp'>): number {
 export const accuracyOf = (character: Pick<Character, 'origin'>) => BASE_ACCURACY[character.origin];
 
 export const isDeployable = (character: Character) => character.health !== 'critical';
+
+/**
+ * A defeat puts everyone who deployed out of action for the rest of that day.
+ * The bar is held as the day it was earned, so it lapses at midnight on its own
+ * rather than needing a healing pass to clear it.
+ */
+export const isWoundedOn = (character: Character, day: string) =>
+    !!character.woundedDay && character.woundedDay === day;
 
 // The six free starting soldiers. v1.5 §2 makes basic gear for six free, and
 // §4 keeps ordinary reinforcement out of the shop, so these are granted once.

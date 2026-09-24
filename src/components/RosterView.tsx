@@ -5,8 +5,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 import {
     Character, DUTY_LABELS, Duty, HEALTH_LABELS, ORIGIN_LABELS, SQUAD_SIZE, Squad,
-    isDeployable, levelOf, maxHp, xpToNext,
+    isDeployable, isWoundedOn, levelOf, maxHp, xpToNext,
 } from '../../shared/roster';
+import { dayKey } from '../../shared/time';
 import { RecruitTemplate, recruitError, validateSquad } from '../../shared/roster';
 import { deploymentFor } from '../../shared/battle/deployment';
 import { WEAPONS, damageFor } from '../../shared/battle/sim';
@@ -50,6 +51,7 @@ const CharacterCard = ({ character, action, onAction, onOpen }: {
 }) => {
     const level = levelOf(character.xp);
     const next = xpToNext(character.xp);
+    const wounded = isWoundedOn(character, dayKey(new Date()));
 
     return (
         <div
@@ -67,6 +69,11 @@ const CharacterCard = ({ character, action, onAction, onOpen }: {
                     <span className={`text-[10px] font-mono px-1 border ${HEALTH_STYLES[character.health]}`}>
                         {HEALTH_LABELS[character.health]}
                     </span>
+                    {wounded && (
+                        <span className="text-[10px] font-mono px-1 border text-red-400 border-red-800/60" title="今天的敗戰中負傷，今日不得再出戰">
+                            今日負傷
+                        </span>
+                    )}
                 </div>
                 <div className="text-[11px] font-mono text-zinc-500 truncate">
                     {ORIGIN_LABELS[character.origin]} · {DUTY_LABELS[character.duty]} · Lv{level}
@@ -343,7 +350,7 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
 
             // The server re-checks everything and resolves the battle itself; these
             // checks only save a round trip and give a clearer message.
-            const squadError = validateSquad(activeSquad, characters, true);
+            const squadError = validateSquad(activeSquad, characters, true, dayKey(new Date()));
             if (squadError) { setError(squadError); return; }
             if (members.length !== SQUAD_SIZE) {
                 setError(`模擬目前固定部署 ${SQUAD_SIZE} 個通道，請補滿再出戰。`);
@@ -363,9 +370,11 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
             }));
 
             const gained = started.awards.filter(a => a.role === 'deployed')[0]?.amount ?? 0;
-            const result = started.operation.paysXp
+            const base = started.operation.paysXp
                 ? `行動結束：${OUTCOME_LABELS[started.operation.outcome]}，出戰者各 +${gained} XP`
                 : `行動結束：${OUTCOME_LABELS[started.operation.outcome]}（本次不計 XP）`;
+            const wounded = started.woundedIds?.length ?? 0;
+            const result = wounded > 0 ? `${base} · ${wounded} 人負傷，今日不得再出戰` : base;
             await load();
 
             // The result is already recorded; the report tab only replays it. A blocked

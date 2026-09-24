@@ -1,4 +1,4 @@
-import { randomUUID } from 'crypto';
+import { randomInt, randomUUID } from 'crypto';
 import type { Db } from '../db';
 import {
     MAX_TRAINEES, Outcome, SCENARIOS, awardsFor, createBattle, deploymentFor, operationGate,
@@ -53,7 +53,7 @@ export async function startOperation(db: Db, userId: string, request: StartReque
     const squad = squads.find(candidate => candidate.id === request.squadId);
     if (!squad) return { error: '找不到這個編成。' };
 
-    const squadError = validateSquad(squad, roster, true);
+    const squadError = validateSquad(squad, roster, true, gate.day);
     if (squadError) return { error: squadError };
     if (squad.memberIds.length !== SQUAD_SIZE) return { error: `模擬固定部署 ${SQUAD_SIZE} 個通道，請補滿再出戰。` };
 
@@ -69,7 +69,11 @@ export async function startOperation(db: Db, userId: string, request: StartReque
         .map(id => byId.get(id)!);
 
     const lanes = request.lanes && request.lanes.length === SQUAD_SIZE ? request.lanes : scenario.lanes;
-    const seed = scenario.seed;
+    // A fresh seed per operation: the scenario's own seed is the reproducible one
+    // for testing, and reusing it made every battle of a scenario identical, so a
+    // won fight could be replayed for XP indefinitely. The roll is stored, which
+    // keeps the report an exact replay of what the server resolved.
+    const seed = randomInt(1, 2 ** 31 - 1);
     const finished = runBattle(createBattle(setupFor(scenario, lanes, seed, crew)));
     const outcome = (finished.status === 'running' ? 'timeout' : finished.status) as Outcome;
 
@@ -91,9 +95,20 @@ export async function startOperation(db: Db, userId: string, request: StartReque
             [award.amount, award.characterId, userId]);
     }
 
+    // A defeat puts the squad that fought it out of action for the rest of the
+    // day. Trainees stayed behind, so they are untouched.
+    const woundedIds = outcome === 'defeat' ? squad.memberIds : [];
+    if (woundedIds.length > 0) {
+        await db.query(
+            'UPDATE roster_characters SET wounded_day = $1 WHERE user_id = $2 AND id = ANY($3::text[])',
+            [gate.day, userId, woundedIds],
+        );
+    }
+
     return {
         operation: { id, scenarioId: scenario.id, seed, lanes, crew, outcome, paysXp: gate.paysRequisition },
         awards,
         unmodelled,
+        woundedIds,
     };
 }

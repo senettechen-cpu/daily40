@@ -198,8 +198,14 @@ const AppContent = () => {
  * dropped or swapped at any hour of their own day, and tomorrow can be preset.
  */
 const CoreStatus = () => {
-  const { enabled, core, error, clearError, today, tomorrow, selectedDay, setSelectedDay } = useRequisition();
-  if (!enabled) return null;
+  const { enabled, offline, core, error, clearError, today, tomorrow, selectedDay, setSelectedDay } = useRequisition();
+  if (!enabled) {
+    // Without this the panel simply vanishes when the service is unreachable,
+    // which reads as "this feature does not exist".
+    return offline
+      ? <span className="font-mono text-[11px] text-red-400">軍需服務連線失敗，今日核心暫時無法顯示</span>
+      : null;
+  }
 
   const count = core.taskIds?.length ?? 0;
   const cap = core.cap ?? 0;

@@ -43,12 +43,15 @@ export class ErrorBoundary extends Component<Props, State> {
                     </button>
                     <button
                         className="mt-8 px-4 py-2 bg-red-900/50 border border-red-500 hover:bg-red-900 text-red-200 rounded"
+                        // The only thing this origin keeps locally is the login
+                        // token, so this signs out; it never touches game data,
+                        // which lives on the server.
                         onClick={() => {
                             localStorage.clear();
                             window.location.reload();
                         }}
                     >
-                        FACTORY RESET (CLEAR DATA)
+                        SIGN OUT AND RELOAD
                     </button>
                 </div>
             );

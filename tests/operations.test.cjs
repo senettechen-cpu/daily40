@@ -89,17 +89,63 @@ test('the server resolves the battle itself and pays the roster', async () => {
     }
 });
 
+const TODAY = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+
 test('the client cannot claim a result: anything it asserts is ignored', async () => {
     const { db, ops, roster } = setup();
     const { squads } = (await roster('GET', '/')).body;
     completeCore(db);
 
-    const honest = await ops('POST', '/', { body: { squadId: squads[0].id, scenarioId: 'standard' } });
-    const lying = await ops('POST', '/', { body: { squadId: squads[0].id, scenarioId: 'standard', outcome: 'victory', awards: 9999 } });
+    const lying = await ops('POST', '/', { body: { squadId: squads[0].id, scenarioId: 'standard', outcome: 'victory', awards: 9999, seed: 1 } });
 
-    // The extra fields are ignored; the same setup resolves the same way.
-    assert.equal(lying.body.operation.outcome, honest.body.operation.outcome);
-    assert.equal(lying.body.awards[0].amount, honest.body.awards[0].amount);
+    // The claimed outcome and payout are dropped: what comes back is what the
+    // server resolved and stored, paid from its own table.
+    const stored = db.tables.operations[0];
+    assert.equal(lying.body.operation.outcome, stored.outcome);
+    assert.equal(lying.body.operation.seed, stored.seed);
+    assert.equal(lying.body.awards[0].amount, xp.DEPLOYED_XP[stored.outcome]);
+    assert.notEqual(lying.body.awards[0].amount, 9999);
+});
+
+test('each operation rolls its own seed, so one won battle cannot be replayed for xp', async () => {
+    const { db, ops, roster } = setup();
+    const { squads } = (await roster('GET', '/')).body;
+    completeCore(db);
+
+    const seeds = new Set();
+    for (let i = 0; i < 8; i += 1) {
+        const res = await ops('POST', '/', { body: { squadId: squads[0].id, scenarioId: 'standard' } });
+        if (!res.body.operation) break; // a defeat bars the squad for the rest of the day
+        seeds.add(res.body.operation.seed);
+        for (const row of db.tables.roster_characters) row.wounded_day = null; // keep rolling
+    }
+    assert.ok(seeds.size > 1, `expected varied seeds, got ${[...seeds]}`);
+});
+
+test('a defeat puts the squad out of action for the rest of the day', async () => {
+    const { db, ops, roster } = setup();
+    const { squads } = (await roster('GET', '/')).body;
+    completeCore(db);
+
+    const first = await ops('POST', '/', { body: { squadId: squads[0].id, scenarioId: 'outnumbered' } });
+    const today = TODAY();
+    const barred = db.tables.roster_characters.filter(c => c.wounded_day === today).map(c => c.id);
+
+    if (first.body.operation.outcome === 'defeat') {
+        assert.deepEqual([...first.body.woundedIds].sort(), [...squads[0].memberIds].sort());
+        assert.deepEqual(barred.sort(), [...squads[0].memberIds].sort());
+        const again = await ops('POST', '/', { body: { squadId: squads[0].id, scenarioId: 'outnumbered' } });
+        assert.match(again.body.error, /負傷/);
+    } else {
+        // A battle that was not lost costs nobody their day.
+        assert.deepEqual([...first.body.woundedIds], []);
+        assert.deepEqual(barred, []);
+    }
+
+    // Whatever happened today, tomorrow's roster is clear again.
+    for (const row of db.tables.roster_characters) row.wounded_day = '2020-01-01';
+    const tomorrow = await ops('POST', '/', { body: { squadId: squads[0].id, scenarioId: 'standard' } });
+    assert.ok(tomorrow.body.operation, tomorrow.body.error);
 });
 
 test('an unknown scenario, or another account reaching for this squad, is refused', async () => {

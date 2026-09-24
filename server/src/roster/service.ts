@@ -10,7 +10,7 @@ import { loadWithStartingGrant } from '../rewards/service';
 
 interface CharacterRow {
     id: string; name: string; origin: string; duty: string;
-    asset_id: string | null; xp: number; health: string; recruited_at: string;
+    asset_id: string | null; xp: number; health: string; wounded_day: string | null; recruited_at: string;
 }
 
 const toCharacter = (row: CharacterRow): Character => ({
@@ -21,12 +21,13 @@ const toCharacter = (row: CharacterRow): Character => ({
     assetId: row.asset_id ?? undefined,
     xp: row.xp,
     health: row.health as Character['health'],
+    woundedDay: row.wounded_day ?? undefined,
     recruitedAt: new Date(row.recruited_at).toISOString(),
 });
 
 export async function loadCharacters(db: Db, userId: string): Promise<Character[]> {
     const result = await db.query(
-        'SELECT id, name, origin, duty, asset_id, xp, health, recruited_at FROM roster_characters WHERE user_id = $1 ORDER BY recruited_at, id',
+        'SELECT id, name, origin, duty, asset_id, xp, health, wounded_day, recruited_at FROM roster_characters WHERE user_id = $1 ORDER BY recruited_at, id',
         [userId],
     );
     return result.rows.map(toCharacter);

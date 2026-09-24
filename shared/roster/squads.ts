@@ -1,4 +1,4 @@
-import { Character, isDeployable } from './characters';
+import { Character, isDeployable, isWoundedOn } from './characters';
 
 // v1.5 §4: the roster itself has no cap, but a deployment holds at most six
 // real people. Saving a formation never copies a character or their gear, so a
@@ -13,8 +13,11 @@ export interface Squad {
 
 export type SquadResult = { squad: Squad } | { error: string };
 
-/** Checks a squad against the roster. `forDeparture` adds the health gate. */
-export function validateSquad(squad: Squad, roster: Character[], forDeparture = false): string | null {
+/**
+ * Checks a squad against the roster. `forDeparture` adds the health gate, and
+ * `day` additionally bars anyone a defeat took out of action that day.
+ */
+export function validateSquad(squad: Squad, roster: Character[], forDeparture = false, day?: string): string | null {
     if (!squad.name.trim()) return '編成需要一個名稱。';
     if (squad.memberIds.length > SQUAD_SIZE) return `一次最多部署 ${SQUAD_SIZE} 人。`;
     if (new Set(squad.memberIds).size !== squad.memberIds.length) return '同一個人不能占兩個位置。';
@@ -25,8 +28,11 @@ export function validateSquad(squad: Squad, roster: Character[], forDeparture = 
 
     if (forDeparture) {
         if (squad.memberIds.length === 0) return '編成是空的，無法出發。';
-        const unfit = squad.memberIds.map(id => byId.get(id)!).find(character => !isDeployable(character));
+        const members = squad.memberIds.map(id => byId.get(id)!);
+        const unfit = members.find(character => !isDeployable(character));
         if (unfit) return `${unfit.name} 重傷，無法出發。`;
+        const wounded = day ? members.find(character => isWoundedOn(character, day)) : undefined;
+        if (wounded) return `${wounded.name} 在今天的敗戰中負傷，今日不得再出戰。`;
     }
     return null;
 }

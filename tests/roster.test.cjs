@@ -227,3 +227,24 @@ test('the roster stays uncapped: an eleventh recruit is allowed', async () => {
     for (let i = 0; i < 5; i += 1) await roster('POST', '/recruit', { body: { templateId: 'cadian-rifleman' } });
     assert.equal(db.tables.roster_characters.length, 11);
 });
+
+test('a defeat bars the squad for the rest of that day, and only that day', () => {
+    const squad = { id: 's1', name: '第一特遣隊', memberIds: ['a', 'b'] };
+    const roster = [
+        { id: 'a', name: '凱恩', origin: 'cadian', duty: 'sergeant', xp: 0, health: 'fit', woundedDay: '2026-09-24' },
+        { id: 'b', name: '薇拉', origin: 'cadian', duty: 'rifleman', xp: 0, health: 'fit' },
+    ];
+    // Saving or editing the formation is never blocked; only departure is.
+    assert.equal(r.validateSquad(squad, roster), null);
+    assert.match(r.validateSquad(squad, roster, true, '2026-09-24'), /凱恩.*負傷/);
+    assert.equal(r.validateSquad(squad, roster, true, '2026-09-25'), null);
+    // Without a day the departure check behaves as it did before.
+    assert.equal(r.validateSquad(squad, roster, true), null);
+});
+
+test('isWoundedOn is exact about the day', () => {
+    const hurt = { id: 'a', name: '凱恩', origin: 'cadian', duty: 'sergeant', xp: 0, health: 'fit', woundedDay: '2026-09-24' };
+    assert.equal(r.isWoundedOn(hurt, '2026-09-24'), true);
+    assert.equal(r.isWoundedOn(hurt, '2026-09-25'), false);
+    assert.equal(r.isWoundedOn({ ...hurt, woundedDay: undefined }, '2026-09-24'), false);
+});
