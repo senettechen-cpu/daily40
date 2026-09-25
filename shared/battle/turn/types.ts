@@ -60,6 +60,11 @@ export interface UnitSpec {
     sidearm?: Weapon;
     /** Catalogue ids of carried tools; what they unlock depends on the duty. */
     tools?: string[];
+    /**
+     * A heavy weapon is a two-person job: whoever is bound here feeds it. Both
+     * take one of the six places, and both have their own health and turn.
+     */
+    assistantId?: string;
     stance: Stance;
     /** Who a 'guard' stance follows. */
     guardTargetId?: string;

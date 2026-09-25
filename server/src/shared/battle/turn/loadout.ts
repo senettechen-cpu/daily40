@@ -128,3 +128,25 @@ export function resolveGuards(units: UnitSpec[]): UnitSpec[] {
             : unit
     ));
 }
+
+/**
+ * Binds a mate to every heavy weapon. Choosing the assistant belongs in the
+ * deployment screen, which does not exist yet; until it does, the nearest
+ * unbound rifleman or engineer is picked, deterministically by placement order,
+ * so a heavy weapon is never silently left to feed itself.
+ */
+export function assignHeavyCrew(units: UnitSpec[]): UnitSpec[] {
+    const taken = new Set<string>();
+    return units.map(unit => {
+        if (unit.duty !== 'heavy' || !unit.weapon.name.includes('重武器')) return unit;
+        const mate = units.find(other =>
+            other.id !== unit.id
+            && other.side === unit.side
+            && !taken.has(other.id)
+            && other.duty !== 'heavy'
+            && (other.duty === 'rifleman' || other.duty === 'engineer'));
+        if (!mate) return unit;
+        taken.add(mate.id);
+        return { ...unit, assistantId: mate.id };
+    });
+}

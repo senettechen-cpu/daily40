@@ -2,7 +2,7 @@ import { randomInt, randomUUID } from 'crypto';
 import type { Db } from '../db';
 import { MAX_TRAINEES, Outcome, awardsFor, operationGate } from '../shared/battle';
 import {
-    crewFor, placementsFor, resolveGuards, runBattle, scenarioById,
+    assignHeavyCrew, crewFor, placementsFor, resolveGuards, runBattle, scenarioById,
 } from '../shared/battle/turn';
 import { SQUAD_SIZE, validateSquad } from '../shared/roster';
 import { DEFAULT_TIME_ZONE, dayKey } from '../shared/rewards';
@@ -65,7 +65,7 @@ export async function startOperation(db: Db, userId: string, request: StartReque
     // it does not, so a roster change never leaves a squad unable to deploy.
     const placements = placementsFor(scenario.board, members, squad.placements);
     const built = crewFor(members, items, placements);
-    const crew = resolveGuards(built.units);
+    const crew = assignHeavyCrew(resolveGuards(built.units));
     const unmodelled = built.unmodelled;
 
     // Trainees must be on the roster and not already deployed.

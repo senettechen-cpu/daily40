@@ -1,10 +1,13 @@
-import { Hex, deploymentZone, distance, hasLineOfSight, hexKey, reachable, ruleAt, sameHex, terrainAt } from '../hex';
+import {
+    Hex, deploymentZone, distance, hasLineOfSight, hexKey, reachable, ruleAt, sameHex, stepToward, terrainAt,
+} from '../hex';
 import {
     AIMED_DAMAGE, AIMED_HIT, AURA_HIT, AURA_RANGE, AURA_RANGE_WITH_VOX, canReach, carries,
     COMMAND_MIN_TARGETS, COMMAND_MOVE, COMMAND_RANGE, coverMultiplier, damageOf, ENGINEERING_KIT,
     ENGINEER_COVER_REDUCTION, expectedDamage, FISTS, hitChance, MAX_BUILT_COVER, MAX_ROUNDS,
     MEDICAE_KIT, MEDIC_ACTIVE_HEAL, MEDIC_ACTIVE_MIN_MISSING, MEDIC_PASSIVE_CAP, MEDIC_PASSIVE_HEAL,
-    SELF_HEAL, SELF_HEAL_MIN_MISSING, skillFor, SUPPRESS_DAMAGE, SUPPRESS_HIT, threatOf, VOX_CASTER,
+    SELF_HEAL, SELF_HEAL_MIN_MISSING, skillFor, SUPPRESS_DAMAGE, SUPPRESS_HIT, threatOf,
+    UNASSISTED_HITS, VOX_CASTER,
     WEAKPOINT_HIT, WEAKPOINT_PENETRATION,
 } from './rules';
 import { Activation, Activity, BattleResult, BattleSetup, Ending, Outcome, Side, Stance, Unit, Weapon } from './types';
@@ -29,6 +32,11 @@ interface Battle {
     healed: Record<Side, number>;
     /** An engineer may fortify twice a battle, not endlessly. */
     built: Record<Side, number>;
+    /**
+     * Assistants feeding a heavy weapon this round. Chosen once at the start of
+     * the round so the order units happen to act in cannot buy a free attack.
+     */
+    spotting: Set<string>;
 }
 
 const roll = (battle: Battle): number => {
@@ -62,6 +70,34 @@ function activationOrder(battle: Battle): Unit[] {
             || (a.id < b.id ? -1 : 1));
 }
 
+const servesHeavyWeapon = (unit: Unit) => unit.duty === 'heavy' && unit.weapon.name.includes('重武器');
+
+/**
+ * An assistant only counts while they are alive and beside the gun. Deciding at
+ * the start of the round, rather than when the gun fires, keeps activation order
+ * from handing anyone a free action.
+ */
+function chooseSpotters(battle: Battle) {
+    battle.spotting.clear();
+    const taken = new Set<string>();
+    for (const gunner of battle.units.filter(u => !u.down && servesHeavyWeapon(u) && u.assistantId)) {
+        const mate = byId(battle, gunner.assistantId!);
+        // Nobody feeds two guns, and a downed mate feeds none.
+        if (!mate || mate.down || mate.side !== gunner.side || taken.has(mate.id)) continue;
+        if (distance(gunner.at, mate.at) > 1) continue;
+        battle.spotting.add(mate.id);
+        taken.add(mate.id);
+    }
+}
+
+/** Full rate needs the mate still standing beside the gun when it fires. */
+function assistedHits(battle: Battle, unit: Unit, weapon: Weapon): number {
+    if (!servesHeavyWeapon(unit) || weapon !== unit.weapon) return weapon.hits;
+    const mate = unit.assistantId ? byId(battle, unit.assistantId) : null;
+    const fed = !!mate && !mate.down && battle.spotting.has(mate.id) && distance(unit.at, mate.at) <= 1;
+    return fed ? weapon.hits : UNASSISTED_HITS;
+}
+
 const snapshot = (battle: Battle) =>
     battle.units.map(u => ({ id: u.id, at: u.at, hp: u.hp, down: u.down }));
 
@@ -74,7 +110,10 @@ const occupiedBy = (battle: Battle, self: Unit) =>
  * flamers are built for that range and keep firing. Choosing the weapon is part
  * of the one attack, never an extra one.
  */
-function weaponAgainst(unit: Unit, from: Hex, target: Unit): Weapon {
+function weaponAgainst(unit: Unit, from: Hex, target: Unit, moved = false): Weapon {
+    // A heavy weapon has to be set down before it fires, so a gunner who moved
+    // reaches for their sidearm instead of being silenced for the turn.
+    if (moved && servesHeavyWeapon(unit)) return unit.sidearm ?? FISTS;
     const adjacent = distance(from, target.at) <= 1;
     if (!adjacent || unit.weapon.closeQuarter) return unit.weapon;
     return unit.sidearm ?? FISTS;
@@ -204,24 +243,20 @@ function bestOption(battle: Battle, unit: Unit): Option {
         ...[...reachable(board, unit.at, unit.movement + (unit.moveBonus ?? 0), { occupied: occupiedBy(battle, unit) }).values()],
     ];
 
-    // A heavy weapon has to be set down before it fires, so moving spends the
-    // activation. The two-man crew rule is a separate piece of work and is not
-    // implemented: until it is, a heavy weapon fires on its own.
-    const braced = (moved: boolean) => !(moved && unit.duty === 'heavy' && unit.weapon.name.includes('重武器'));
-
     const options: Option[] = [];
     for (const tile of tiles) {
         const moved = !sameHex(tile.hex, unit.at);
         const fighting = asFighting(battle, unit, tile.hex, moved);
-        const shootable = braced(moved)
-            ? foes.filter(foe => canReach(board, fighting, tile.hex, foe, weaponAgainst(fighting, tile.hex, foe)))
-            : [];
+        const shootable = foes.filter(foe =>
+            canReach(board, fighting, tile.hex, foe, weaponAgainst(fighting, tile.hex, foe, moved)));
         const candidates: (Unit | null)[] = shootable.length > 0 ? shootable : [null];
 
         for (const target of candidates) {
-            const weapon = target ? weaponAgainst(fighting, tile.hex, target) : fighting.weapon;
+            const weapon = target ? weaponAgainst(fighting, tile.hex, target, moved) : fighting.weapon;
+            // The gun's rate depends on whether the mate is still feeding it.
+            const rate = target ? assistedHits(battle, unit, weapon) / weapon.hits : 1;
             const damage = target
-                ? expectedDamage(board, fighting, tile.hex, target, weapon) * damageReduction(battle, target)
+                ? expectedDamage(board, fighting, tile.hex, target, weapon) * damageReduction(battle, target) * rate
                 : 0;
             // Finishing someone is worth more than spreading damage around.
             const finisher = target && damage >= target.hp ? 2 : 1;
@@ -252,7 +287,7 @@ interface AttackSkill { name: string; hit?: number; damage?: number; penetration
 function attack(battle: Battle, unit: Unit, target: Unit, moved: boolean, skill?: AttackSkill): Activity {
     const board = battle.setup.board;
     const fighting = asFighting(battle, unit, unit.at, moved);
-    const weapon = weaponAgainst(fighting, unit.at, target);
+    const weapon = weaponAgainst(fighting, unit.at, target, moved);
     const chance = Math.min(0.95, hitChance(board, fighting, unit.at, target, weapon) + (skill?.hit ?? 0));
     const perHit = damageOf(weapon, target.armour, target.armourType, {
         tuning: unit.tuning,
@@ -264,8 +299,9 @@ function attack(battle: Battle, unit: Unit, target: Unit, moved: boolean, skill?
 
     // Every attempt is rolled on its own: four shots are four chances, not one
     // chance for four times the damage.
+    const shots = assistedHits(battle, unit, weapon);
     let landed = 0;
-    for (let i = 0; i < weapon.hits; i += 1) if (roll(battle) < chance) landed += 1;
+    for (let i = 0; i < shots; i += 1) if (roll(battle) < chance) landed += 1;
 
     const damage = landed * perHit;
     target.hp = Math.max(0, target.hp - damage);
@@ -364,15 +400,33 @@ function attackSkillFor(unit: Unit): AttackSkill | null {
     if (unit.duty === 'marksman' && unit.weapon.name.includes('精準')) {
         return { name: skill.name, hit: WEAKPOINT_HIT, penetration: WEAKPOINT_PENETRATION };
     }
-    if (unit.duty === 'heavy' && unit.weapon.name.includes('重武器')) {
-        return { name: skill.name, damage: SUPPRESS_DAMAGE, suppress: true };
-    }
+    if (servesHeavyWeapon(unit)) return { name: skill.name, damage: SUPPRESS_DAMAGE, suppress: true };
     return null;
 }
 
 function activate(battle: Battle, unit: Unit) {
     const activities: Activity[] = [];
     let reason = '';
+
+    // Feeding a heavy weapon is a job: the mate may reposition with the gun but
+    // has no attack or skill of their own this round.
+    if (battle.spotting.has(unit.id)) {
+        const gunner = battle.units.find(u => u.assistantId === unit.id);
+        const step = gunner ? stepToward(battle.setup.board, unit.at, gunner.at, unit.movement,
+            { occupied: occupiedBy(battle, unit) }) : null;
+        if (step) { unit.at = step; activities.push({ kind: 'move', to: step }); }
+        if (activities.length === 0) activities.push({ kind: 'idle' });
+        battle.activations.push({
+            round: battle.round,
+            unitId: unit.id,
+            reason: `為 ${gunner?.name ?? '重武器'} 助裝，本輪不另行攻擊`,
+            activities,
+            snapshot: snapshot(battle),
+        });
+        unit.moveBonus = undefined;
+        unit.suppressed = undefined;
+        return;
+    }
 
     const support = trySupport(battle, unit);
     if (support) {
@@ -506,6 +560,7 @@ export function runBattle(setup: BattleSetup): BattleResult {
         },
         healed: { crew: 0, enemy: 0 },
         built: { crew: 0, enemy: 0 },
+        spotting: new Set(),
     };
 
     // Drawn once, before anything else touches the generator, so the tie-break is
@@ -517,6 +572,7 @@ export function runBattle(setup: BattleSetup): BattleResult {
 
     while (!ending && battle.round < maxRounds) {
         battle.round += 1;
+        chooseSpotters(battle);
         for (const unit of activationOrder(battle)) {
             if (unit.down) continue; // shot before its turn came round
             activate(battle, unit);

@@ -175,3 +175,25 @@ test("another soldier's equipment never leaks into this one", () => {
     assert.equal(b.weapon.name, r.FISTS.name, 'b took a weapon');
     assert.equal(b.armour, 40);
 });
+
+test('a heavy weapon always leaves with someone to feed it', () => {
+    const duties = ['sergeant', 'heavy', 'rifleman', 'medic', 'engineer', 'marksman'];
+    const roster = duties.map((duty, i) => character('c' + i, { duty }));
+    const items = roster.flatMap((c, i) => [
+        gear('w' + i, c.id, c.duty === 'heavy' ? 'heavy-weapon' : 'lasgun'),
+        gear('a' + i, c.id, 'flak-armour'),
+    ]);
+    const { units } = l.crewFor(roster, items, roster.map((c, i) => place(c.id, { at: at(3 + i, 7) })));
+    const crewed = l.assignHeavyCrew(units);
+
+    const gunner = crewed.find(u => u.duty === 'heavy');
+    assert.ok(gunner.assistantId, 'the gun was left to feed itself');
+    const mate = crewed.find(u => u.id === gunner.assistantId);
+    assert.ok(['rifleman', 'engineer'].includes(mate.duty), `a ${mate.duty} was put on the gun`);
+    assert.notEqual(mate.id, gunner.id);
+
+    // Two guns never share one pair of hands.
+    const twoGuns = l.assignHeavyCrew(crewed.map(u => (u.duty === 'marksman' ? { ...u, duty: 'heavy', weapon: crewed.find(x => x.duty === 'heavy').weapon } : u)));
+    const bound = twoGuns.filter(u => u.duty === 'heavy').map(u => u.assistantId).filter(Boolean);
+    assert.equal(new Set(bound).size, bound.length, 'one mate was bound to two guns');
+});

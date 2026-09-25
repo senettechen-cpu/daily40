@@ -213,6 +213,9 @@ export const COMMAND_MOVE = 1;
 export const COMMAND_RANGE = 2;
 export const COMMAND_MIN_TARGETS = 2;
 
+/** A heavy weapon served by one person feeds itself one round at a time. */
+export const UNASSISTED_HITS = 1;
+
 export const MEDICAE_KIT = 'medicae-kit';
 export const VOX_CASTER = 'vox-caster';
 export const ENGINEERING_KIT = 'engineering-kit';

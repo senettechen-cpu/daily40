@@ -456,15 +456,61 @@ test('fortifying never writes on the board it was handed', () => {
     assert.equal(JSON.stringify(shared.tiles), before, 'the battle edited the board it was given');
 });
 
-test('a heavy weapon cannot be fired on the move', () => {
-    const HEAVY = { name: '星界軍重武器組', damage: 20, hits: 3, range: 6, penetration: 10, damageType: 'ballistic' };
+const HEAVY = { name: '星界軍重武器組', damage: 20, hits: 3, range: 6, penetration: 10, damageType: 'ballistic' };
+
+test('a gunner who moved falls back to the sidearm, never the heavy weapon', () => {
     const result = run([
-        unit('h0', 'crew', { duty: 'heavy', weapon: HEAVY, at: at(5, 8), stance: 'advance', movement: 2 }),
+        unit('h0', 'crew', { duty: 'heavy', weapon: HEAVY, sidearm: PISTOL, at: at(5, 8), stance: 'advance', movement: 2 }),
         unit('e0', 'enemy', { at: at(5, 2), stance: 'hold', movement: 0, maxHp: 900 }),
     ]);
     for (const step of [...result.activations].filter(a => a.unitId === 'h0')) {
         const moved = step.activities.some(x => x.kind === 'move');
-        const fired = step.activities.some(x => x.kind === 'attack');
-        assert.ok(!(moved && fired), `round ${step.round}: moved and fired the heavy weapon`);
+        const shot = step.activities.find(x => x.kind === 'attack');
+        if (moved && shot) assert.equal(shot.weapon, PISTOL.name, `round ${step.round}: fired the heavy weapon on the move`);
     }
+});
+
+test('a heavy weapon without its mate fires once, with its mate three times', () => {
+    const field = () => [
+        unit('h0', 'crew', { duty: 'heavy', weapon: HEAVY, sidearm: PISTOL, at: at(5, 8), stance: 'hold', movement: 0 }),
+        unit('mate', 'crew', { at: at(4, 8), stance: 'hold', movement: 0 }),
+        unit('e0', 'enemy', { at: at(5, 4), stance: 'hold', movement: 0, maxHp: 9000 }),
+    ];
+
+    const alone = e.runBattle({ board: board({}), units: field(), seed: 21 });
+    const shotsAlone = [...alone.activations].filter(a => a.unitId === 'h0')
+        .flatMap(a => [...a.activities]).filter(a => a.kind === 'attack');
+    assert.ok(shotsAlone.length > 0);
+    for (const shot of shotsAlone) assert.ok(shot.hits <= 1, `unassisted gun landed ${shot.hits} hits`);
+
+    const crewed = field();
+    crewed[0].assistantId = 'mate';
+    const fed = e.runBattle({ board: board({}), units: crewed, seed: 21 });
+    const shotsFed = [...fed.activations].filter(a => a.unitId === 'h0')
+        .flatMap(a => [...a.activities]).filter(a => a.kind === 'attack');
+    assert.ok(shotsFed.some(shot => shot.hits > 1), 'a fed gun never landed more than one hit');
+
+    // Feeding it is the mate's whole round: no attack of their own while doing
+    // it. Once the gunner falls the mate is free again, which is why this looks
+    // only at the rounds they were actually feeding.
+    const feeding = [...fed.activations].filter(a => a.unitId === 'mate' && a.reason.includes('助裝'));
+    assert.ok(feeding.length > 0, 'the mate never fed the gun at all');
+    for (const step of feeding) {
+        assert.ok(!step.activities.some(x => x.kind === 'attack'), 'the assistant attacked while feeding the gun');
+    }
+});
+
+test('a mate who is down or away stops feeding the gun', () => {
+    const far = [
+        unit('h0', 'crew', { duty: 'heavy', weapon: HEAVY, sidearm: PISTOL, at: at(5, 8), stance: 'hold', movement: 0, assistantId: 'mate' }),
+        unit('mate', 'crew', { at: at(0, 8), stance: 'hold', movement: 0 }),
+        unit('e0', 'enemy', { at: at(5, 4), stance: 'hold', movement: 0, maxHp: 9000 }),
+    ];
+    const result = e.runBattle({ board: board({}), units: far, seed: 21 });
+    const first = [...result.activations].filter(a => a.unitId === 'h0')
+        .flatMap(a => [...a.activities]).filter(a => a.kind === 'attack')[0];
+    assert.ok(first.hits <= 1, 'a gun whose mate was across the map fired at full rate');
+    // And with nothing to feed, the mate fights for itself.
+    const mateActs = [...result.activations].filter(a => a.unitId === 'mate');
+    assert.ok(mateActs.every(a => !a.reason.includes('助裝')), 'a mate out of reach was still marked as feeding');
 });
