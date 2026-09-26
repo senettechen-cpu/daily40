@@ -77,6 +77,16 @@ const getHeaders = (token?: string) => {
 };
 
 export const api = {
+    // Push
+    subscribePush: async (subscription: PushSubscription, token: string): Promise<void> => {
+        const response = await fetch(`${API_URL}/notifications/subscribe`, {
+            method: 'POST',
+            headers: getHeaders(token),
+            body: JSON.stringify({ subscription })
+        });
+        if (!response.ok) throw new Error('Failed to register push subscription');
+    },
+
     // Tasks
     getTasks: async (token?: string): Promise<Task[]> => {
         const response = await fetch(`${API_URL}/tasks`, {

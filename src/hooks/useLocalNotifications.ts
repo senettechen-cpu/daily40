@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Task } from '../types';
+import { useAuth } from '../contexts/AuthContext';
+import { api } from '../services/api';
 
 // VAPID Public Key
 // Rotated 2026-09-24: the previous pair was published in the old public repo.
@@ -21,59 +23,45 @@ function urlBase64ToUint8Array(base64String: string) {
     return outputArray;
 }
 
-export const useLocalNotifications = (tasks: Task[]) => {
-    // Note: 'tasks' argument is kept for API compatibility but logic is now server-side push.
-    const [isSubscribed, setIsSubscribed] = useState(false);
+/**
+ * True only where web push can actually work. iOS exposes Notification solely
+ * to a home-screen PWA (16.4+); in a Safari tab or an in-app browser (LINE,
+ * Facebook) the global does not exist at all, and touching it throws — which
+ * used to take the whole dashboard down right after sign-in.
+ */
+const pushSupported = () =>
+    typeof Notification !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window;
+
+export const useLocalNotifications = (_tasks: Task[]) => {
+    // 'tasks' is kept for API compatibility; reminders are sent server-side.
+    const { getToken } = useAuth();
 
     useEffect(() => {
+        if (!pushSupported()) return;
+        if (Notification.permission === 'denied') return;
+
         const subscribeToPush = async () => {
-            if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-                return;
-            }
-
             try {
-                // Wait for SW to be ready
                 const registration = await navigator.serviceWorker.ready;
-
-                // Subscribe
                 const subscription = await registration.pushManager.subscribe({
                     userVisibleOnly: true,
                     applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
                 });
 
-                console.log('Push Subscription Object:', JSON.stringify(subscription));
-
-                // Send to backend
-                const token = localStorage.getItem('token');
-                // Use a relative URL or configured API URL
-                // Assuming dev/prod environment. For now hardcode or use relative if proxy is set.
-                // Since this runs in browser, relative '/api' might work if served from same origin (which it isn't usually in dev).
-                // Let's use the production URL for Zeabur or localhost fallback.
-                const API_URL = window.location.hostname.includes('localhost')
-                    ? 'http://localhost:3001/api'
-                    : 'https://emperor-tasks-server.zeabur.app/api';
-
-                if (token) {
-                    await fetch(`${API_URL}/notifications/subscribe`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify({ subscription })
-                    });
-                    console.log('Push Subscribed & Sent to Server!');
-                    setIsSubscribed(true);
-                }
-
+                // Same token and base URL as every other call. This used to read
+                // localStorage 'token' (never set) and post to a retired host, so
+                // no subscription had ever reached the server.
+                const token = await getToken();
+                if (token) await api.subscribePush(subscription, token);
             } catch (err) {
-                console.error('Push Subscription failed:', err);
+                // A refused prompt or an offline server must never break the page.
+                console.error('Push subscription failed:', err);
             }
         };
 
-        if (Notification.permission === 'default' || Notification.permission === 'granted') {
-            subscribeToPush();
-        }
-
+        void subscribeToPush();
+        // Once per mount. getToken is a fresh function every render (it only
+        // reads localStorage), so depending on it would re-subscribe on each one.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 };
