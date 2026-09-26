@@ -22,6 +22,8 @@ interface Handoff {
     paysXp?: boolean;
     unmodelled?: string[];
     woundedIds?: string[];
+    /** What the battle earned (XP, wounds, unlocks), written by the roster before it navigates here. */
+    summary?: string;
 }
 
 const OUTCOME_LABELS: Record<string, string> = { victory: '勝利', defeat: '失敗', timeout: '超時' };
@@ -35,6 +37,22 @@ const ENDING_LABELS: Record<string, string> = {
     'rounds-behind': '回合用盡，敵方存活較多',
     'rounds-level': '回合用盡，雙方存活相同',
 };
+
+/**
+ * The report now opens in the same tab as the roster, so it needs a way home.
+ * Back keeps the dashboard's state when the browser restored it from cache;
+ * a report opened directly (bookmark, reload after close) has nowhere to go
+ * back to and loads the dashboard instead.
+ */
+const goBack = () => {
+    const cameFromApp = document.referrer.startsWith(window.location.origin);
+    if (cameFromApp && window.history.length > 1) window.history.back();
+    else window.location.assign(import.meta.env.BASE_URL);
+};
+
+const BackButton = () => (
+    <button type="button" className="br-back" onClick={goBack}>← 返回</button>
+);
 
 function readHandoff(): Handoff | null {
     try {
@@ -67,10 +85,10 @@ export function HexReportApp() {
     }, [handoff]);
 
     if (!handoff) {
-        return <main className="bt-app"><p className="bt-notice">沒有可重播的行動。請從名冊按「出戰」。</p></main>;
+        return <main className="bt-app"><BackButton /><p className="bt-notice">沒有可重播的行動。請從名冊按「出戰」。</p></main>;
     }
     if (!battle) {
-        return <main className="bt-app"><p className="bt-notice">找不到這場行動的情境，無法重播。結果與 XP 已由伺服器結算。</p></main>;
+        return <main className="bt-app"><BackButton /><p className="bt-notice">找不到這場行動的情境，無法重播。結果與 XP 已由伺服器結算。</p></main>;
     }
 
     const names = new Map<string, string>([
@@ -96,11 +114,13 @@ export function HexReportApp() {
         <main className="bt-app br-app">
             <header className="bt-header">
                 <div>
+                    <BackButton />
                     <p className="bt-eyebrow">
                         重播伺服器判定的行動 · {handoff.paysXp === false ? '本場不計 XP' : 'XP 已於出戰時結算'} · 不扣軍需、無永久傷亡
                     </p>
                     <h1>{handoff.squadName} · {OUTCOME_LABELS[battle.outcome]}（{battle.rounds} 回合）</h1>
                     <p className="bt-hint">{ENDING_LABELS[battle.ending] ?? ''}</p>
+                    {handoff.summary && <p className="br-summary">{handoff.summary}</p>}
                 </div>
                 <div className="bt-controls" role="group" aria-label="重播控制">
                     <button type="button" onClick={() => setStep(0)} disabled={step === 0}>回到開頭</button>

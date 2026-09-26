@@ -1,14 +1,24 @@
 import React from 'react';
 import { useGame } from '../contexts/GameContext';
-import { Radar, Map, ShoppingCart, Scroll, Activity } from 'lucide-react';
+import { Radar, Map, ShoppingCart, Scroll, Activity, Users, Mail, LogOut } from 'lucide-react';
 
 interface NavigationArrayProps {
     onOpenArmory: () => void;
     onOpenLedger: () => void;
     onOpenAscension: () => void;
+    onOpenRoster: () => void;
+    onOpenVox: () => void;
+    onLogout: () => void;
 }
 
-export const NavigationArray: React.FC<NavigationArrayProps> = ({ onOpenArmory, onOpenLedger, onOpenAscension }) => {
+// Below xl the header's button row (通訊鏈路 / 後勤總表 / 名冊 / 終止連線) is
+// hidden, so on a phone the roster and sign-out were unreachable. These three
+// stand in for it at those widths and step aside where the header shows.
+const HEADER_STAND_IN = 'xl:hidden';
+
+export const NavigationArray: React.FC<NavigationArrayProps> = ({
+    onOpenArmory, onOpenLedger, onOpenAscension, onOpenRoster, onOpenVox, onLogout,
+}) => {
     const { viewMode, setViewMode, resources, exportSTC, importSTC } = useGame();
     const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -45,6 +55,15 @@ export const NavigationArray: React.FC<NavigationArrayProps> = ({ onOpenArmory, 
                 >
                     <Scroll size={16} />
                     <span>後勤</span>
+                </button>
+
+                {/* Roster: the only way to reach deployment on a phone */}
+                <button
+                    onClick={onOpenRoster}
+                    className={`${HEADER_STAND_IN} h-10 px-4 md:px-6 flex items-center gap-2 font-mono tracking-widest text-xs border border-imperial-gold/60 bg-black text-imperial-gold hover:bg-imperial-gold hover:text-black transition-all shrink-0`}
+                >
+                    <Users size={16} />
+                    <span>名冊</span>
                 </button>
 
                 {/* Ascension Toggle */}
@@ -117,6 +136,22 @@ export const NavigationArray: React.FC<NavigationArrayProps> = ({ onOpenArmory, 
                 >
                     <ShoppingCart size={16} />
                     <span>軍械庫</span>
+                </button>
+
+                <button
+                    onClick={onOpenVox}
+                    className={`${HEADER_STAND_IN} h-10 px-4 flex items-center gap-2 font-mono tracking-widest text-xs border border-zinc-800 bg-black text-imperial-gold/80 hover:border-imperial-gold/50 transition-all shrink-0`}
+                >
+                    <Mail size={16} />
+                    <span>通訊鏈路</span>
+                </button>
+
+                <button
+                    onClick={onLogout}
+                    className={`${HEADER_STAND_IN} h-10 px-4 flex items-center gap-2 font-mono tracking-widest text-xs border border-red-900 bg-black text-red-700 hover:bg-red-900/20 transition-all shrink-0`}
+                >
+                    <LogOut size={16} />
+                    <span>終止連線</span>
                 </button>
             </div>
         </div>

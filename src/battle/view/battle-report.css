@@ -99,3 +99,19 @@
 .br-feed { list-style: none; margin: 0; padding: 0; max-height: 40vh; overflow-y: auto; }
 .br-feed li { padding: 6px 10px; border-bottom: 1px solid #ffffff10; font-size: 12px; color: #b9c8d6; }
 .br-feed li.is-current { background: #1b2735; color: #ecd9a8; }
+
+/* The report replaced the roster in this tab, so the way home sits first. */
+.br-back { min-height: 36px; margin-bottom: 8px; padding: 0 12px; border-radius: 3px; border: 1px solid #4b5b66; background: transparent; color: #dde3dc; font: inherit; cursor: pointer; }
+.br-back:hover { border-color: #dfbc72; color: #dfbc72; }
+.br-summary { margin: 6px 0 0; font-size: 13px; color: #dfbc72; }
+
+/* Phones: the board is drawn wider than the screen and scrolls sideways, so
+   hexes stay ~55px instead of ~31px. The toggle falls back to the whole board. */
+.hex-map-frame { position: relative; }
+.hex-map-zoom { display: none; }
+@media (max-width: 640px) {
+  .hex-map-wrap { overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; margin: 14px 0; border: 1px solid #2b3946; }
+  .hex-map-wrap .hex-map { margin: 0; border: 0; }
+  .hex-map-frame:not(.is-fit) .hex-map { width: 640px; max-width: none; }
+  .hex-map-zoom { display: block; margin: 8px 0 -6px auto; min-height: 36px; padding: 0 12px; border-radius: 3px; border: 1px solid #4b5b66; background: #17222c; color: #dde3dc; font: inherit; font-size: 13px; cursor: pointer; }
+}

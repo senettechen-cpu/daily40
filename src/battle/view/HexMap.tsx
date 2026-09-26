@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import type { Board, Hex } from '../../../shared/battle/hex';
 import { terrainAt } from '../../../shared/battle/hex';
 import { portraitHead } from '../../data/reportArtIndex';
@@ -54,7 +55,31 @@ export function HexMap({ board, snapshot, names, sides, faces, acting }: {
     const tiles = Array.from({ length: board.rows }).flatMap((_, row) =>
         Array.from({ length: board.cols }).map((__, col) => ({ col, row })));
 
+    // On a phone the whole board squeezed to ~345px, a third of its drawn size,
+    // and tokens and health became hard to read. There the map is drawn wider
+    // than the screen inside a sideways scroller (see .hex-map-wrap), with a
+    // toggle back to the whole-board view.
+    const [fit, setFit] = useState(false);
+    const wrap = useRef<HTMLDivElement>(null);
+
+    // Keep whoever is acting in view, so stepping through the report never
+    // leaves the reader hunting for the unit the text is talking about.
+    const actingUnit = snapshot.find(unit => unit.id === acting);
+    const actingX = actingUnit ? centre(actingUnit.at).x : null;
+    useEffect(() => {
+        const el = wrap.current;
+        if (!el || actingX === null || el.scrollWidth <= el.clientWidth) return;
+        const left = (actingX / width) * el.scrollWidth - el.clientWidth / 2;
+        const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        el.scrollTo({ left: Math.max(0, left), behavior: reduce ? 'auto' : 'smooth' });
+    }, [actingX, width, fit]);
+
     return (
+        <div className={`hex-map-frame${fit ? ' is-fit' : ''}`}>
+        <button type="button" className="hex-map-zoom" onClick={() => setFit(value => !value)} aria-pressed={!fit}>
+            {fit ? '放大地圖' : '看全圖'}
+        </button>
+        <div className="hex-map-wrap" ref={wrap}>
         <svg
             className="hex-map"
             viewBox={`0 0 ${width.toFixed(0)} ${height.toFixed(0)}`}
@@ -147,8 +172,8 @@ export function HexMap({ board, snapshot, names, sides, faces, acting }: {
                                 </text>
                             )}
                         {!unit.down && (
-                            <text x={x} y={y + HEX_H * 0.34} textAnchor="middle" fontSize={16} fill="#e6eef6"
-                                style={{ paintOrder: 'stroke' }} stroke="#0b111a" strokeWidth={4}>
+                            <text x={x} y={y + HEX_H * 0.36} textAnchor="middle" fontSize={20} fontWeight="bold" fill="#e6eef6"
+                                style={{ paintOrder: 'stroke' }} stroke="#0b111a" strokeWidth={5}>
                                 {unit.hp}
                             </text>
                         )}
@@ -156,5 +181,7 @@ export function HexMap({ board, snapshot, names, sides, faces, acting }: {
                 );
             })}
         </svg>
+        </div>
+        </div>
     );
 }

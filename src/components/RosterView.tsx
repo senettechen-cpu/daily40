@@ -112,7 +112,7 @@ const CharacterCard = ({ character, action, onAction, onOpen }: {
 const StancePicker = ({ value, disabled, onChange }: {
     value: Stance; disabled: boolean; onChange: (next: Stance) => void;
 }) => (
-    <div className="flex gap-1" role="group" aria-label="作戰姿態">
+    <div className="flex flex-wrap gap-1" role="group" aria-label="作戰姿態">
         {STANCES.map(stance => (
             <button
                 key={stance}
@@ -420,18 +420,6 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
             }
 
             const started = await api.startOperation(activeSquad.id, scenarioId, traineeIds, token);
-            sessionStorage.setItem(DEPLOYMENT_KEY, JSON.stringify({
-                crew: started.operation.crew,
-                board: started.operation.board,
-                unmodelled: started.unmodelled,
-                squadName: activeSquad.name,
-                scenarioId: started.operation.scenarioId,
-                seed: started.operation.seed,
-                outcome: started.operation.outcome,
-                rounds: started.operation.rounds,
-                paysXp: started.operation.paysXp,
-                woundedIds: started.woundedIds,
-            }));
 
             const gained = started.awards.filter(a => a.role === 'deployed')[0]?.amount ?? 0;
             const base = started.operation.paysXp
@@ -444,12 +432,30 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
                 wounded > 0 ? `${wounded} 人負傷，今日不得再出戰` : '',
                 earned.length > 0 ? `獲得嘉獎，解鎖 ${earned.map(id => catalogItem(id)?.name ?? RECRUIT_NAMES[id] ?? id).join('、')}` : '',
             ].filter(Boolean).join(' · ');
+
+            // The summary rides along because this page is about to be left: the
+            // report is where the player now reads what the battle earned.
+            sessionStorage.setItem(DEPLOYMENT_KEY, JSON.stringify({
+                crew: started.operation.crew,
+                board: started.operation.board,
+                unmodelled: started.unmodelled,
+                squadName: activeSquad.name,
+                scenarioId: started.operation.scenarioId,
+                seed: started.operation.seed,
+                outcome: started.operation.outcome,
+                rounds: started.operation.rounds,
+                paysXp: started.operation.paysXp,
+                woundedIds: started.woundedIds,
+                summary: result,
+            }));
+            setDeparture(result);
             await load();
 
-            // The result is already recorded; the report tab only replays it. A blocked
-            // popup must say so, or the battle looks like it silently did nothing.
-            const report = window.open(`${import.meta.env.BASE_URL}battle-test.html`, '_blank');
-            setDeparture(report ? result : `${result} · 戰報分頁被瀏覽器擋下，請允許此站的彈出視窗`);
+            // The result is already recorded; the report only replays it. It opens
+            // in this tab, not a new one: a window.open after an await is a blocked
+            // popup on iOS, and an in-app browser (LINE) may hand a new tab to Safari,
+            // where this tab's sessionStorage does not exist and the report is empty.
+            window.location.assign(`${import.meta.env.BASE_URL}battle-test.html`);
         } catch (err) {
             setError(err instanceof Error ? err.message : '無法出戰');
         } finally {
@@ -540,7 +546,10 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
                                 className="font-mono">刪除編成</Button>
                         </div>
 
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        {/* One column on a phone: at two, a 375px screen left each card ~130px,
+                            names wrapped a character per line and the stance row spilled into
+                            the neighbouring card. */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
                             {Array.from({ length: SQUAD_SIZE }).map((_, index) => {
                                 const member = members[index];
                                 return member ? (

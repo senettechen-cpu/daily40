@@ -498,7 +498,14 @@ const MainDashboard = ({ currentUser, onLogout }: { currentUser: any, onLogout: 
         )}
       </main>
 
-      <NavigationArray onOpenArmory={openArmory} onOpenLedger={openLedger} onOpenAscension={openAscension} />
+      <NavigationArray
+        onOpenArmory={openArmory}
+        onOpenLedger={openLedger}
+        onOpenAscension={openAscension}
+        onOpenRoster={openShop}
+        onOpenVox={() => setIsVoxLinkOpen(true)}
+        onLogout={onLogout}
+      />
 
       <RosterView visible={isShopOpen} onClose={() => setIsShopOpen(false)} />
 
