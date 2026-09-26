@@ -7,7 +7,8 @@ import { getRecruitmentCost, UNIT_POWER } from '../data/unitVisuals';
 import { useCampaign } from '../game/useCampaign';
 import { LEGACY_PENALTIES_FROZEN } from '../game/legacyFreeze';
 import { localDay, type CampaignState, type Site, type Tactic } from '../game/campaign';
-import { completeNextSlot, normalizeSlots, slotsMet } from '../../shared/tasks';
+import { completeNextSlot, completeSlot, normalizeSlots, slotsMet } from '../../shared/tasks';
+import { dayKey } from '../../shared/time';
 
 
 export interface GameContextType {
@@ -21,7 +22,7 @@ export interface GameContextType {
     isPenitentMode: boolean;
     addTask: (title: string, faction: Faction, difficulty: number, dueDate: Date, isRecurring?: boolean, dueTime?: string, ascensionCategory?: AscensionCategory, subCategory?: string) => void;
     updateTask: (id: string, updates: Partial<Task>) => void;
-    purgeTask: (id: string) => void;
+    purgeTask: (id: string, slot?: string) => void;
     deleteTask: (id: string) => void; // New Action
     resetGame: () => void;
     // Armory
@@ -626,23 +627,13 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
 
-    const purgeTask = async (id: string) => {
-        // Optimistic
-        const taskToPurge = tasks.find(t => t.id === id);
-        if (taskToPurge && taskToPurge.isRecurring && normalizeSlots(taskToPurge.dueTimes).length === 0) {
-            const now = new Date();
-            let deadline = new Date(taskToPurge.dueDate);
-            if (taskToPurge.dueTime) {
-                const [hours, minutes] = taskToPurge.dueTime.split(':').map(Number);
-                deadline = new Date();
-                deadline.setHours(hours, minutes, 0, 0);
-            }
-            // If strictly overdue (now > deadline), reject interaction
-            if (now > deadline) {
-                console.warn("Task is overdue and cannot be purged.");
-                return;
-            }
-        }
+    /**
+     * Completes a task, or one named time of a multi-slot one. A deadline that
+     * has already passed no longer refuses the press: the user ruled that a
+     * missed slot is marked late, not locked, because locking the whole day out
+     * is what made people abandon the day entirely.
+     */
+    const purgeTask = async (id: string, slot?: string) => {
 
         // 1. Find the task in current state (Using closure value, which is safe for this event handler)
         const taskIndex = tasks.findIndex(t => t.id === id);
@@ -664,9 +655,15 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // A task with several times of day settles one slot per press; the day is
         // only met, and only pays, when the last of them is done.
         const slots = normalizeSlots(task.dueTimes);
-        const slotDay = localDay();
+        // The day key must match the server's, which formats in Asia/Taipei with
+        // two digits; localDay()'s '2026-9-25' never equalled dayKey()'s
+        // '2026-09-25', so the core payout and the slot reminders both read the
+        // day as stale and a multi-slot task could never claim either.
+        const slotDay = dayKey(new Date());
         const doneToday = task.slotsDay === slotDay ? normalizeSlots(task.slotsDone) : [];
-        const advanced = slots.length > 0 ? completeNextSlot(slots, doneToday) : null;
+        const advanced = slots.length === 0 ? null
+            : slot ? completeSlot(slots, doneToday, slot)
+                : completeNextSlot(slots, doneToday);
         const dayMet = slots.length === 0 || (advanced !== null && slotsMet(slots, advanced));
 
         if (slots.length > 0) {

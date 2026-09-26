@@ -63,6 +63,18 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ visible, onClose, on
     // @ts-ignore
     const [dueDate, setDueDate] = useState<dayjs.Dayjs>(dayjs().add(12, 'hour'));
 
+    /**
+     * Touching any of start / end / interval lays the whole day out at once.
+     * Waiting for a button press meant people deployed a protocol believing the
+     * times were set when nothing had been generated at all.
+     */
+    const relayoutSlots = (start: string, end: string, every: number) => {
+        setSlotStart(start);
+        setSlotEnd(end);
+        setSlotEvery(every);
+        if (isTime(start) && isTime(end)) setDueTimes(generateSlots(start, end, every));
+    };
+
     // Effect to handle edit mode vs new mode
     useEffect(() => {
         if (visible) {
@@ -261,24 +273,24 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ visible, onClose, on
                             每日執行時間 (DAILY TIMES)
                         </label>
                         <div className="flex flex-wrap items-end gap-2 mb-3">
-                            <TimeField label="從" value={slotStart} onChange={setSlotStart} />
-                            <TimeField label="到" value={slotEnd} onChange={setSlotEnd} />
+                            <TimeField label="從" value={slotStart} onChange={value => relayoutSlots(value, slotEnd, slotEvery)} />
+                            <TimeField label="到" value={slotEnd} onChange={value => relayoutSlots(slotStart, value, slotEvery)} />
                             <div className="flex flex-col gap-1">
                                 <span className="text-[10px] font-mono text-zinc-500">每隔</span>
                                 <Select
                                     size="large"
                                     value={slotEvery}
-                                    onChange={setSlotEvery}
+                                    onChange={value => relayoutSlots(slotStart, slotEnd, value)}
                                     className="!w-28"
                                     options={[30, 60, 90, 120, 180, 240].map(m => ({ value: m, label: m < 60 ? `${m} 分鐘` : `${m / 60} 小時` }))}
                                 />
                             </div>
                             <Button
                                 size="large"
-                                onClick={() => setDueTimes(generateSlots(slotStart, slotEnd, slotEvery))}
+                                onClick={() => relayoutSlots(slotStart, slotEnd, slotEvery)}
                                 className="!bg-imperial-gold/10 !border-imperial-gold/50 !text-imperial-gold font-mono"
                             >
-                                產生時段
+                                {dueTimes.length > 0 ? '重新產生' : '產生時段'}
                             </Button>
                         </div>
 
@@ -295,13 +307,13 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ visible, onClose, on
                                         {time} ×
                                     </button>
                                 ))}
-                                <span className="self-center font-mono text-[11px] text-zinc-500">共 {dueTimes.length} 次／天</span>
+                                <span className="self-center font-mono text-[11px] text-zinc-500">共 {dueTimes.length} 次／天 · 清單上各自一列，過時仍可補</span>
                             </div>
                         ) : (
                             <div className="flex items-end gap-2">
                                 <TimeField label="或只設一個時間" value={dueDate.format('HH:mm')}
                                     onChange={value => { if (isTime(value)) setDueDate(dayjs(`${dayjs().format('YYYY-MM-DD')} ${value}`)); }} />
-                                <span className="font-mono text-[11px] text-zinc-500 pb-3">設定起訖與間隔後按「產生時段」，即可一次排完一整天</span>
+                                <span className="font-mono text-[11px] text-zinc-500 pb-3">改動上面的起訖或間隔，時段就會自動排滿一整天；每個時段在清單上各自一列，各自完成</span>
                             </div>
                         )}
                         <div className="mt-2 font-mono text-[10px] text-zinc-600">

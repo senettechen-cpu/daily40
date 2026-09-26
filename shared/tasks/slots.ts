@@ -84,3 +84,28 @@ export function dueReminders(
         return age >= 0 && age <= windowMinutes;
     });
 }
+
+/** Settles one named time. Null when the task has no such slot, or it is already done. */
+export function completeSlot(slots: string[], done: unknown, time: string): string[] | null {
+    if (!slots.includes(time)) return null;
+    const settled = doneSlots(slots, done);
+    if (settled.includes(time)) return null;
+    return normalizeSlots([...settled, time]);
+}
+
+export type SlotState = 'done' | 'late' | 'open';
+
+/**
+ * How one slot stands right now. A time that has passed unsettled is `late`,
+ * not lost: the user decided a missed glass of water can still be drunk later
+ * the same day, so lateness is a mark on the row, never a lock on the button.
+ * The day is still only met when every slot is settled, late ones included.
+ */
+export function slotState(slots: string[], done: unknown, time: string, nowMinutes: number): SlotState {
+    if (doneSlots(slots, done).includes(time)) return 'done';
+    return minutesOf(time) < nowMinutes ? 'late' : 'open';
+}
+
+/** Minutes since midnight for a clock time, for feeding `slotState`. */
+export const minutesSinceMidnight = (at: Date = new Date()): number =>
+    at.getHours() * 60 + at.getMinutes();

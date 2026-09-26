@@ -4,14 +4,33 @@ import { Shield, Trash2, Target, Sword, Activity, Plus, FileEdit, Flame } from '
 import { motion, AnimatePresence } from 'framer-motion';
 import { Task, Faction } from '../types';
 import { useRequisition } from '../contexts/RequisitionContext';
-import { nextSlot, normalizeSlots, slotProgress, slotsMet } from '../../shared/tasks';
+import { minutesSinceMidnight, normalizeSlots, slotProgress, slotState, type SlotState } from '../../shared/tasks';
+import { dayKey } from '../../shared/time';
 
 /** Today's settled times for a task, ignoring a day that has already rolled over. */
 const slotsOf = (task: Task) => {
     const slots = normalizeSlots(task.dueTimes);
-    const today = new Date();
-    const key = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
-    return { slots, done: task.slotsDay === key ? normalizeSlots(task.slotsDone) : [] };
+    const done = task.slotsDay === dayKey(new Date()) ? normalizeSlots(task.slotsDone) : [];
+    return { slots, done };
+};
+
+/**
+ * One line of the slate. A recurring task holding several times of day is drawn
+ * as one row per time, each pressed on its own, so missing 06:00 costs that one
+ * row and leaves the rest of the day open.
+ */
+type SlateRow = { key: string; task: Task; slot?: string; state?: SlotState; first: boolean };
+
+const FACTION_NAMES: Record<Faction, string> = {
+    orks: '獸人', nurgle: '納垢', khorne: '恐虐', tzeentch: '奸奇',
+    slaanesh: '色虐', necrons: '太空死靈', default: '未知',
+};
+
+/** A slot's own clock time, coloured by where it stands today. */
+const SLOT_LOOK: Record<SlotState, { text: string; note: string }> = {
+    done: { text: 'text-green-500', note: '已完成' },
+    late: { text: 'text-amber-400', note: '已逾時 · 仍可補' },
+    open: { text: 'text-cyan-400', note: '待執行' },
 };
 
 /**
@@ -51,7 +70,7 @@ interface TaskDataSlateProps {
     tasks: Task[];
     selectedId: string | null;
     onSelect: (id: string | null) => void;
-    onPurge: (id: string) => void;
+    onPurge: (id: string, slot?: string) => void;
     onOpenAddModal?: () => void;
     onEdit?: (task: Task) => void;
     onDelete?: (id: string) => void;
@@ -74,21 +93,53 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
     onEdit, viewMode = 'active', onToggleView
 }) => {
     const [showTodayOnly, setShowTodayOnly] = React.useState(false);
-    const [purgingIds, setPurgingIds] = useState<Set<string>>(new Set());
+    // Keyed by row, not by task: purging the 10:00 glass of water must not light
+    // up the other seven rows of the same protocol.
+    const [purgingKeys, setPurgingKeys] = useState<Set<string>>(new Set());
 
-    const handlePurge = (id: string, e: React.MouseEvent) => {
+    const handlePurge = (row: SlateRow, e: React.MouseEvent) => {
         e.stopPropagation();
-        setPurgingIds(prev => new Set(prev).add(id));
+        setPurgingKeys(prev => new Set(prev).add(row.key));
         setTimeout(() => {
-            onPurge(id);
-            // Cleanup set after a bit to prevent memory leak if component unmounts/remounts strangely, 
-            // though onPurge usually removes the task from props, so it won't render anyway.
-            setPurgingIds(prev => {
+            onPurge(row.task.id, row.slot);
+            setPurgingKeys(prev => {
                 const next = new Set(prev);
-                next.delete(id);
+                next.delete(row.key);
                 return next;
             });
         }, 1500);
+    };
+
+    /**
+     * On a phone a protocol's times are chips, not eight full cards: the same
+     * "one press per time" the desktop rows give, in a tenth of the scrolling.
+     */
+    const renderSlotChips = (task: Task) => {
+        const { slots, done } = slotsOf(task);
+        const nowMinutes = minutesSinceMidnight();
+        return (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+                {slots.map(time => {
+                    const state = slotState(slots, done, time, nowMinutes);
+                    const key = `${task.id}@${time}`;
+                    const purging = purgingKeys.has(key);
+                    return (
+                        <button
+                            key={time}
+                            type="button"
+                            disabled={state === 'done' || purging}
+                            onClick={(e) => handlePurge({ key, task, slot: time, state, first: false }, e)}
+                            className={`font-mono text-xs px-2.5 py-2 border tracking-widest transition-colors ${purging ? 'border-imperial-gold text-imperial-gold bg-imperial-gold/20 animate-pulse'
+                                : state === 'done' ? 'border-green-500/40 text-green-500 bg-green-900/20'
+                                    : state === 'late' ? 'border-amber-500/50 text-amber-400 bg-amber-900/10 active:bg-amber-500 active:text-black'
+                                        : 'border-cyan-500/40 text-cyan-400 bg-cyan-900/10 active:bg-cyan-500 active:text-black'}`}
+                        >
+                            {state === 'done' ? `✓ ${time}` : time}
+                        </button>
+                    );
+                })}
+            </div>
+        );
     };
 
     const sortedTasks = useMemo(() => {
@@ -145,167 +196,179 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
         });
     }, [tasks, showTodayOnly]);
 
+    /**
+     * The slate's lines. A protocol with times of day becomes one line per time,
+     * kept contiguous and in clock order under the protocol it belongs to.
+     */
+    const rows = useMemo<SlateRow[]>(() => {
+        const nowMinutes = minutesSinceMidnight();
+        return sortedTasks.flatMap<SlateRow>(task => {
+            const { slots, done } = slotsOf(task);
+            if (!task.isRecurring || slots.length === 0) return [{ key: task.id, task, first: true }];
+            return slots.map<SlateRow>((time, i) => ({
+                key: `${task.id}@${time}`,
+                task,
+                slot: time,
+                state: slotState(slots, done, time, nowMinutes),
+                first: i === 0,
+            }));
+        });
+    }, [sortedTasks]);
+
     const columns = useMemo(() => [
         {
             title: '威脅源',
-            dataIndex: 'faction',
             key: 'faction',
             width: 100,
-            render: (faction: Faction) => (
+            render: (_: unknown, { task, first }: SlateRow) => first ? (
                 <div className="flex items-center gap-2">
-                    {FACTION_ICONS[faction]}
+                    {FACTION_ICONS[task.faction]}
                     <span className="text-xs uppercase font-mono text-imperial-gold/50">
-                        {faction === 'orks' ? '獸人' :
-                            faction === 'nurgle' ? '納垢' :
-                                faction === 'khorne' ? '恐虐' :
-                                    faction === 'tzeentch' ? '奸奇' :
-                                        faction === 'slaanesh' ? '色虐' :
-                                            faction === 'necrons' ? '太空死靈' : '未知'}
+                        {FACTION_NAMES[task.faction] ?? '未知'}
                     </span>
                 </div>
+            ) : (
+                <span className="font-mono text-imperial-gold/20 text-xs pl-2">└</span>
             ),
         },
         {
             title: '目標內容',
-            dataIndex: 'title',
             key: 'title',
-            render: (title: string, record: Task) => (
+            render: (_: unknown, { task, slot, state, first }: SlateRow) => (
                 <div className="flex items-center gap-2">
-                    <span
-                        className={`font-mono transition-colors ${record.id === selectedId ? 'text-green-400' : 'text-green-500/80'}`}
-                    >
-                        <span>{title}</span>
+                    <span className={`font-mono transition-colors ${task.id === selectedId ? 'text-green-400' : 'text-green-500/80'} ${slot && !first ? 'opacity-60' : ''}`}>
+                        {task.title}
                     </span>
-                    <CoreBadge taskId={record.id} />
+                    {slot && (
+                        <span className={`font-mono text-[11px] px-1.5 py-0.5 border tracking-widest ${state === 'done' ? 'border-green-500/40 text-green-500 bg-green-900/10'
+                            : state === 'late' ? 'border-amber-500/40 text-amber-400 bg-amber-900/10'
+                                : 'border-cyan-500/30 text-cyan-400 bg-cyan-900/10'}`}>
+                            {slot}
+                        </span>
+                    )}
+                    {first && <CoreBadge taskId={task.id} />}
                 </div>
             ),
         },
         {
             title: '威脅等級',
-            dataIndex: 'difficulty',
             key: 'difficulty',
             width: 120,
-            render: (diff: number) => (
+            render: (_: unknown, { task, first }: SlateRow) => first ? (
                 <div className="flex gap-0.5">
                     {[...Array(5)].map((_, i) => (
                         <div
                             key={i}
-                            className={`w-2 h-3 border border-imperial-gold/20 ${i < diff ? 'bg-red-600/60 shadow-[0_0_5px_rgba(220,38,38,0.5)]' : 'bg-transparent'}`}
+                            className={`w-2 h-3 border border-imperial-gold/20 ${i < task.difficulty ? 'bg-red-600/60 shadow-[0_0_5px_rgba(220,38,38,0.5)]' : 'bg-transparent'}`}
                         />
                     ))}
                 </div>
-            ),
+            ) : null,
         },
         {
             title: '期限',
-            dataIndex: 'dueDate',
             key: 'dueDate',
-            width: 150,
-            render: (date: Date, record: Task) => {
-                const isOverdue = new Date(date) < new Date();
-
-                if (record.isRecurring) {
-                    const timeStr = record.dueTime || new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-                    const streak = record.streak || 0;
-                    const { slots, done } = slotsOf(record);
-                    const progress = slotProgress(slots, done);
-                    const upcoming = nextSlot(slots, done);
-
+            width: 180,
+            render: (_: unknown, { task, slot, state, first }: SlateRow) => {
+                if (!task.isRecurring) {
+                    const isOverdue = new Date(task.dueDate) < new Date();
                     return (
-                        <div className="flex flex-col">
-                            <span className="font-mono text-xs text-cyan-400">
-                                {slots.length > 0
-                                    ? `今日 ${progress.done}/${progress.total}${upcoming ? ` · 下一次 ${upcoming}` : ' · 已完成'}`
-                                    : `每日 ${timeStr} 截止`}
-                            </span>
-                            <div className={`flex items-center gap-1 mt-0.5 ${streak > 0 ? 'animate-pulse' : 'opacity-50'}`}>
-                                <Flame size={12} className={streak > 0 ? "text-orange-500 fill-orange-500" : "text-zinc-600"} />
-                                <span className={`text-[10px] font-bold font-mono ${streak > 0 ? "text-orange-400" : "text-zinc-600"}`}>STREAK: {streak}</span>
-                            </div>
-                        </div>
+                        <span className={`font-mono text-xs ${isOverdue ? 'text-red-500 animate-pulse font-bold' : 'text-imperial-gold/60'}`}>
+                            {new Date(task.dueDate).toLocaleString()}
+                        </span>
                     );
                 }
 
-                return <span className={`font-mono text-xs ${isOverdue ? 'text-red-500 animate-pulse font-bold' : 'text-imperial-gold/60'}`}><span>{new Date(date).toLocaleString()}</span></span>;
+                const streak = task.streak || 0;
+                const { slots, done } = slotsOf(task);
+                const progress = slotProgress(slots, done);
+
+                // A single-time protocol past its hour is marked late, not expired:
+                // the user ruled a missed one can still be made good the same day.
+                const plainTime = task.dueTime || new Date(task.dueDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                const plainLate = !slot && (() => {
+                    const [h, m] = plainTime.split(':').map(Number);
+                    const deadline = new Date();
+                    deadline.setHours(h, m, 0, 0);
+                    return new Date() > deadline;
+                })();
+
+                return (
+                    <div className="flex flex-col">
+                        {slot ? (
+                            <span className={`font-mono text-xs ${SLOT_LOOK[state ?? 'open'].text}`}>
+                                {slot} · {SLOT_LOOK[state ?? 'open'].note}
+                            </span>
+                        ) : (
+                            <span className={`font-mono text-xs ${plainLate ? 'text-amber-400' : 'text-cyan-400'}`}>
+                                每日 {plainTime} {plainLate ? '· 已逾時 · 仍可補' : '截止'}
+                            </span>
+                        )}
+                        {first && (
+                            <div className="flex items-center gap-2 mt-0.5">
+                                <div className={`flex items-center gap-1 ${streak > 0 ? 'animate-pulse' : 'opacity-50'}`}>
+                                    <Flame size={12} className={streak > 0 ? 'text-orange-500 fill-orange-500' : 'text-zinc-600'} />
+                                    <span className={`text-[10px] font-bold font-mono ${streak > 0 ? 'text-orange-400' : 'text-zinc-600'}`}>STREAK: {streak}</span>
+                                </div>
+                                {slots.length > 0 && (
+                                    <span className="text-[10px] font-mono text-zinc-500">今日 {progress.done}/{progress.total}</span>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                );
             }
         },
         {
             title: '指令',
             key: 'actions',
             width: 140,
-            render: (_: any, record: Task) => {
-                const isRecurring = record.isRecurring;
-                const isCompletedToday = isRecurring && record.lastCompletedAt &&
-                    new Date(record.lastCompletedAt).toLocaleDateString() === new Date().toLocaleDateString();
+            render: (_: unknown, row: SlateRow) => {
+                const { task, slot, state, first } = row;
+                const purging = purgingKeys.has(row.key);
+                const settledToday = slot
+                    ? state === 'done'
+                    : Boolean(task.isRecurring && task.lastCompletedAt &&
+                        new Date(task.lastCompletedAt).toLocaleDateString() === new Date().toLocaleDateString());
 
                 return (
                     <div className="flex gap-2 items-center">
-                        {onEdit && (
+                        {onEdit && first && (
                             <Tooltip title="修改參數">
                                 <Button
                                     size="small"
                                     className="!bg-blue-900/20 !border-blue-500/50 hover:!bg-blue-500 hover:!text-black !text-blue-500 !p-1 h-7 w-7 flex items-center justify-center transition-all"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        onEdit(record);
-                                    }}
+                                    onClick={(e) => { e.stopPropagation(); onEdit(task); }}
                                 >
                                     <FileEdit size={14} />
                                 </Button>
                             </Tooltip>
                         )}
 
-                        {isCompletedToday ? (
-                            <Tag color="green" className="!bg-green-900/20 !border-green-500/50 !text-green-500 font-mono text-[10px] m-0 px-2 py-0.5 animate-pulse">
+                        {settledToday ? (
+                            <Tag color="green" className="!bg-green-900/20 !border-green-500/50 !text-green-500 font-mono text-[10px] m-0 px-2 py-0.5">
                                 COMPLETED
                             </Tag>
-                        ) : (() => {
-                            // Inline Overdue Check for Recurring. A task with several
-                            // times of day keeps its outstanding slots open: being late
-                            // for the 10:00 glass is no reason to forbid drinking it.
-                            let isOverdue = false;
-                            if (isRecurring && slotsOf(record).slots.length === 0) {
-                                const now = new Date();
-                                let deadline = new Date(record.dueDate);
-                                if (record.dueTime) {
-                                    const [h, m] = record.dueTime.split(':').map(Number);
-                                    deadline = new Date();
-                                    deadline.setHours(h, m, 0, 0);
-                                }
-                                isOverdue = now > deadline;
-                            }
+                        ) : (
+                            <Tooltip title={slot ? `補上 ${slot} 這一格` : '執行淨化'}>
+                                <Button
+                                    size="small"
+                                    className={`!border-green-500/50 hover:!bg-green-500 hover:!text-black !text-green-500 !p-1 h-7 w-7 flex items-center justify-center transition-all ${purging ? '!bg-imperial-gold/20 !text-imperial-gold !border-imperial-gold animate-pulse' : '!bg-green-900/20'}`}
+                                    onClick={(e) => handlePurge(row, e)}
+                                >
+                                    {purging ? <Flame size={14} className="fill-imperial-gold" /> : <Shield size={14} />}
+                                </Button>
+                            </Tooltip>
+                        )}
 
-                            if (isOverdue) {
-                                return (
-                                    <Tag color="red" className="!bg-red-900/20 !border-red-500/50 !text-red-500 font-mono text-[10px] m-0 px-2 py-0.5">
-                                        EXPIRED
-                                    </Tag>
-                                );
-                            }
-
-                            return (
-                                <Tooltip title="執行淨化">
-                                    <Button
-                                        size="small"
-                                        className={`!border-green-500/50 hover:!bg-green-500 hover:!text-black !text-green-500 !p-1 h-7 w-7 flex items-center justify-center transition-all ${purgingIds.has(record.id) ? '!bg-imperial-gold/20 !text-imperial-gold !border-imperial-gold animate-pulse' : '!bg-green-900/20'}`}
-                                        onClick={(e) => handlePurge(record.id, e)}
-                                    >
-                                        {purgingIds.has(record.id) ? <Flame size={14} className="fill-imperial-gold" /> : <Shield size={14} />}
-                                    </Button>
-                                </Tooltip>
-                            );
-                        })()}
-
-                        {isRecurring && onDelete && (
+                        {task.isRecurring && onDelete && first && (
                             <Tooltip title="刪除協議">
                                 <Button
                                     size="small"
                                     className="!bg-red-900/10 !border-red-900/30 hover:!bg-red-800 hover:!text-white !text-red-800/50 !p-1 h-7 w-7 flex items-center justify-center transition-all ml-1"
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        if (confirm('確認刪除此每日協議？')) {
-                                            onDelete(record.id);
-                                        }
+                                        if (confirm('確認刪除此每日協議？')) onDelete(task.id);
                                     }}
                                 >
                                     <Trash2 size={12} />
@@ -313,15 +376,12 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
                             </Tooltip>
                         )}
 
-                        {!isRecurring && (
+                        {!task.isRecurring && (
                             <Tooltip title="標記無效">
                                 <Button
                                     size="small"
                                     className="!bg-red-900/20 !border-red-500/50 hover:!bg-red-500 hover:!text-black !text-red-500 !p-1 h-7 w-7 flex items-center justify-center transition-all"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        onPurge(record.id);
-                                    }}
+                                    onClick={(e) => { e.stopPropagation(); onPurge(task.id); }}
                                 >
                                     <Trash2 size={14} />
                                 </Button>
@@ -331,7 +391,7 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
                 );
             }
         }
-    ], [selectedId, viewMode, onEdit, onPurge]);
+    ], [selectedId, onEdit, onDelete, onPurge, purgingKeys]);
 
     return (
         <div
@@ -385,17 +445,17 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
             {/* Desktop Table View */}
             <div className="hidden md:block">
                 <Table
-                    dataSource={sortedTasks}
+                    dataSource={rows}
                     columns={columns}
-                    rowKey="id"
+                    rowKey="key"
                     pagination={false}
                     className="imperial-table"
-                    onRow={(record) => ({
-                        onMouseEnter: () => onSelect(record.id),
+                    onRow={(row) => ({
+                        onMouseEnter: () => onSelect(row.task.id),
                         onMouseLeave: () => onSelect(null),
-                        onClick: () => onSelect(record.id === selectedId ? null : record.id),
+                        onClick: () => onSelect(row.task.id === selectedId ? null : row.task.id),
                     })}
-                    rowClassName={(record) => `cursor-pointer transition-all duration-300 ${purgingIds.has(record.id) ? 'purging-row' : ''} ${record.id === selectedId ? 'bg-green-500/10 border-l-2 border-green-500' : 'hover:bg-imperial-gold/5'}`}
+                    rowClassName={(row) => `cursor-pointer transition-all duration-300 ${purgingKeys.has(row.key) ? 'purging-row' : ''} ${row.slot && !row.first ? 'slot-row' : ''} ${row.task.id === selectedId ? 'bg-green-500/10 border-l-2 border-green-500' : 'hover:bg-imperial-gold/5'}`}
                 />
             </div>
 
@@ -404,7 +464,10 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
                 <AnimatePresence mode='popLayout'>
                     {sortedTasks.map(task => {
                         const isOverdue = new Date(task.dueDate) < new Date();
-                        const isPurging = purgingIds.has(task.id);
+                        const isPurging = purgingKeys.has(task.id);
+                        const cardSlots = slotsOf(task);
+                        const cardProgress = slotProgress(cardSlots.slots, cardSlots.done);
+                        const cardMet = cardProgress.total > 0 && cardProgress.done === cardProgress.total;
 
                         return (
                             <motion.div
@@ -501,7 +564,9 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
                                         {task.isRecurring ? (
                                             <div className="flex flex-col">
                                                 <span className="font-mono text-sm text-cyan-400">
-                                                    每日 {task.dueTime || new Date(task.dueDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                                                    {cardProgress.total > 0
+                                                        ? `今日 ${cardProgress.done}/${cardProgress.total}`
+                                                        : `每日 ${task.dueTime || new Date(task.dueDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}`}
                                                 </span>
                                                 <div className={`flex items-center gap-1 mt-1 ${(task.streak || 0) > 0 ? 'animate-pulse' : 'opacity-50'}`}>
                                                     <Flame size={12} className={(task.streak || 0) > 0 ? "text-orange-500 fill-orange-500" : "text-zinc-600"} />
@@ -529,39 +594,25 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
                                             </Button>
                                         )}
 
-                                        {task.isRecurring && task.lastCompletedAt &&
-                                            new Date(task.lastCompletedAt).toLocaleDateString() === new Date().toLocaleDateString() ? (
+                                        {(cardProgress.total > 0
+                                            ? cardMet
+                                            : Boolean(task.isRecurring && task.lastCompletedAt &&
+                                                new Date(task.lastCompletedAt).toLocaleDateString() === new Date().toLocaleDateString())) ? (
                                             <Tag color="green" className="!bg-green-900/20 !border-green-500/50 !text-green-500 font-mono text-xs m-0 px-3 py-1 flex items-center animate-pulse">
                                                 COMPLETED
                                             </Tag>
                                         ) : (() => {
-                                            // Mobile View Overdue Check
-                                            let isOverdue = false;
-                                            if (task.isRecurring) {
-                                                const now = new Date();
-                                                let deadline = new Date(task.dueDate);
-                                                if (task.dueTime) {
-                                                    const [h, m] = task.dueTime.split(':').map(Number);
-                                                    deadline = new Date();
-                                                    deadline.setHours(h, m, 0, 0);
-                                                }
-                                                isOverdue = now > deadline;
-                                            }
-
-                                            if (isOverdue) {
-                                                return (
-                                                    <div className="px-4 py-2 border border-red-500/50 bg-red-900/20 text-red-500 text-xs font-mono font-bold tracking-widest">
-                                                        EXPIRED / MISSED
-                                                    </div>
-                                                );
-                                            }
+                                            // A protocol with times of day is pressed through its chips
+                                            // below, one time at a time. Nothing here expires: a slot that
+                                            // has passed is marked late and stays pressable all day.
+                                            if (cardProgress.total > 0) return null;
 
                                             return (
                                                 <Button
                                                     size="middle"
                                                     className="!bg-green-600 !border-green-500 !text-white !h-10 !px-4 flex items-center gap-2 shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:!scale-105 active:!scale-95 transition-transform"
                                                     disabled={isPurging}
-                                                    onClick={(e) => handlePurge(task.id, e)}
+                                                    onClick={(e) => handlePurge({ key: task.id, task, first: true }, e)}
                                                 >
                                                     <Shield size={18} className={isPurging ? 'animate-spin' : ''} />
                                                     <span className="font-bold tracking-widest text-xs">
@@ -572,6 +623,8 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
                                         })()}
                                     </div>
                                 </div>
+
+                                {cardProgress.total > 0 && renderSlotChips(task)}
                             </motion.div>
                         );
                     })}
@@ -598,6 +651,11 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
                 }
                 .imperial-table .ant-table-tbody > tr:hover > td {
                     background: transparent !important;
+                }
+                .imperial-table .ant-table-tbody > tr.slot-row > td {
+                    border-bottom-color: rgba(251, 191, 36, 0.02) !important;
+                    padding-top: 6px !important;
+                    padding-bottom: 6px !important;
                 }
                 .imperial-table .ant-table-tbody > tr.purging-row > td {
                     background: rgba(251, 191, 36, 0.2) !important;

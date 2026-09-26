@@ -65,3 +65,35 @@ test('reminders: a slot is announced once, only while it is fresh and outstandin
     assert.deepEqual([...s.dueReminders(slots, [], [], 10 * 60 + 9)], ['10:00']);
     assert.deepEqual([...s.dueReminders(slots, [], [], 10 * 60 + 11)], []);
 });
+
+test('slots: any one time can be settled, in any order', () => {
+    const slots = ['06:00', '08:00', '10:00'];
+    // Missing 06:00 does not stop 10:00 from being drunk.
+    let done = s.completeSlot(slots, [], '10:00');
+    assert.deepEqual([...done], ['10:00']);
+    // Stored sorted, so the earlier make-good lands in front of it.
+    done = s.completeSlot(slots, done, '06:00');
+    assert.deepEqual([...done], ['06:00', '10:00']);
+    assert.equal(s.slotsMet(slots, done), false);
+    // A time the task does not hold, and one already settled, both do nothing.
+    assert.equal(s.completeSlot(slots, done, '07:00'), null);
+    assert.equal(s.completeSlot(slots, done, '10:00'), null);
+    done = s.completeSlot(slots, done, '08:00');
+    assert.equal(s.slotsMet(slots, done), true);
+});
+
+test('slots: a time that has passed is late, never locked', () => {
+    const slots = ['06:00', '10:00', '20:00'];
+    const at0953 = 9 * 60 + 53;
+    assert.equal(s.slotState(slots, [], '06:00', at0953), 'late');
+    assert.equal(s.slotState(slots, [], '10:00', at0953), 'open');
+    assert.equal(s.slotState(slots, [], '20:00', at0953), 'open');
+    assert.equal(s.slotState(slots, ['06:00'], '06:00', at0953), 'done');
+    // Late is a mark, not a lock: the press still goes through.
+    assert.deepEqual([...s.completeSlot(slots, [], '06:00')], ['06:00']);
+});
+
+test('slots: minutes since midnight reads the clock, not the date', () => {
+    assert.equal(s.minutesSinceMidnight(new Date(2026, 8, 25, 9, 53)), 9 * 60 + 53);
+    assert.equal(s.minutesSinceMidnight(new Date(2026, 8, 25, 0, 0)), 0);
+});
