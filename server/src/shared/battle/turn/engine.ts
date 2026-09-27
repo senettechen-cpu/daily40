@@ -9,6 +9,7 @@ import {
     SELF_HEAL, SELF_HEAL_MIN_MISSING, skillFor, SUPPRESS_DAMAGE, SUPPRESS_HIT, threatOf,
     UNASSISTED_HITS, VOX_CASTER,
     WEAKPOINT_HIT, WEAKPOINT_PENETRATION, isVehicle,
+    BARRAGE_DAMAGE, BARRAGE_EVERY, CULT_LEADER_ID_SUFFIX, RELAY_AURA_HIT, isRelay,
 } from './rules';
 import { Activation, Activity, BattleResult, BattleSetup, Ending, Objective, Outcome, Side, Stance, Unit, Weapon } from './types';
 
@@ -42,6 +43,8 @@ interface Battle {
     seizeRun: number;
     /** Set at a round end when a seize or hold objective has been met. */
     objectiveMet: boolean;
+    /** A barrage the cult leader has marked, and the round it lands at the end of. */
+    barrage: { at: Hex; lands: number } | null;
 }
 
 /**
@@ -78,7 +81,7 @@ const STANCE_VERB: Record<Stance, string> = {
  */
 function activationOrder(battle: Battle): Unit[] {
     return battle.units
-        .filter(u => !u.down)
+        .filter(u => !u.down && !isRelay(u))
         .sort((a, b) =>
             b.initiative - a.initiative
             || (battle.order.get(a.id) ?? 0) - (battle.order.get(b.id) ?? 0)
@@ -157,12 +160,16 @@ function auraFor(battle: Battle, unit: Unit, from: Hex): number {
  * numbers. Nothing here reaches into rules.ts.
  */
 function asFighting(battle: Battle, unit: Unit, from: Hex, moved: boolean): Unit {
-    const bonus = (unit.accuracyBonus ?? 0) + auraFor(battle, unit, from) - (unit.suppressed ?? 0);
+    const bonus = (unit.accuracyBonus ?? 0) + auraFor(battle, unit, from) + relayAura(battle, unit) - (unit.suppressed ?? 0);
     // A marksman who held still sees further, but only down their own sight.
     const steady = !moved && unit.duty === 'marksman' && unit.weapon.name.includes('精準');
     const weapon = steady ? { ...unit.weapon, range: unit.weapon.range + 1 } : unit.weapon;
     return { ...unit, accuracyBonus: bonus, weapon };
 }
+
+/** While a broadcast relay of their side stands, everyone on it aims a little better. */
+const relayAura = (battle: Battle, unit: Unit) =>
+    living(battle, unit.side).some(isRelay) && !isRelay(unit) ? RELAY_AURA_HIT : 0;
 
 /** An engineer who brought their kit is harder to shift out of cover. */
 const damageReduction = (battle: Battle, target: Unit) =>
@@ -189,8 +196,13 @@ function exposureOf(battle: Battle, unit: Unit, tile: Hex): number {
     const shelter = ruleAt(battle.setup.board, tile).incoming ?? 1;
     const seen = living(battle, other(unit.side))
         .filter(foe => canReach(battle.setup.board, foe, foe.at, { ...unit, at: tile }, foe.weapon)).length;
-    return seen * 6 * shelter;
+    // A marked barrage is announced a round ahead precisely so it can be dodged.
+    const marked = battle.barrage && unit.side === 'crew' && distance(tile, battle.barrage.at) <= 1 ? BARRAGE_AVOID : 0;
+    return seen * 6 * shelter + marked;
 }
+
+/** How much the squad dislikes standing under a marked barrage. */
+const BARRAGE_AVOID = 45;
 
 /** Stance turns a tile into a preference. This is the whole of the player's control. */
 function stanceBonus(battle: Battle, unit: Unit, tile: Hex, target: Unit | null): number {
@@ -576,6 +588,7 @@ function endOfRound(battle: Battle) {
         if (unit.hp === 0) knockDown(battle, unit);
     }
 
+    resolveBarrage(battle);
     judgeObjective(battle);
     if (endingOf(battle)) return; // settled: no patching a finished field
 
@@ -601,6 +614,46 @@ function endOfRound(battle: Battle) {
         const skill = skillFor(unit.duty);
         if (skill) unit.charge = Math.min(skill.charge, unit.charge + 1);
     }
+}
+
+/**
+ * The cult leader's barrage (C3). A marked barrage lands first; then, if the
+ * leader and a relay still stand, the next one is marked on the tightest knot
+ * of the squad. Both are recorded against the leader so the report reads them.
+ */
+function resolveBarrage(battle: Battle) {
+    const leader = battle.units.find(u => u.side === 'enemy' && u.id.endsWith(CULT_LEADER_ID_SUFFIX));
+    if (!leader) return;
+    const powered = !leader.down && living(battle, 'enemy').some(isRelay);
+
+    if (battle.barrage && battle.barrage.lands === battle.round) {
+        const at = battle.barrage.at;
+        battle.barrage = null;
+        const struck = battle.units.filter(u => !u.down && !isRelay(u) && distance(u.at, at) <= 1);
+        for (const unit of struck) {
+            unit.hp = Math.max(0, unit.hp - BARRAGE_DAMAGE);
+            if (unit.hp === 0) knockDown(battle, unit);
+        }
+        battle.activations.push({
+            round: battle.round, unitId: leader.id,
+            reason: '轟擊落在 ' + hexKey(at) + '，' + (struck.length > 0 ? struck.length + ' 人各受 ' + BARRAGE_DAMAGE + ' 點傷害' : '無人在範圍內'),
+            activities: [{ kind: 'barrage', at, targetIds: struck.map(u => u.id), damage: BARRAGE_DAMAGE }],
+            snapshot: snapshot(battle),
+        });
+    }
+
+    if (!powered || battle.barrage || battle.round % BARRAGE_EVERY !== 1) return;
+    const crew = living(battle, 'crew');
+    if (crew.length === 0) return;
+    const huddle = (u: Unit) => crew.filter(o => distance(o.at, u.at) <= 1).length;
+    const mark = [...crew].sort((a, b) => huddle(b) - huddle(a) || (a.id < b.id ? -1 : 1))[0].at;
+    battle.barrage = { at: mark, lands: battle.round + 1 };
+    battle.activations.push({
+        round: battle.round, unitId: leader.id,
+        reason: '標出轟擊區 ' + hexKey(mark) + '，下一回合結束時落下',
+        activities: [{ kind: 'barrage-mark', at: mark }],
+        snapshot: snapshot(battle),
+    });
 }
 
 /**
@@ -679,6 +732,7 @@ export function runBattle(setup: BattleSetup): BattleResult {
         objective: setup.objective ?? { kind: 'eliminate' },
         seizeRun: 0,
         objectiveMet: false,
+        barrage: null,
     };
 
     // Drawn once, before anything else touches the generator, so the tie-break is

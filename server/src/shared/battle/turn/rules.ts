@@ -17,7 +17,7 @@ export const FALLOFF = 0.05;
 /** A medic left standing undoes the whole attack, so the AI shoots one first. */
 export const THREAT: Record<string, number> = {
     medic: 1.5, heavy: 1.4, sergeant: 1.3, marksman: 1.2,
-    tank: 1.4, walker: 1.3, cultist: 0.9,
+    tank: 1.4, walker: 1.3, cultist: 0.9, relay: 1.6,
 };
 export const threatOf = (unit: Unit) => THREAT[unit.duty] ?? 1;
 
@@ -88,6 +88,8 @@ export const ARMOUR_STATS: Record<string, { armour: number; type: ArmourType; in
 export const ENEMY_ARMOUR_STATS: Record<string, { armour: number; type: ArmourType; initiative?: number }> = {
     'sentinel-hull': { armour: 50, type: 'vehicle' },
     'chimera-hull': { armour: 90, type: 'vehicle' },
+    // A broadcast relay's housing: a structure, so small arms barely mark it.
+    'relay-housing': { armour: 40, type: 'vehicle' },
 };
 
 export interface DutyStats { initiative: number; movement: number }
@@ -111,6 +113,8 @@ export const DUTY_STATS: Record<string, DutyStats> = {
     cultist: { initiative: 12, movement: 4 },
     walker: { initiative: 9, movement: 4 },
     tank: { initiative: 6, movement: 3 },
+    // A broadcast relay is a structure: it never moves and never acts (C3 boss).
+    relay: { initiative: 0, movement: 0 },
 };
 
 /** Tuning stages are a total, not a product: two stages are 1.10, not 1.1025. */
@@ -251,6 +255,20 @@ export const UNASSISTED_HITS = 1;
  */
 export const DEMOLITION_DAMAGE = 60;
 export const DEMOLITION_NAME = '爆破包';
+
+/**
+ * The cult command hub (design §13, turn-based for v2). While any broadcast
+ * relay stands, every enemy aims better and the leader can call a barrage:
+ * marked at the end of one round, landing at the end of the next on everyone
+ * within a tile of the mark. Destroying both relays stops both. Candidates.
+ */
+export const RELAY_AURA_HIT = 0.08;
+export const BARRAGE_DAMAGE = 30;
+/** Marked at the end of rounds 1, 3, 5 ... and lands one round later. */
+export const BARRAGE_EVERY = 2;
+export const isRelay = (unit: Pick<Unit, 'duty'>) => unit.duty === 'relay';
+/** The leader who calls the barrage carries this duty-independent flag in the roster. */
+export const CULT_LEADER_ID_SUFFIX = '-leader';
 
 export const MEDICAE_KIT = 'medicae-kit';
 export const VOX_CASTER = 'vox-caster';

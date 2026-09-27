@@ -112,7 +112,8 @@ test('every scenario is playable: enemies on the board, in their own half, with 
         for (const enemy of scenario.enemies) {
             assert.equal(enemy.side, 'enemy');
             assert.ok(enemy.weapon && enemy.weapon.damage > 0, `${enemy.name} cannot fight`);
-            assert.ok(enemy.maxHp > 0 && enemy.movement > 0);
+            // A broadcast relay (C3 boss) is a structure: it never moves and never acts.
+            assert.ok(enemy.maxHp > 0 && (enemy.movement > 0 || enemy.duty === 'relay'));
             assert.ok(enemy.at.row <= 2, `${enemy.name} starts outside the enemy half`);
             assert.ok(enemy.at.col >= 0 && enemy.at.col < scenario.board.cols);
             const key = `${enemy.at.col},${enemy.at.row}`;

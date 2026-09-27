@@ -110,17 +110,24 @@ const RITUAL_NODE = board({
     '1,2': 'block', '9,2': 'block',
 });
 
+/** Command hub: the leader's sanctum between two walls, a broadcast relay on each flank. */
+const COMMAND_HUB = board({
+    '4,1': 'block', '6,1': 'block', '5,0': 'cover',
+    '3,3': 'cover', '7,3': 'cover', '5,3': 'cover', '2,5': 'cover', '8,5': 'cover', '5,6': 'cover',
+    '5,2': 'hazard',
+});
+
 const BOARDS: Record<string, Board> = {
     standard: RUINS, 'close-assault': OPEN_FIELD, outnumbered: RUINS,
     landing: LANDING, dockyard: DOCKYARD, 'vox-tower': VOX_TOWER, 'orbital-lift': ORBITAL_LIFT,
     smelter: SMELTER, armoury: ARMOURY, 'power-core': POWER_CORE, 'vehicle-bay': VEHICLE_BAY,
-    'outer-city': OUTER_CITY, cathedral: CATHEDRAL, 'ritual-node': RITUAL_NODE,
+    'outer-city': OUTER_CITY, cathedral: CATHEDRAL, 'ritual-node': RITUAL_NODE, 'command-hub': COMMAND_HUB,
 };
 
 const NAMES: Record<string, string> = {
     sergeant: '叛軍班長', rifleman: '叛軍槍手', marksman: '叛軍射手',
     medic: '叛軍醫護', engineer: '叛軍工兵', heavy: '叛軍重裝兵',
-    cultist: '混沌教徒', walker: '叛軍哨兵步行機', tank: '叛軍奇美拉',
+    cultist: '混沌教徒', walker: '叛軍哨兵步行機', tank: '叛軍奇美拉', relay: '廣播節點',
 };
 
 /** Only the traitor guard have a face yet; cultists and vehicles keep the lettered token until GPT delivers art. */
@@ -214,6 +221,7 @@ const DESCRIPTIONS: Record<string, { name: string; description: string }> = {
     'w2-n4': { name: '裝甲庫', description: '空曠的停機坪上有兩台哨兵步行機，還有叛軍精銳。' },
     'w3-n1': { name: '外城', description: '目標：撐過八個回合。成群的混沌教徒揮著利刃衝上來。' },
     'w3-n2': { name: '聖殤大教堂', description: '目標：讓任一名隊員抵達祭壇（5,1），救出被俘的牧師。祭壇前有叛軍班長與一台奇美拉把守。' },
+    'w3-n4': { name: '邪教指揮中樞', description: '目標：擊倒教派首領。兩座廣播節點讓敵軍命中提高，也讓首領每兩回合呼叫一次轟擊；炸掉兩座節點就能讓轟擊停止。' },
     'w3-n3': { name: '儀式節點', description: '目標：佔住儀式節點（5,3）撐過四個回合結束。一台叛軍奇美拉在旁掩護。' },
 };
 

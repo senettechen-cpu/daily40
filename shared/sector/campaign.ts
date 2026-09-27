@@ -71,7 +71,7 @@ export const STRONGHOLDS: Stronghold[] = [
         briefing: '被褻瀆的大教堂。奪回它，其他軍團願意調派部隊協助。' },
     { id: 'w3-n3', world: 3, index: 3, name: '儀式節點', requires: ['w3-n1'], unlocks: none, scenarioId: 'w3-n3',
         briefing: '教派的儀式陣地，叛軍奇美拉裝甲車在旁掩護。' },
-    { id: 'w3-n4', world: 3, index: 4, name: '邪教指揮中樞', requires: ['w3-n2', 'w3-n3'], unlocks: { equipment: [], personnel: ['scion', 'preacher'] }, scenarioId: null, boss: true,
+    { id: 'w3-n4', world: 3, index: 4, name: '邪教指揮中樞', requires: ['w3-n2', 'w3-n3'], unlocks: { equipment: [], personnel: ['scion', 'preacher'] }, scenarioId: 'w3-n4', boss: true,
         briefing: '叛亂的心臟。擊敗教派首領，灰燼星區就收復了。' },
 ];
 

@@ -1578,6 +1578,195 @@
           }
         }
       ]
+    },
+    {
+      "id": "w3-n4",
+      "board": "command-hub",
+      "objective": {
+        "kind": "assassinate",
+        "targetId": "w3n4-leader"
+      },
+      "enemies": [
+        {
+          "id": "w3n4-leader",
+          "duty": "sergeant",
+          "maxHp": 240,
+          "accuracy": 0.7,
+          "loadout": {
+            "primary": "plasma-gun",
+            "sidearm": "laspistol",
+            "armour": "carapace-armour"
+          },
+          "stance": "hold",
+          "at": {
+            "col": 5,
+            "row": 0
+          },
+          "name": "教派首領"
+        },
+        {
+          "id": "w3n4-relay-a",
+          "duty": "relay",
+          "maxHp": 100,
+          "accuracy": 0.0,
+          "loadout": {
+            "primary": null,
+            "sidearm": null,
+            "armour": "relay-housing"
+          },
+          "stance": "hold",
+          "at": {
+            "col": 2,
+            "row": 1
+          },
+          "name": "廣播節點 甲"
+        },
+        {
+          "id": "w3n4-relay-b",
+          "duty": "relay",
+          "maxHp": 100,
+          "accuracy": 0.0,
+          "loadout": {
+            "primary": null,
+            "sidearm": null,
+            "armour": "relay-housing"
+          },
+          "stance": "hold",
+          "at": {
+            "col": 8,
+            "row": 1
+          },
+          "name": "廣播節點 乙"
+        },
+        {
+          "id": "w3n4-1",
+          "duty": "rifleman",
+          "maxHp": 88,
+          "accuracy": 0.68,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "carapace-armour"
+          },
+          "stance": "hold",
+          "at": {
+            "col": 4,
+            "row": 0
+          }
+        },
+        {
+          "id": "w3n4-2",
+          "duty": "rifleman",
+          "maxHp": 88,
+          "accuracy": 0.68,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "carapace-armour"
+          },
+          "stance": "hold",
+          "at": {
+            "col": 6,
+            "row": 0
+          }
+        },
+        {
+          "id": "w3n4-3",
+          "duty": "cultist",
+          "maxHp": 55,
+          "accuracy": 0.6,
+          "loadout": {
+            "primary": "cult-blade",
+            "sidearm": null,
+            "armour": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 1,
+            "row": 0
+          }
+        },
+        {
+          "id": "w3n4-4",
+          "duty": "cultist",
+          "maxHp": 55,
+          "accuracy": 0.6,
+          "loadout": {
+            "primary": "cult-blade",
+            "sidearm": null,
+            "armour": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 3,
+            "row": 1
+          }
+        },
+        {
+          "id": "w3n4-5",
+          "duty": "cultist",
+          "maxHp": 55,
+          "accuracy": 0.6,
+          "loadout": {
+            "primary": "cult-blade",
+            "sidearm": null,
+            "armour": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 7,
+            "row": 1
+          }
+        },
+        {
+          "id": "w3n4-6",
+          "duty": "cultist",
+          "maxHp": 55,
+          "accuracy": 0.6,
+          "loadout": {
+            "primary": "cult-blade",
+            "sidearm": null,
+            "armour": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 9,
+            "row": 0
+          }
+        },
+        {
+          "id": "w3n4-7",
+          "duty": "cultist",
+          "maxHp": 55,
+          "accuracy": 0.6,
+          "loadout": {
+            "primary": "autogun",
+            "sidearm": null,
+            "armour": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 0,
+            "row": 1
+          }
+        },
+        {
+          "id": "w3n4-8",
+          "duty": "cultist",
+          "maxHp": 55,
+          "accuracy": 0.6,
+          "loadout": {
+            "primary": "autogun",
+            "sidearm": null,
+            "armour": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 10,
+            "row": 1
+          }
+        }
+      ]
     }
   ]
 }

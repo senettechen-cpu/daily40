@@ -121,3 +121,75 @@ test('assassinate: the marked enemy going down wins, and the squad goes for them
     const firstShot = result.activations.find(a => a.unitId.startsWith('c') && a.activities.some(x => x.kind === 'attack'));
     assert.equal(firstShot.activities.find(x => x.kind === 'attack').targetId, 'boss');
 });
+
+// ---- the cult command hub (C3) ----------------------------------------------
+
+const relay = (id, over = {}) => unit(id, 'enemy', {
+    duty: 'relay', maxHp: 100, armour: 40, armourType: 'vehicle', movement: 0, initiative: 0,
+    weapon: r.FISTS, stance: 'hold', ...over,
+});
+const leader = (over = {}) => unit('boss-leader', 'enemy', { duty: 'sergeant', maxHp: 2000, stance: 'hold', at: at(5, 0), weapon: { ...LAS, damage: 1 }, ...over });
+
+test('a broadcast relay never acts, but it is on the field to be destroyed', () => {
+    const crew = [unit('c0', 'crew', { at: at(5, 8), maxHp: 2000, weapon: { ...LAS, damage: 1 }, stance: 'hold' })];
+    const result = e.runBattle({ board: board(), units: [...crew, relay('rl', { at: at(2, 1) })], seed: 1, maxRounds: 3 });
+    assert.ok(result.activations.every(a => a.unitId !== 'rl'));
+    assert.ok(result.activations[0].snapshot.some(s => s.id === 'rl'));
+});
+
+test('while a relay stands the enemy aims better', () => {
+    const shots = withRelay => {
+        const crew = [unit('c0', 'crew', { at: at(5, 5), maxHp: 100000, weapon: { ...LAS, damage: 1 }, stance: 'hold' })];
+        const foe = unit('e0', 'enemy', { at: at(5, 2), maxHp: 100000, stance: 'hold', accuracy: 0.5 });
+        const units = withRelay ? [...crew, foe, relay('rl', { at: at(0, 0), maxHp: 100000 })] : [...crew, foe];
+        const result = e.runBattle({ board: board(), units, seed: 99, maxRounds: 10 });
+        return result.activations.filter(a => a.unitId === 'e0').reduce((n, a) => n + a.activities.filter(x => x.kind === 'attack').reduce((m, x) => m + x.hits, 0), 0);
+    };
+    assert.ok(shots(true) > shots(false), `with relay ${shots(true)}, without ${shots(false)}`);
+});
+
+test('the leader marks a barrage on the tightest knot of the squad, and it lands a round later', () => {
+    const crew = [
+        unit('c0', 'crew', { at: at(5, 7), maxHp: 1000, stance: 'hold', weapon: { ...LAS, damage: 1 } }),
+        unit('c1', 'crew', { at: at(6, 7), maxHp: 1000, stance: 'hold', weapon: { ...LAS, damage: 1 } }),
+        unit('c2', 'crew', { at: at(1, 8), maxHp: 1000, stance: 'hold', weapon: { ...LAS, damage: 1 } }),
+    ];
+    const result = e.runBattle({ board: board(), units: [...crew, leader(), relay('rl', { at: at(8, 1), maxHp: 100000 })], seed: 5, maxRounds: 2 });
+    const marks = result.activations.filter(a => a.activities.some(x => x.kind === 'barrage-mark'));
+    const falls = result.activations.filter(a => a.activities.some(x => x.kind === 'barrage'));
+    assert.equal(marks.length, 1);
+    assert.equal(marks[0].round, 1);
+    const mark = marks[0].activities[0].at;
+    assert.ok([5, 6].includes(mark.col) && mark.row === 7, 'on the pair, not the loner');
+    assert.equal(falls.length, 1);
+    assert.equal(falls[0].round, 2);
+    assert.match(marks[0].reason, /標出轟擊區/);
+});
+
+test('a squad free to move steps out from under a marked barrage', () => {
+    const crew = [
+        unit('c0', 'crew', { at: at(5, 7), maxHp: 1000, weapon: { ...LAS, damage: 1 } }),
+        unit('c1', 'crew', { at: at(6, 7), maxHp: 1000, weapon: { ...LAS, damage: 1 } }),
+    ];
+    const result = e.runBattle({ board: board(), units: [...crew, leader({ weapon: { ...LAS, damage: 1, range: 1 } }), relay('rl', { at: at(8, 1), maxHp: 100000 })], seed: 5, maxRounds: 2 });
+    const fall = result.activations.find(a => a.activities.some(x => x.kind === 'barrage'));
+    assert.equal(fall.activities[0].targetIds.length, 0, fall.reason);
+});
+
+test('with no relay standing there is no barrage at all', () => {
+    // A leader without a relay is what destroying both relays leaves behind.
+    const crew = [
+        unit('c0', 'crew', { at: at(5, 7), maxHp: 1000, stance: 'hold', weapon: { ...LAS, damage: 1 } }),
+        unit('c1', 'crew', { at: at(6, 7), maxHp: 1000, stance: 'hold', weapon: { ...LAS, damage: 1 } }),
+    ];
+    const dead = relay('rl', { at: at(8, 1) });
+    const withDownedRelay = e.runBattle({ board: board(), units: [...crew, leader(), { ...dead, maxHp: 1 }], seed: 5, maxRounds: 4 });
+    const alone = e.runBattle({ board: board(), units: [...crew, leader()], seed: 5, maxRounds: 4 });
+    assert.equal(alone.activations.filter(a => a.activities.some(x => x.kind === 'barrage-mark')).length, 0);
+    // Once a relay is down, no mark is made after it fell.
+    const fell = withDownedRelay.activations.findIndex(a => a.snapshot.find(x => x.id === 'rl')?.down);
+    if (fell >= 0) {
+        const later = withDownedRelay.activations.slice(fell + 1).filter(a => a.activities.some(x => x.kind === 'barrage-mark'));
+        assert.equal(later.length, 0);
+    }
+});

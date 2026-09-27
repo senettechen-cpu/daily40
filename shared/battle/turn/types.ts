@@ -94,6 +94,10 @@ export type Activity =
     | { kind: 'heal'; targetId: string; amount: number; skill: string }
     | { kind: 'fortify'; at: Hex; skill: string }
     | { kind: 'command'; targetIds: string[]; skill: string }
+    /** The cult leader marks where the barrage will land at the end of the next round. */
+    | { kind: 'barrage-mark'; at: Hex }
+    /** The marked barrage lands on everyone within one tile. */
+    | { kind: 'barrage'; at: Hex; targetIds: string[]; damage: number }
     | { kind: 'idle' };
 
 export interface Activation {

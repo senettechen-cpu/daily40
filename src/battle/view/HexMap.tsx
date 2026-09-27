@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Board, Hex } from '../../../shared/battle/hex';
 import type { Objective } from '../../../shared/battle/turn';
-import { terrainAt } from '../../../shared/battle/hex';
+import { neighbours, terrainAt } from '../../../shared/battle/hex';
 import { portraitHead } from '../../data/reportArtIndex';
 
 // A flat drawing of the hex board. It shows the state after the activation the
@@ -41,8 +41,11 @@ const corners = (cx: number, cy: number) => Array.from({ length: 6 }, (_, i) => 
 
 export interface Snap { id: string; at: Hex; hp: number; down: boolean }
 
-export function HexMap({ board, snapshot, names, sides, faces, acting, objective }: {
+
+export function HexMap({ board, snapshot, names, sides, faces, acting, objective, barrage }: {
     board: Board;
+    /** A barrage marked and not yet landed: drawn so the squad's dodge makes sense. */
+    barrage?: Hex | null;
     /** Marked on the map so the report shows what the squad was going for. */
     objective?: Objective;
     snapshot: Snap[];
@@ -149,6 +152,20 @@ export function HexMap({ board, snapshot, names, sides, faces, acting, objective
                             style={{ paintOrder: 'stroke' }} stroke="#0b111a" strokeWidth={4}>
                             {objective.kind === 'seize' ? '佔領' : '救援'}
                         </text>
+                    </g>
+                );
+            })()}
+
+            {barrage && (() => {
+                const { x, y } = centre(barrage);
+                return (
+                    <g>
+                        {[barrage, ...neighbours(barrage)].map((hex, i) => {
+                            const c = centre(hex);
+                            return <polygon key={i} points={corners(c.x, c.y)} fill="#e0503c" fillOpacity={0.12} stroke="#e0503c" strokeWidth={2} strokeDasharray="8 6" />;
+                        })}
+                        <text x={x} y={y - HEX_H * 0.28} textAnchor="middle" fontSize={16} fontWeight="bold" fill="#ff8a78"
+                            style={{ paintOrder: 'stroke' }} stroke="#0b111a" strokeWidth={4}>轟擊</text>
                     </g>
                 );
             })()}

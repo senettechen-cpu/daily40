@@ -148,7 +148,16 @@ export function HexReportApp() {
             </p>
 
             <HexMap board={handoff.board} snapshot={current?.snapshot ?? []} names={names} sides={sides} faces={faces} acting={current?.unitId}
-                objective={scenarioById(handoff.scenarioId)?.objective} />
+                objective={scenarioById(handoff.scenarioId)?.objective}
+                barrage={(() => {
+                    // The mark stays on the map from the step it was called until it lands.
+                    let pending: Activation['activities'][number] | null = null;
+                    for (const a of shown) for (const x of a.activities) {
+                        if (x.kind === 'barrage-mark') pending = x;
+                        if (x.kind === 'barrage') pending = null;
+                    }
+                    return pending && pending.kind === 'barrage-mark' ? pending.at : null;
+                })()} />
 
             <ol className="br-feed">
                 {shown.map((activation, index) => {

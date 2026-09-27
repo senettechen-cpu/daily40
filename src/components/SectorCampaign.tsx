@@ -81,11 +81,26 @@ export const SectorCampaign: React.FC<{ onDeploy: (strongholdId: string) => void
                 <p>已收復 {capturedCount} / {STRONGHOLDS.length} 個據點{campaign?.recovered ? ' · 星區已收復' : ''}</p>
             </div>
             {error && <div className="mb-3 border border-red-900/60 bg-red-950/40 text-red-400 font-mono text-xs p-2">{error}</div>}
-            {campaign?.recovered && (
-                <div className="mb-4 border border-imperial-gold bg-imperial-gold/10 p-4 font-mono text-sm text-imperial-gold">
-                    灰燼星區已收復。十字軍主力抵達時，接手的是一片安全的星域。所有據點都可以重打，只給 XP。
-                </div>
-            )}
+            {campaign?.recovered && (() => {
+                // The chapter's whole record, read from the same operations the map is.
+                const entries = Object.entries(campaign.service);
+                const battles = new Set(entries.flatMap(([, list]) => list.map(e => `${e.strongholdId}@${e.at}`))).size;
+                const most = entries.map(([id, list]) => ({ id, count: list.length })).sort((a, b) => b.count - a.count)[0];
+                const takers = recordOf('w3-n4').capturedBy;
+                return (
+                    <div className="mb-4 border border-imperial-gold bg-imperial-gold/10 p-4 font-mono text-sm text-imperial-gold flex flex-col gap-1">
+                        <div className="text-base font-bold">灰燼星區已收復</div>
+                        <div>十字軍主力抵達時，接手的是一片安全的星域。所有據點都可以重打，只給 XP。</div>
+                        <div className="text-[12px] text-imperial-gold/80">
+                            總戰史：出擊 {battles} 場 · {STRONGHOLDS.length} 個據點全數收復
+                            {most && ` · 出戰最多：${names.get(most.id) ?? '（已離隊）'}（${most.count} 場）`}
+                        </div>
+                        {takers.length > 0 && (
+                            <div className="text-[12px] text-imperial-gold/80">灰燼星區收復者：{takers.map(id => names.get(id) ?? '（已離隊）').join('、')}</div>
+                        )}
+                    </div>
+                );
+            })()}
 
             <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

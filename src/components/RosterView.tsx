@@ -291,6 +291,12 @@ const SoldierDossier = ({ character, items, authorized, busy, service, onAssign,
 
             <div className="mt-4">
                 <div className="eyebrow mb-1">戰史</div>
+                {/* Decision 5: those who took the last stronghold carry the chapter's medal. */}
+                {service.some(e => e.strongholdId === 'w3-n4' && e.firstCapture) && (
+                    <div className="mb-2 inline-block border border-imperial-gold bg-imperial-gold/10 text-imperial-gold font-mono text-[11px] px-2 py-0.5">
+                        灰燼星區收復者
+                    </div>
+                )}
                 {service.length === 0
                     ? <div className="font-mono text-[11px] text-zinc-600">還沒有參與過星區作戰。</div>
                     : (
