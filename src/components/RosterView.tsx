@@ -5,7 +5,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 import {
     Character, DUTY_LABELS, Duty, HEALTH_LABELS, ORIGIN_LABELS, SQUAD_SIZE, Squad,
-    inAscension, isDeployable, isWoundedOn, levelOf, maxHp, xpToNext,
+    GROUP_LABELS, SLOT_LEVELS, groupOf, inAscension, isDeployable, isWoundedOn, levelOf, maxHp, openSlots, optionsFor,
+    xpToNext,
 } from '../../shared/roster';
 import { missionById } from '../../shared/ascension';
 import { dayKey } from '../../shared/time';
@@ -104,6 +105,11 @@ const CharacterCard = ({ character, action, onAction, onOpen }: {
                         </span>
                     )}
                     <AscensionTag character={character} />
+                    {openSlots(character.xp) > (character.specialties ?? []).filter(Boolean).length && (
+                        <span className="text-[10px] font-mono px-1 border text-emerald-300 border-emerald-800/60" title="點開檔案選擇專長">
+                            可選專長
+                        </span>
+                    )}
                 </div>
                 <div className="text-[11px] font-mono text-zinc-500 truncate">
                     {ORIGIN_LABELS[character.origin]} · {DUTY_LABELS[character.duty]} · Lv{level}
@@ -211,7 +217,65 @@ const SlotRow = ({ label, current, options, disabled, onChange }: {
  * deployment function the battle runs on, so what is shown here is what fights;
  * gear the simulation cannot model yet says so instead of implying an effect.
  */
-const SoldierDossier = ({ character, items, authorized, busy, service, onAssign, onClose }: {
+/**
+ * Three specialty slots (2026-09-27): each opens at its level and offers two
+ * options; a pick is final, so it asks before it commits.
+ */
+const SpecialtyPanel = ({ character, busy, onPick }: {
+    character: Character; busy: boolean; onPick: (slot: number, specialtyId: string) => void;
+}) => {
+    const open = openSlots(character.xp);
+    const picked = character.specialties ?? [];
+    const confirmPick = (slot: number, id: string, name: string, other: string) => {
+        Modal.confirm({
+            title: `選擇「${name}」？`,
+            content: `選了就不能更改，也不能改選「${other}」。${character.origin === 'astartes' ? '' : '若這名人員日後授銜為阿斯塔特，人類專長會清空、改選阿斯塔特專長。'}`,
+            okText: '確定選擇', cancelText: '再想想',
+            onOk: () => onPick(slot, id),
+        });
+    };
+    return (
+        <div className="mb-4">
+            <div className="eyebrow mb-1">專長 · {GROUP_LABELS[groupOf(character)]}</div>
+            <div className="flex flex-col gap-2">
+                {SLOT_LEVELS.map((level, slot) => {
+                    const options = optionsFor(character, slot);
+                    const chosen = picked[slot] ?? null;
+                    const locked = slot >= open;
+                    return (
+                        <div key={slot} className="border border-zinc-800 bg-black/40 p-2">
+                            <div className="font-mono text-[11px] text-zinc-500 mb-1">
+                                第 {['I', 'II', 'III'][slot]} 槽 · Lv{level}{locked ? ' 開放' : chosen ? ' · 已選定' : ' · 可選擇（選了就不能改）'}
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {options.map((option, index) => {
+                                    const isChosen = chosen === option.id;
+                                    const dim = locked || (chosen && !isChosen);
+                                    return (
+                                        <div key={option.id}
+                                            className={`p-2 border ${isChosen ? 'border-emerald-600 bg-emerald-950/30' : 'border-zinc-700'} ${dim ? 'opacity-50' : ''}`}>
+                                            <div className="flex items-center justify-between gap-2">
+                                                <span className="font-mono text-[12px] text-imperial-gold">{isChosen ? '✓ ' : ''}{option.name}</span>
+                                                {!locked && !chosen && (
+                                                    <Button size="small" disabled={busy}
+                                                        onClick={() => confirmPick(slot, option.id, option.name, options[1 - index]?.name ?? '')}
+                                                        className="!bg-transparent !border-emerald-600 !text-emerald-300 font-mono">選擇</Button>
+                                                )}
+                                            </div>
+                                            <div className="font-mono text-[11px] text-zinc-400 mt-1">{option.description}</div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
+
+const SoldierDossier = ({ character, items, authorized, busy, service, onAssign, onPickSpecialty, onClose }: {
     character: Character;
     items: EquipmentItem[];
     authorized: string[];
@@ -219,6 +283,7 @@ const SoldierDossier = ({ character, items, authorized, busy, service, onAssign,
     /** This soldier's line in the sector campaign, oldest first. */
     service: ServiceEntry[];
     onAssign: (currentItemId: string | null, nextItemId: string | null) => void;
+    onPickSpecialty: (slot: number, specialtyId: string) => void;
     onClose: () => void;
 }) => {
     // The same function the battle uses, so the card cannot disagree with the field.
@@ -285,6 +350,8 @@ const SoldierDossier = ({ character, items, authorized, busy, service, onAssign,
                 {stat('先攻', `${profile.initiative}`, '同隊內數字高的先行動')}
                 {stat('命中', `${Math.round(profile.accuracy * 100)}%`)}
             </div>
+
+            <SpecialtyPanel character={character} busy={busy} onPick={onPickSpecialty} />
 
             <div className="flex flex-col gap-2">
                 {slotRows.map((row, index) => {
@@ -731,6 +798,7 @@ export const RosterView = ({ visible, onClose, strongholdId: requestedStronghold
                     busy={busy}
                     service={campaign?.service[dossier.id] ?? []}
                     onAssign={(currentItemId, nextItemId) => assign(currentItemId, nextItemId, dossier.id)}
+                    onPickSpecialty={(slot, specialtyId) => void run(token => api.pickSpecialty(dossier.id, slot, specialtyId, token).then(() => undefined))}
                     onClose={() => setDossierId(null)}
                 />
             )}

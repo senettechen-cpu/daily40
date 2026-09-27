@@ -334,6 +334,9 @@ const initDb = async () => {
             PRIMARY KEY (character_id, stage)
         )`);
 
+        // Specialties (2026-09-27): ids by slot; a pick is final. Additive only.
+        await pool.query('ALTER TABLE roster_characters ADD COLUMN IF NOT EXISTS specialties JSONB');
+
         console.log('Migrations applied.');
 
         // Initialize default game state if not exists

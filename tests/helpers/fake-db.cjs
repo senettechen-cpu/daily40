@@ -123,7 +123,7 @@ function createFakeDb() {
         if (s.startsWith('SELECT COUNT(*)::int AS count FROM roster_characters')) {
             return { rows: [{ count: tables.roster_characters.filter(r => r.user_id === p[0]).length }], rowCount: 1 };
         }
-        if (s.startsWith('SELECT id, name, origin, duty, asset_id, xp, health, wounded_day, recruited_at, ascension_route, ascension_stage FROM roster_characters')) {
+        if (s.startsWith('SELECT id, name, origin, duty, asset_id, xp, health, wounded_day, recruited_at, ascension_route, ascension_stage, specialties FROM roster_characters')) {
             const rows = tables.roster_characters.filter(r => r.user_id === p[0]);
             return { rows, rowCount: rows.length };
         }
@@ -174,9 +174,14 @@ function createFakeDb() {
             if (row) row.ascension_stage = p[0];
             return { rows: [], rowCount: row ? 1 : 0 };
         }
-        if (s.startsWith("UPDATE roster_characters SET origin = 'astartes' WHERE id = $1 AND user_id = $2")) {
+        if (s.startsWith("UPDATE roster_characters SET origin = 'astartes', specialties = '[]'::jsonb WHERE id = $1 AND user_id = $2")) {
             const row = tables.roster_characters.find(r => r.id === p[0] && r.user_id === p[1]);
-            if (row) row.origin = 'astartes';
+            if (row) Object.assign(row, { origin: 'astartes', specialties: [] });
+            return { rows: [], rowCount: row ? 1 : 0 };
+        }
+        if (s.startsWith("UPDATE roster_characters SET specialties = $1 WHERE id = $2 AND user_id = $3 AND COALESCE(specialties, '[]'::jsonb) = $4::jsonb")) {
+            const row = tables.roster_characters.find(r => r.id === p[1] && r.user_id === p[2] && JSON.stringify(r.specialties ?? []) === p[3]);
+            if (row) row.specialties = JSON.parse(p[0]);
             return { rows: [], rowCount: row ? 1 : 0 };
         }
         if (s.startsWith('SELECT source_key, candidate_id, stage, domain, day, task_id FROM growth_records WHERE user_id = $1')) {

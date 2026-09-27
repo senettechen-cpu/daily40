@@ -1,8 +1,8 @@
 import { randomUUID } from 'crypto';
 import type { Db } from '../db';
 import {
-    Character, Squad, STARTING_CHARACTERS, STARTING_SQUAD_NAME, fallbackName, recruitError,
-    recruitTemplate, setMembers, validateSquad,
+    Character, Squad, STARTING_CHARACTERS, STARTING_SQUAD_NAME, fallbackName, pickRefusal, recruitError,
+    recruitTemplate, setMembers, specialtyById, validateSquad,
 } from '../shared/roster';
 import { DEFAULT_TIME_ZONE, balance, dayKey, planSpend } from '../shared/rewards';
 import { normalizePlacements } from '../shared/battle/turn';
@@ -13,6 +13,7 @@ interface CharacterRow {
     id: string; name: string; origin: string; duty: string;
     asset_id: string | null; xp: number; health: string; wounded_day: string | null; recruited_at: string;
     ascension_route?: string | null; ascension_stage?: number | null;
+    specialties?: unknown;
 }
 
 const toCharacter = (row: CharacterRow): Character => ({
@@ -29,11 +30,14 @@ const toCharacter = (row: CharacterRow): Character => ({
         ascensionRoute: row.ascension_route as Character['ascensionRoute'],
         ascensionStage: Number(row.ascension_stage ?? 0),
     } : {}),
+    ...(Array.isArray(row.specialties) && row.specialties.length > 0 ? {
+        specialties: row.specialties.map(id => (typeof id === 'string' && specialtyById(id) ? id : null)),
+    } : {}),
 });
 
 export async function loadCharacters(db: Db, userId: string): Promise<Character[]> {
     const result = await db.query(
-        'SELECT id, name, origin, duty, asset_id, xp, health, wounded_day, recruited_at, ascension_route, ascension_stage FROM roster_characters WHERE user_id = $1 ORDER BY recruited_at, id',
+        'SELECT id, name, origin, duty, asset_id, xp, health, wounded_day, recruited_at, ascension_route, ascension_stage, specialties FROM roster_characters WHERE user_id = $1 ORDER BY recruited_at, id',
         [userId],
     );
     return result.rows.map(toCharacter);
@@ -169,4 +173,26 @@ export async function updateSquad(
 
 export async function deleteSquad(db: Db, userId: string, squadId: string): Promise<void> {
     await db.query('DELETE FROM squads WHERE id = $1 AND user_id = $2', [squadId, userId]);
+}
+
+/**
+ * Picks one specialty (2026-09-27). The pick is final, so the write only lands
+ * if the slots are still exactly what was checked: two tabs picking at once
+ * cannot both succeed, and nothing can overwrite a slot already chosen.
+ */
+export async function pickSpecialty(db: Db, userId: string, characterId: string, slot: number, specialtyId: string) {
+    const roster = await loadCharacters(db, userId);
+    const character = roster.find(c => c.id === characterId);
+    if (!character) return { error: '找不到這名人員。' };
+    const error = pickRefusal(character, slot, specialtyId);
+    if (error) return { error };
+
+    const before = character.specialties ?? [];
+    const after = [0, 1, 2].map(i => (i === slot ? specialtyId : before[i] ?? null));
+    const updated = await db.query(
+        "UPDATE roster_characters SET specialties = $1 WHERE id = $2 AND user_id = $3 AND COALESCE(specialties, '[]'::jsonb) = $4::jsonb",
+        [JSON.stringify(after), characterId, userId, JSON.stringify(character.specialties ?? [])],
+    );
+    if (!updated.rowCount) return { error: '專長剛剛被其他頁面改過，請重新整理。' };
+    return { characterId, specialties: after };
 }

@@ -1,3 +1,4 @@
+import type { Effect } from '../../roster/specialties';
 import { Board, Hex } from '../hex';
 
 // The v2 battle is turn based and nobody steers it: the player picks the six,
@@ -70,6 +71,13 @@ export interface UnitSpec {
     /** Who a 'guard' stance follows. */
     guardTargetId?: string;
     at: Hex;
+    /**
+     * Specialty effects the engine reads during the battle (2026-09-27). The
+     * fixed ones (movement, health, armour...) are already folded into the
+     * numbers above by the loadout; these are the situational ones. Stored with
+     * the crew, so a report replays exactly what was fought.
+     */
+    effects?: Effect[];
 }
 
 export interface Unit extends UnitSpec {
@@ -86,6 +94,10 @@ export interface Unit extends UnitSpec {
     selfHealed?: boolean;
     /** An engineer's demolition charge, once a battle. */
     demolished?: boolean;
+    /** Specialty flags spent once a battle. */
+    firstShotDone?: boolean;
+    fieldAidUsed?: boolean;
+    lastStandUsed?: boolean;
 }
 
 export type Activity =

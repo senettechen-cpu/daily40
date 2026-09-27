@@ -26,6 +26,8 @@ export interface Character {
     ascensionStage?: number;
     /** Set once a soldier enters ascension, kept after graduation as their tag. */
     ascensionRoute?: Route;
+    /** Specialty ids by slot (I, II, III); a pick is final, an empty slot is null. */
+    specialties?: (string | null)[];
 }
 
 export const ORIGIN_LABELS: Record<Origin, string> = {

@@ -300,7 +300,9 @@ export async function implantStage(db: Db, userId: string, characterId: string, 
  * opens, and the loaned basic kit is issued once, unsellable (handoff §5, §9).
  */
 async function graduate(db: Db, userId: string, character: Character) {
-    await db.query("UPDATE roster_characters SET origin = 'astartes' WHERE id = $1 AND user_id = $2", [character.id, userId]);
+    // Human specialties do not carry over: the slots empty and the marine picks
+    // again from the astartes group (user decision 2026-09-27).
+    await db.query("UPDATE roster_characters SET origin = 'astartes', specialties = '[]'::jsonb WHERE id = $1 AND user_id = $2", [character.id, userId]);
     for (const catalogId of GRADUATE_GEAR) {
         await db.query(
             'INSERT INTO equipment_authorizations (user_id, catalog_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',

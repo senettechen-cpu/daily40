@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { withTransaction } from '../db';
-import { createSquad, deleteSquad, readRoster, recruit, updateSquad } from '../roster/service';
+import { createSquad, deleteSquad, pickSpecialty, readRoster, recruit, updateSquad } from '../roster/service';
 import { RECRUITS } from '../shared/roster';
 import { ensureStartingKit } from '../armory/service';
 
@@ -37,6 +37,23 @@ router.post('/recruit', async (req, res) => {
         res.status(201).json(result);
     } catch (err) {
         console.error('Error recruiting:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// POST /api/roster/characters/:id/specialties - picks one specialty; final once made.
+router.post('/characters/:id/specialties', async (req, res) => {
+    try {
+        const userId = req.user?.uid;
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+        const slot = Number(req.body?.slot);
+        const specialtyId = typeof req.body?.specialtyId === 'string' ? req.body.specialtyId : '';
+        if (!Number.isInteger(slot)) return res.status(400).json({ error: 'slot 必須是整數。' });
+        const result = await withTransaction(db => pickSpecialty(db, userId, req.params.id, slot, specialtyId));
+        if ('error' in result) return res.status(400).json({ error: result.error });
+        res.json(result);
+    } catch (err) {
+        console.error('Error picking a specialty:', err);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });

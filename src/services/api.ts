@@ -415,6 +415,16 @@ export const api = {
         return data.milestoneIds;
     },
 
+    /** Picks one specialty; final once made. */
+    pickSpecialty: async (characterId: string, slot: number, specialtyId: string, token?: string): Promise<(string | null)[]> => {
+        const response = await fetch(`${API_URL}/roster/characters/${encodeURIComponent(characterId)}/specialties`, {
+            method: 'POST', headers: getHeaders(token), body: JSON.stringify({ slot, specialtyId }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || '無法選擇專長');
+        return data.specialties;
+    },
+
     // Ascension (2026-09-27)
     getAscension: async (token?: string): Promise<AscensionView> => {
         const response = await fetch(`${API_URL}/ascension`, { headers: getHeaders(token) });

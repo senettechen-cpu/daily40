@@ -290,7 +290,7 @@ export const AscensionView = ({ visible, onClose, onDeployMission }: {
                         <p>{implanting.candidate.name} 將植入 {STAGES[implanting.stage - 1].organIds.map(organName).join('、')}。整階一次完成，不能撤銷。</p>
                         {implanting.stage < STAGE_COUNT
                             ? <p>生命基線改為 {STAGES[implanting.stage - 1].hp}（取代原本的基線，不是相加）；命中維持 75%。</p>
-                            : <p>授銜後成為阿斯塔特：生命基線 160、命中 80%。人類護甲與主武器退回軍械庫（不會消失），並借用一套不可出售的阿斯塔特用爆彈槍與動力甲；進階裝備仍要用軍需採購。</p>}
+                            : <p>授銜後成為阿斯塔特：生命基線 160、命中 80%。人類護甲與主武器退回軍械庫（不會消失），並借用一套不可出售的阿斯塔特用爆彈槍與動力甲；進階裝備仍要用軍需採購。原本的人類專長會清空，改從阿斯塔特專長重新選。</p>}
                     </div>
                 )}
             </Modal>

@@ -347,6 +347,7 @@ test('server: stage V makes the same soldier astartes, returns human gear and lo
     const { env, aspirant } = await withAspirant();
     const row = env.db.tables.roster_characters.find(r => r.id === aspirant.id);
     row.ascension_stage = 4;
+    row.specialties = ['steady-aim', null, null];
     giveRecords(env.db, aspirant.id, 5, { health: 21, care: 7 });
     missionWon(env.db, 'stage-5', aspirant.id);
     // A flak vest bought for them while they were human.
@@ -356,6 +357,7 @@ test('server: stage V makes the same soldier astartes, returns human gear and lo
     assert.equal(res.code, 200, res.body?.error);
     assert.equal(row.origin, 'astartes');
     assert.equal(row.ascension_route, 'new-aspirant', 'the route stays as their tag');
+    assert.deepEqual([...row.specialties], [], 'human specialties are cleared at graduation');
     const held = env.db.tables.equipment_items.filter(i => i.assigned_to === aspirant.id).map(i => i.catalog_id).sort();
     assert.deepEqual(held, ['astartes-boltgun', 'astartes-power-armour', 'laspistol']);
     assert.equal(env.db.tables.equipment_items.find(i => i.id === 'vest').assigned_to, null, 'the vest is back in the armoury, not gone');

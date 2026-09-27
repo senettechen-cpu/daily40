@@ -1,4 +1,4 @@
-import { BASE_ACCURACY, Character, Duty, maxHp } from '../../roster';
+import { BASE_ACCURACY, Character, Duty, Effect, effectsOf, maxHp } from '../../roster';
 import { EquipmentItem, catalogItem, itemsOf } from '../../armory';
 import { Hex } from '../hex';
 import {
@@ -81,26 +81,37 @@ function specFor(character: Character, carried: EquipmentItem[], placement: Plac
     // An unarmed soldier fights with their sidearm if they have one.
     if (weapon === FISTS && sidearm) { weapon = sidearm; sidearm = undefined; }
 
+    // Specialties: the fixed effects fold into the numbers here; the rest ride
+    // along for the engine to read when the situation arises.
+    const effects = effectsOf(character);
+    const total = (kind: Effect['kind']) => effects.reduce((sum, e) => sum + (e.kind === kind ? (e as { amount: number }).amount : 0), 0);
+    const product = (kind: Effect['kind']) => effects.reduce((acc, e) => acc * (e.kind === kind ? (e as { amount: number }).amount : 1), 1);
+    const pierce = total('penetration');
+    if (pierce) weapon = { ...weapon, penetration: weapon.penetration + pierce };
+    const boltBoost = product('bolt-damage');
+    if (boltBoost !== 1 && weapon.damageType === 'bolt') weapon = { ...weapon, damage: weapon.damage * boltBoost };
+
     return {
         id: character.id,
         name: character.name,
         side: 'crew',
         duty: character.duty,
         assetId: character.assetId,
-        maxHp: maxHp(character),
-        armour,
+        maxHp: Math.round(maxHp(character) * product('max-hp')),
+        armour: armour + total('armour'),
         armourType,
         accuracy: BASE_ACCURACY[character.origin] / 100,
-        accuracyBonus: Math.min(mods, 1) * FUNCTION_MOD_ACCURACY,
+        accuracyBonus: Math.min(mods, 1) * FUNCTION_MOD_ACCURACY + total('self-hit'),
         tuning: TUNING_MULTIPLIER[Math.min(tuningStages, TUNING_MULTIPLIER.length - 1)],
-        movement: duty.movement,
-        initiative: initiative + (tools.includes(VOX_CASTER) ? VOX_INITIATIVE : 0),
+        movement: duty.movement + total('move'),
+        initiative: initiative + (tools.includes(VOX_CASTER) ? VOX_INITIATIVE : 0) + total('initiative'),
         weapon,
         sidearm,
         tools,
         stance: placement.stance,
         guardTargetId: placement.guardTargetId,
         at: placement.at,
+        ...(effects.length > 0 ? { effects } : {}),
     };
 }
 

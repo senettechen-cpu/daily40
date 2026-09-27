@@ -13,6 +13,7 @@ process.chdir(path.join(__dirname, '..'));
 const { loadTs } = require('../tests/helpers/load-ts.cjs');
 const turn = loadTs('shared/battle/turn/index.ts');
 const { STARTING_CHARACTERS } = loadTs('shared/roster/characters.ts');
+const specialties = loadTs('shared/roster/specialties.ts');
 
 const roster = STARTING_CHARACTERS.map((c, i) => ({
     id: `c${i}`, name: c.name, origin: c.origin, duty: c.duty, assetId: c.assetId, xp: 0, health: 'fit', recruitedAt: '',
@@ -58,6 +59,11 @@ const PRESETS = {
     // Veteran, rearranged for the two-man rule (2026-09-27): the third rifleman
     // swaps the precision rifle for a plain lasgun and feeds the heavy weapon,
     // so neither the plasma gunner nor the engineer has to.
+    // Level 10 with the veteran's gear: all three specialty slots open.
+    elite: () => {
+        const base = PRESETS.veteran();
+        return { members: base.members.map(c => ({ ...c, xp: 2700 })), items: base.items };
+    },
     crewed: () => {
         const base = PRESETS.veteran();
         const items = base.items.map(i => (i.assignedTo === 'c3' && i.catalogId === 'precision-lasgun' ? { ...i, catalogId: 'lasgun' } : i));
@@ -74,10 +80,29 @@ const asCandidate = (scenario, members) => {
     return members.map(c => (c.id === 'c3' ? { ...c, origin: 'aspirant', ascensionRoute: 'new-aspirant', ascensionStage: Number(match[1]) - 1 } : c));
 };
 
+// SPEC=a or SPEC=b gives everyone the first or second option of every slot
+// their level has opened; unset, nobody has specialties (the old baseline).
+const withSpecialties = members => {
+    // SPEC_ONLY=id,id gives just those specialties to everyone who may take them.
+    if (process.env.SPEC_ONLY) {
+        const only = process.env.SPEC_ONLY.split(',');
+        return members.map(c => ({
+            ...c,
+            specialties: [0, 1, 2].map(slot => specialties.optionsFor(c, slot).find(o => only.includes(o.id) && slot < specialties.openSlots(c.xp))?.id ?? null),
+        }));
+    }
+    const pick = { a: 0, b: 1 }[process.env.SPEC];
+    if (pick === undefined) return members;
+    return members.map(c => ({
+        ...c,
+        specialties: [0, 1, 2].slice(0, specialties.openSlots(c.xp)).map(slot => specialties.optionsFor(c, slot)[pick].id),
+    }));
+};
+
 function crewFor(scenario, presetName) {
     const preset = PRESETS[presetName]();
     const items = preset.items;
-    const members = asCandidate(scenario, preset.members);
+    const members = withSpecialties(asCandidate(scenario, preset.members));
     const placements = turn.placementsFor(scenario.board, members, undefined);
     const built = turn.crewFor(members, items, placements);
     return turn.assignHeavyCrew(turn.resolveGuards(built.units));

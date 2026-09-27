@@ -12,6 +12,7 @@ import {
     BARRAGE_DAMAGE, BARRAGE_EVERY, CULT_LEADER_ID_SUFFIX, RELAY_AURA_HIT, isRelay,
 } from './rules';
 import { Activation, Activity, BattleResult, BattleSetup, Ending, Objective, Outcome, Side, Stance, Unit, Weapon } from './types';
+import type { Effect } from '../../roster/specialties';
 
 // The turn engine. Rounds, alternating activations, and an AI that scores its
 // options by fixed rules so the report can state the reason for every move.
@@ -65,6 +66,11 @@ const roll = (battle: Battle): number => {
 const other = (side: Side): Side => (side === 'crew' ? 'enemy' : 'crew');
 const living = (battle: Battle, side: Side) => battle.units.filter(u => u.side === side && !u.down);
 const byId = (battle: Battle, id: string) => battle.units.find(u => u.id === id);
+
+/** The unit's specialty effect of this kind, if it has one (2026-09-27). */
+function effectOf<K extends Effect['kind']>(unit: Pick<Unit, 'effects'>, kind: K): Extract<Effect, { kind: K }> | undefined {
+    return unit.effects?.find(e => e.kind === kind) as Extract<Effect, { kind: K }> | undefined;
+}
 
 const STANCE_VERB: Record<Stance, string> = {
     hold: '固守', advance: '推進', flank: '側翼', guard: '護衛',
@@ -145,13 +151,55 @@ const allies = (battle: Battle, unit: Unit) =>
  * that carries. Auras of the same kind do not stack: the strongest applies.
  */
 function auraFor(battle: Battle, unit: Unit, from: Hex): number {
-    const leaders = allies(battle, unit).filter(a => a.duty === 'sergeant');
     let best = 0;
-    for (const leader of leaders) {
-        const reach = carries(leader.tools, VOX_CASTER) ? AURA_RANGE_WITH_VOX : AURA_RANGE;
-        if (distance(from, leader.at) <= reach) best = Math.max(best, AURA_HIT);
+    for (const leader of leadersCovering(battle, unit, from)) {
+        best = Math.max(best, AURA_HIT + (effectOf(leader, 'aura-hit')?.amount ?? 0));
     }
     return best;
+}
+
+const auraReach = (leader: Unit) =>
+    (carries(leader.tools, VOX_CASTER) ? AURA_RANGE_WITH_VOX : AURA_RANGE) + (effectOf(leader, 'aura-range')?.amount ?? 0);
+
+/** The sergeants whose aura reaches this tile. */
+const leadersCovering = (battle: Battle, unit: Unit, from: Hex) =>
+    allies(battle, unit).filter(a => a.duty === 'sergeant' && distance(from, a.at) <= auraReach(a));
+
+/** The strongest sergeant specialty of this kind whose aura covers the tile (multipliers: the lowest wins for guards). */
+function auraEffect(battle: Battle, unit: Unit, from: Hex, kind: 'aura-damage' | 'aura-guard'): number {
+    const values = leadersCovering(battle, unit, from).map(l => effectOf(l, kind)?.amount).filter((v): v is number => v !== undefined);
+    if (values.length === 0) return 1;
+    return kind === 'aura-damage' ? Math.max(...values) : Math.min(...values);
+}
+
+/** A vox operator's coordination: its own aura, separate from a sergeant's. */
+function coordinationFor(battle: Battle, unit: Unit, from: Hex): number {
+    let best = 0;
+    for (const ally of allies(battle, unit)) {
+        const effect = effectOf(ally, 'coordination');
+        if (effect && distance(from, ally.at) <= effect.range) best = Math.max(best, effect.amount);
+    }
+    return best;
+}
+
+/** Specialty multipliers on one attack's damage, for the shot and for the AI's estimate alike. */
+function attackMultiplier(battle: Battle, unit: Unit, from: Hex, target: Unit): number {
+    let multiplier = 1;
+    const close = effectOf(unit, 'close-damage');
+    if (close && distance(from, target.at) <= close.within) multiplier *= close.amount;
+    const finisher = effectOf(unit, 'finisher');
+    if (finisher && target.hp < target.maxHp / 2) multiplier *= finisher.amount;
+    const opening = effectOf(unit, 'first-shot');
+    if (opening && !unit.firstShotDone) multiplier *= opening.amount;
+    return multiplier * auraEffect(battle, unit, from, 'aura-damage');
+}
+
+/** Once a battle, a soldier with 不屈 recovers when they fall low but not out. */
+function lastStand(target: Unit) {
+    const effect = effectOf(target, 'last-stand');
+    if (!effect || target.lastStandUsed || target.down || target.hp >= target.maxHp * effect.below) return;
+    target.hp = Math.min(target.maxHp, target.hp + effect.amount);
+    target.lastStandUsed = true;
 }
 
 /**
@@ -160,9 +208,12 @@ function auraFor(battle: Battle, unit: Unit, from: Hex): number {
  * numbers. Nothing here reaches into rules.ts.
  */
 function asFighting(battle: Battle, unit: Unit, from: Hex, moved: boolean): Unit {
-    const bonus = (unit.accuracyBonus ?? 0) + auraFor(battle, unit, from) + relayAura(battle, unit) - (unit.suppressed ?? 0);
+    const high = terrainAt(battle.setup.board, from) === 'high' ? (effectOf(unit, 'high-ground')?.amount ?? 0) : 0;
+    const still = moved ? (effectOf(unit, 'moving-hit')?.amount ?? 0) : (effectOf(unit, 'steady-hit')?.amount ?? 0);
+    const bonus = (unit.accuracyBonus ?? 0) + auraFor(battle, unit, from) + relayAura(battle, unit) - (unit.suppressed ?? 0)
+        + coordinationFor(battle, unit, from) + high + still;
     // A marksman who held still sees further, but only down their own sight.
-    const steady = !moved && unit.duty === 'marksman' && unit.weapon.name.includes('精準');
+    const steady = (!moved || !!effectOf(unit, 'mobile-steady')) && unit.duty === 'marksman' && unit.weapon.name.includes('精準');
     const weapon = steady ? { ...unit.weapon, range: unit.weapon.range + 1 } : unit.weapon;
     return { ...unit, accuracyBonus: bonus, weapon };
 }
@@ -171,13 +222,24 @@ function asFighting(battle: Battle, unit: Unit, from: Hex, moved: boolean): Unit
 const relayAura = (battle: Battle, unit: Unit) =>
     living(battle, unit.side).some(isRelay) && !isRelay(unit) ? RELAY_AURA_HIT : 0;
 
-/** An engineer who brought their kit is harder to shift out of cover. */
-const damageReduction = (battle: Battle, target: Unit) =>
-    target.duty === 'engineer'
-    && carries(target.tools, ENGINEERING_KIT)
-    && (ruleAt(battle.setup.board, target.at).incoming ?? 1) < 1
-        ? ENGINEER_COVER_REDUCTION
-        : 1;
+/**
+ * Everything softening a hit on this target beyond armour and cover: an
+ * engineer's kit in cover, and the specialties that guard (堅守陣線, 鋼鐵意志,
+ * a neighbour's 護衛站位, a sergeant's 死守陣線).
+ */
+function damageReduction(battle: Battle, target: Unit): number {
+    const sheltered = (ruleAt(battle.setup.board, target.at).incoming ?? 1) < 1;
+    let reduction = target.duty === 'engineer' && carries(target.tools, ENGINEERING_KIT) && sheltered ? ENGINEER_COVER_REDUCTION : 1;
+    const dugIn = effectOf(target, 'cover-guard');
+    if (dugIn && sheltered) reduction *= dugIn.amount;
+    reduction *= effectOf(target, 'damage-taken')?.amount ?? 1;
+    const shields = allies(battle, target)
+        .filter(a => distance(a.at, target.at) <= 1)
+        .map(a => effectOf(a, 'shield-adjacent')?.amount)
+        .filter((v): v is number => v !== undefined);
+    if (shields.length > 0) reduction *= Math.min(...shields);
+    return reduction * auraEffect(battle, target, target.at, 'aura-guard');
+}
 
 interface Option {
     tile: Hex;
@@ -317,6 +379,7 @@ function bestOption(battle: Battle, unit: Unit): Option {
             const rate = target ? assistedHits(battle, unit, weapon) / weapon.hits : 1;
             const damage = target
                 ? expectedDamage(board, fighting, tile.hex, target, weapon) * damageReduction(battle, target) * rate
+                    * attackMultiplier(battle, unit, tile.hex, target)
                 : 0;
             // Finishing someone is worth more than spreading damage around.
             const finisher = target && damage >= target.hp ? 2 : 1;
@@ -350,10 +413,12 @@ function attack(battle: Battle, unit: Unit, target: Unit, moved: boolean, skill?
     const board = battle.setup.board;
     const fighting = asFighting(battle, unit, unit.at, moved);
     const weapon = weaponAgainst(fighting, unit.at, target, moved);
-    const chance = Math.min(0.95, hitChance(board, fighting, unit.at, target, weapon) + (skill?.hit ?? 0));
+    // 隱匿: harder to hit while they are in cover.
+    const hidden = (ruleAt(board, target.at).incoming ?? 1) < 1 ? (effectOf(target, 'hidden')?.amount ?? 0) : 0;
+    const chance = Math.min(0.95, hitChance(board, fighting, unit.at, target, weapon) + (skill?.hit ?? 0) - hidden);
     const perHit = damageOf(weapon, target.armour, target.armourType, {
         tuning: unit.tuning,
-        skill: skill?.damage,
+        skill: (skill?.damage ?? 1) * attackMultiplier(battle, unit, unit.at, target),
         extraPenetration: skill?.penetration,
         cover: coverMultiplier(board, weapon, target.at, target.armourType),
         reduction: damageReduction(battle, target),
@@ -368,6 +433,8 @@ function attack(battle: Battle, unit: Unit, target: Unit, moved: boolean, skill?
     const damage = landed * perHit;
     target.hp = Math.max(0, target.hp - damage);
     if (target.hp === 0) knockDown(battle, target);
+    else lastStand(target);
+    unit.firstShotDone = true;
     // Suppression bites on the target's next activation, whether or not it hurt.
     if (skill?.suppress && landed > 0 && !target.down) target.suppressed = SUPPRESS_HIT;
     return { kind: 'attack', targetId: target.id, hits: landed, damage, weapon: weapon.name, skill: skill?.name };
@@ -376,7 +443,7 @@ function attack(battle: Battle, unit: Unit, target: Unit, moved: boolean, skill?
 const missing = (unit: Unit) => unit.maxHp - unit.hp;
 const ready = (unit: Unit) => {
     const skill = skillFor(unit.duty);
-    return !!skill && unit.charge >= skill.charge;
+    return !!skill && unit.charge >= skill.charge - (effectOf(unit, 'skill-charge')?.amount ?? 0);
 };
 
 /**
@@ -396,7 +463,7 @@ function trySupport(battle: Battle, unit: Unit): { activity: Activity; reason: s
             .sort((a, b) => missing(b) / b.maxHp - missing(a) / a.maxHp || (a.id < b.id ? -1 : 1));
         const patient = hurt[0];
         if (!patient) return null;
-        const amount = Math.min(MEDIC_ACTIVE_HEAL, missing(patient));
+        const amount = Math.min(Math.round(MEDIC_ACTIVE_HEAL * healBoost(unit)), missing(patient));
         patient.hp += amount;
         return {
             activity: { kind: 'heal', targetId: patient.id, amount, skill: skill.name },
@@ -431,10 +498,11 @@ function trySupport(battle: Battle, unit: Unit): { activity: Activity; reason: s
         const helped = allies(battle, unit)
             .filter(a => distance(unit.at, a.at) <= COMMAND_RANGE && !a.moveBonus);
         if (helped.length < COMMAND_MIN_TARGETS) return null;
-        for (const ally of helped) ally.moveBonus = COMMAND_MOVE;
+        const move = COMMAND_MOVE + (effectOf(unit, 'command-move')?.amount ?? 0);
+        for (const ally of helped) ally.moveBonus = move;
         return {
             activity: { kind: 'command', targetIds: helped.map(a => a.id), skill: skill.name },
-            reason: `施放${skill.name}，${helped.length} 名友軍下次啟動多走 ${COMMAND_MOVE} 格`,
+            reason: `施放${skill.name}，${helped.length} 名友軍下次啟動多走 ${move} 格`,
         };
     }
 
@@ -480,11 +548,30 @@ function tryDemolish(battle: Battle, unit: Unit): { activities: Activity[]; reas
     return { activities, reason: verb + '對 ' + best.hull.name + ' 安放' + DEMOLITION_NAME + '，造成 ' + damage + ' 傷害' + wrecked };
 }
 
+const healBoost = (unit: Unit) => effectOf(unit, 'heal-boost')?.amount ?? 1;
+
+/** 戰地急救: once a battle, the most hurt neighbour, no kit needed. */
+function tryFieldAid(battle: Battle, unit: Unit): { activity: Activity; reason: string } | null {
+    const effect = effectOf(unit, 'field-aid');
+    if (!effect || unit.fieldAidUsed) return null;
+    const patient = allies(battle, unit)
+        .filter(a => distance(unit.at, a.at) <= 1 && missing(a) >= effect.amount)
+        .sort((a, b) => missing(b) / b.maxHp - missing(a) / a.maxHp || (a.id < b.id ? -1 : 1))[0];
+    if (!patient) return null;
+    const amount = Math.min(Math.round(effect.amount * healBoost(unit)), missing(patient));
+    patient.hp += amount;
+    unit.fieldAidUsed = true;
+    return {
+        activity: { kind: 'heal', targetId: patient.id, amount, skill: '戰地急救' },
+        reason: `施放戰地急救，替 ${patient.name} 回復 ${amount} 點`,
+    };
+}
+
 /** A medicae kit in anyone else's hands: one patch-up, on themselves, per battle. */
 function trySelfHeal(battle: Battle, unit: Unit): { activity: Activity; reason: string } | null {
     if (unit.duty === 'medic' || unit.selfHealed) return null;
     if (!carries(unit.tools, MEDICAE_KIT) || missing(unit) < SELF_HEAL_MIN_MISSING) return null;
-    const amount = Math.min(SELF_HEAL, missing(unit));
+    const amount = Math.min(Math.round(SELF_HEAL * healBoost(unit)), missing(unit));
     unit.hp += amount;
     unit.selfHealed = true;
     return {
@@ -531,9 +618,13 @@ function activate(battle: Battle, unit: Unit) {
 
     const demolition = tryDemolish(battle, unit);
     const support = demolition ? null : trySupport(battle, unit);
+    const aid = demolition || support ? null : tryFieldAid(battle, unit);
     if (demolition) {
         activities.push(...demolition.activities);
         reason = demolition.reason;
+    } else if (aid) {
+        activities.push(aid.activity);
+        reason = aid.reason;
     } else if (support) {
         activities.push(support.activity);
         reason = support.reason;
@@ -604,7 +695,7 @@ function endOfRound(battle: Battle) {
             .filter(a => distance(medic.at, a.at) <= 1 && missing(a) > 0)
             .sort((a, b) => missing(b) / b.maxHp - missing(a) / a.maxHp || (a.id < b.id ? -1 : 1))[0];
         if (!patient) continue;
-        const amount = Math.min(MEDIC_PASSIVE_HEAL, room, missing(patient));
+        const amount = Math.min(Math.round(MEDIC_PASSIVE_HEAL * healBoost(medic)), room, missing(patient));
         patient.hp += amount;
         battle.healed[medic.side] += amount;
     }
