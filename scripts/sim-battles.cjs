@@ -14,6 +14,7 @@ const { loadTs } = require('../tests/helpers/load-ts.cjs');
 const turn = loadTs('shared/battle/turn/index.ts');
 const { STARTING_CHARACTERS } = loadTs('shared/roster/characters.ts');
 const specialties = loadTs('shared/roster/specialties.ts');
+const catalog = loadTs('shared/armory/catalog.ts');
 
 const roster = STARTING_CHARACTERS.map((c, i) => ({
     id: `c${i}`, name: c.name, origin: c.origin, duty: c.duty, assetId: c.assetId, xp: 0, health: 'fit', recruitedAt: '',
@@ -99,9 +100,27 @@ const withSpecialties = members => {
     }));
 };
 
+// GEAR="c2=shotgun;c1=carapace-armour" puts one item on one soldier on top of
+// the preset, replacing whatever they had in that slot (tools are added). Used
+// for the equipment value matrix (docs/value-matrix.md).
+const withGear = items => {
+    if (!process.env.GEAR) return items;
+    let out = [...items];
+    for (const pair of process.env.GEAR.split(';').filter(Boolean)) {
+        const [who, catalogId] = pair.split('=');
+        const category = catalog.CATALOG.find(c => c.id === catalogId)?.category;
+        if (!category) throw new Error(`unknown item ${catalogId}`);
+        if (category !== 'tool' && category !== 'upgrade') {
+            out = out.filter(i => !(i.assignedTo === who && catalog.CATALOG.find(c => c.id === i.catalogId)?.category === category));
+        }
+        out.push(gear(who, catalogId));
+    }
+    return out;
+};
+
 function crewFor(scenario, presetName) {
     const preset = PRESETS[presetName]();
-    const items = preset.items;
+    const items = withGear(preset.items);
     const members = withSpecialties(asCandidate(scenario, preset.members));
     const placements = turn.placementsFor(scenario.board, members, undefined);
     const built = turn.crewFor(members, items, placements);
