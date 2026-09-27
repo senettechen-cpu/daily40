@@ -5,6 +5,7 @@ import { editPlan, rewardCoreCompleted } from '../rewards/coreService';
 import { v15EconomyEnabled } from '../rewards/service';
 import { DEFAULT_TIME_ZONE, dayKey } from '../shared/rewards';
 import { normalizeSlots, slotsMet } from '../shared/tasks';
+import { isDomain } from '../shared/ascension';
 import { recordGrowthForTask, releaseDesignation } from '../ascension/service';
 import { addDays } from '../shared/time';
 import type { Db } from '../db';
@@ -50,6 +51,7 @@ router.get('/', async (req, res) => {
             slotsDay: row.slots_day,
             projectId: row.project_id ?? undefined,
             subTaskId: row.sub_task_id ?? undefined,
+            domain: isDomain(row.domain) ? row.domain : undefined,
         }));
         res.json(tasks);
     } catch (err) {
@@ -70,11 +72,12 @@ router.post('/', async (req, res) => {
         // the first time and then keep recurring with nothing left to tick.
         const linked = !isRecurring && typeof req.body.projectId === 'string' && typeof req.body.subTaskId === 'string';
         await query(
-            `INSERT INTO tasks (id, title, faction, difficulty, due_date, created_at, status, is_recurring, streak, due_time, due_times, user_id, project_id, sub_task_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+            `INSERT INTO tasks (id, title, faction, difficulty, due_date, created_at, status, is_recurring, streak, due_time, due_times, user_id, project_id, sub_task_id, domain)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
             [id, title, faction, difficulty, dueDate, createdAt, status, isRecurring || false, 0,
                 req.body.dueTime, JSON.stringify(dueTimes), userId,
-                linked ? req.body.projectId : null, linked ? req.body.subTaskId : null]
+                linked ? req.body.projectId : null, linked ? req.body.subTaskId : null,
+                isDomain(req.body.domain) ? req.body.domain : null]
         );
         res.status(201).json({ message: 'Task created' });
     } catch (err) {
@@ -105,6 +108,7 @@ router.put('/:id', async (req, res) => {
     if (updates.dueTimes !== undefined) { fields.push(`due_times = $${idx++}`); values.push(JSON.stringify(normalizeSlots(updates.dueTimes))); }
     if (updates.slotsDone !== undefined) { fields.push(`slots_done = $${idx++}`); values.push(JSON.stringify(normalizeSlots(updates.slotsDone))); }
     if (updates.slotsDay !== undefined) { fields.push(`slots_day = $${idx++}`); values.push(updates.slotsDay); }
+    if (updates.domain !== undefined) { fields.push(`domain = $${idx++}`); values.push(isDomain(updates.domain) ? updates.domain : null); }
 
     if (fields.length === 0) return res.status(400).json({ error: 'No fields to update' });
 

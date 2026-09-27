@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Input, Slider, DatePicker, Select, Button, Typography, Checkbox, Radio, Drawer, Grid } from 'antd';
-import { Task, Faction, AscensionCategory } from '../types';
+import { Modal, Input, DatePicker, Select, Button, Typography, Checkbox, Radio, Drawer, Grid } from 'antd';
+import { Task, Faction } from '../types';
 import { useGame } from '../contexts/GameContext';
-import { Home, Activity, Book, Heart, Hammer, Cpu } from 'lucide-react'; // Icons for factions
+import { DOMAINS, Domain } from '../../shared/ascension';
 import dayjs from 'dayjs';
 import { MAX_SLOTS, generateSlots, isTime, normalizeSlots } from '../../shared/tasks';
 
@@ -12,19 +12,19 @@ const { Option } = Select;
 interface AddTaskModalProps {
     visible: boolean;
     onClose: () => void;
-    onAdd: (title: string, faction: Faction, difficulty: number, dueDate: Date, isRecurring: boolean, dueTime?: string, ascensionCategory?: AscensionCategory, subCategory?: string, dueTimes?: string[], link?: { projectId: string; subTaskId: string }) => void;
+    onAdd: (title: string, faction: Faction, difficulty: number, dueDate: Date, isRecurring: boolean, dueTime?: string, domain?: Domain, subCategory?: string, dueTimes?: string[], link?: { projectId: string; subTaskId: string }) => void;
     initialKeyword?: string;
     initialTask?: Task | null;
 }
 
-const FACTION_OPTIONS: { value: Faction; label: string; icon: React.ReactNode; color: string }[] = [
-    { value: 'nurgle', label: '納垢 (家務)', icon: <Home />, color: '#10b981' },
-    { value: 'khorne', label: '恐虐 (健身)', icon: <Activity />, color: '#ef4444' },
-    { value: 'tzeentch', label: '奸奇 (學習)', icon: <Book />, color: '#3b82f6' },
-    { value: 'slaanesh', label: '色孽 (慾望)', icon: <Heart />, color: '#ec4899' },
-    { value: 'orks', label: '獸人 (雜務)', icon: <Hammer />, color: '#f97316' },
-    { value: 'necrons', label: '死靈 (Debug)', icon: <Cpu />, color: '#94a3b8' },
-];
+/** A first guess at the domain from the title; the player can always change it. */
+export const guessDomain = (title: string): Domain | undefined =>
+    /打掃|家務|洗|煮|整理|倒垃圾/.test(title) ? 'care'
+        : /學|讀|程式|代碼|課|書/.test(title) ? 'learning'
+            : /健身|運動|跑|走路|伸展|復健|睡/.test(title) ? 'health'
+                : /記帳|預算|財務|帳單|投資/.test(title) ? 'finance'
+                    : /家人|朋友|電話|聯絡|陪|約/.test(title) ? 'social'
+                        : undefined;
 
 /** A plain HH:mm field: faster to set eight of these than to open a picker. */
 const TimeField = ({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) => (
@@ -50,15 +50,15 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ visible, onClose, on
     const [selectedSubTaskId, setSelectedSubTaskId] = useState<string>();
 
     const [title, setTitle] = useState(initialKeyword);
-    const [difficulty, setDifficulty] = useState(1);
-    const [faction, setFaction] = useState<Faction>('orks');
+    const [domain, setDomain] = useState<Domain | undefined>();
+    // Set by the player: from then on the title no longer guesses for them.
+    const [domainTouched, setDomainTouched] = useState(false);
     const [isRecurring, setIsRecurring] = useState(false);
     // Several times of day for one recurring task, generated in one go.
     const [dueTimes, setDueTimes] = useState<string[]>([]);
     const [slotStart, setSlotStart] = useState('08:00');
     const [slotEnd, setSlotEnd] = useState('22:00');
     const [slotEvery, setSlotEvery] = useState(120);
-    const [ascensionCategory, setAscensionCategory] = useState<AscensionCategory | undefined>();
     const [subCategory, setSubCategory] = useState<string>('');
     // @ts-ignore
     const [dueDate, setDueDate] = useState<dayjs.Dayjs>(dayjs().add(12, 'hour'));
@@ -81,11 +81,10 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ visible, onClose, on
             if (initialTask) {
                 // Edit Mode
                 setTitle(initialTask.title);
-                setDifficulty(initialTask.difficulty);
-                setFaction(initialTask.faction);
+                setDomain(initialTask.domain);
+                setDomainTouched(true);
                 setIsRecurring(initialTask.isRecurring || false);
                 setDueTimes(normalizeSlots(initialTask.dueTimes));
-                setAscensionCategory(initialTask.ascensionCategory);
                 setSubCategory(initialTask.subCategory || '');
                 // @ts-ignore
                 setDueDate(dayjs(initialTask.dueDate));
@@ -93,11 +92,10 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ visible, onClose, on
             } else {
                 // New Mode
                 setTitle(initialKeyword);
-                setDifficulty(1);
-                setFaction('orks');
+                setDomain(guessDomain(initialKeyword));
+                setDomainTouched(false);
                 setIsRecurring(false);
                 setDueTimes([]);
-                setAscensionCategory(undefined);
                 setSubCategory('');
                 // @ts-ignore
                 setDueDate(dayjs().add(12, 'hour'));
@@ -108,14 +106,10 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ visible, onClose, on
         }
     }, [visible, initialTask, initialKeyword]);
 
-    // Auto-detect faction based on title (only for new tasks)
+    // Guess the domain from the title for a new task, until the player picks one.
     useEffect(() => {
-        if (!initialTask && /[打掃家務洗]/.test(title)) setFaction('nurgle');
-        else if (!initialTask && /[學習程式代碼]/.test(title)) setFaction('tzeentch');
-        else if (!initialTask && /[健身運動困難]/.test(title)) setFaction('khorne');
-        else if (!initialTask && /[修改bug]/.test(title.toLowerCase())) setFaction('necrons');
-        // keep existing decision if not matched or editing
-    }, [title, initialTask]);
+        if (!initialTask && !domainTouched) setDomain(guessDomain(title));
+    }, [title, initialTask, domainTouched]);
 
     const handleSubmit = () => {
         if (!title.trim()) return;
@@ -128,12 +122,15 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ visible, onClose, on
         const link = inputMode === 'project' && !isRecurring && selectedProjectId && selectedSubTaskId
             ? { projectId: selectedProjectId, subTaskId: selectedSubTaskId }
             : undefined;
-        onAdd(title, faction, difficulty, dueDate.toDate(), isRecurring, dueTime, ascensionCategory, subCategory, slots, link);
+        // Faction and difficulty no longer mean anything; the columns still exist
+        // and are required, so they get fixed placeholders.
+        onAdd(title, 'default', 1, dueDate.toDate(), isRecurring, dueTime, domain, subCategory, slots, link);
         setTitle('');
         setSelectedProjectId(undefined);
         setSelectedSubTaskId(undefined);
         setDueTimes([]);
-        setAscensionCategory(undefined);
+        setDomain(undefined);
+        setDomainTouched(false);
         setSubCategory('');
         setIsRecurring(false);
         onClose();
@@ -226,29 +223,22 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ visible, onClose, on
             </div>
 
             <div>
-                <label className="text-imperial-gold/70 font-mono block mb-2">敵軍勢力 (FACTION)</label>
+                <label className="text-imperial-gold/70 font-mono block mb-2">成長領域 (DOMAIN)</label>
                 <div className="grid grid-cols-3 gap-2">
-                    {FACTION_OPTIONS.map(opt => (
-                        <div
-                            key={opt.value}
-                            onClick={() => setFaction(opt.value)}
-                            className={`
-                                cursor-pointer flex flex-col items-center justify-center p-2 rounded border transition-all duration-300
-                                ${faction === opt.value
-                                    ? 'text-white'
-                                    : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:border-imperial-gold/50 hover:text-imperial-gold'}
-                            `}
-                            style={{
-                                borderColor: faction === opt.value ? opt.color : undefined,
-                                backgroundColor: faction === opt.value ? `${opt.color}20` : undefined,
-                                boxShadow: faction === opt.value ? `0 0 10px ${opt.color}` : undefined
-                            }}
+                    {[...DOMAINS.map(d => ({ id: d.id as Domain | undefined, label: d.label })), { id: undefined, label: '不指定' }].map(option => (
+                        <button
+                            type="button"
+                            key={option.id ?? 'none'}
+                            onClick={() => { setDomain(option.id); setDomainTouched(true); }}
+                            className={`p-2 rounded border font-mono text-xs transition-colors ${domain === option.id
+                                ? 'border-emerald-500 bg-emerald-950/40 text-emerald-300'
+                                : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:border-imperial-gold/50 hover:text-imperial-gold'}`}
                         >
-                            <div className="mb-1" style={{ color: faction === opt.value ? opt.color : 'inherit' }}>{opt.icon}</div>
-                            <span className="text-[10px] font-mono tracking-tighter">{opt.label.split(' ')[0]}</span>
-                        </div>
+                            {option.label}
+                        </button>
                     ))}
                 </div>
+                <div className="text-[11px] font-mono text-zinc-600 mt-1">飛昇的每日指定會自動帶入這個領域。</div>
             </div>
 
             {/* Daily/Recurring Settings */}
@@ -339,26 +329,6 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ visible, onClose, on
                     </div>
                 )}
 
-                <div>
-                    <label className="text-imperial-gold/70 font-mono block mb-2 text-xs">威脅等級 (THREAT): {difficulty}</label>
-                    <Slider
-                        min={1}
-                        max={5}
-                        step={1}
-                        marks={{
-                            1: { style: { color: '#bbb' }, label: '1' },
-                            2: { style: { color: '#bbb' }, label: '2' },
-                            3: { style: { color: '#bbb' }, label: '3' },
-                            4: { style: { color: '#bbb' }, label: '4' },
-                            5: { style: { color: 'red', fontWeight: 'bold' }, label: 'EXTREME' }
-                        }}
-                        value={difficulty}
-                        onChange={setDifficulty}
-                        railStyle={{ backgroundColor: '#333' }}
-                        trackStyle={{ backgroundColor: '#ef4444' }}
-                        handleStyle={{ borderColor: '#ef4444', backgroundColor: '#ef4444' }}
-                    />
-                </div>
             </div >
 
             <Button

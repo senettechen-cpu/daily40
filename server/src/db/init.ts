@@ -336,6 +336,14 @@ const initDb = async () => {
             PRIMARY KEY (character_id, stage)
         )`);
 
+        // Growth domain on tasks (2026-09-27): replaces the enemy faction and the
+        // difficulty, which did nothing. Existing tasks take the domain their old
+        // faction stood for (納垢 chores, 恐虐 fitness, 奸奇 study); the rest none.
+        await pool.query('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS domain TEXT');
+        await pool.query(`UPDATE tasks SET domain = CASE faction
+            WHEN 'nurgle' THEN 'care' WHEN 'khorne' THEN 'health' WHEN 'tzeentch' THEN 'learning' END
+            WHERE domain IS NULL AND faction IN ('nurgle', 'khorne', 'tzeentch')`);
+
         // Specialties (2026-09-27): ids by slot; a pick is final. Additive only.
         await pool.query('ALTER TABLE roster_characters ADD COLUMN IF NOT EXISTS specialties JSONB');
 

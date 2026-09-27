@@ -101,8 +101,10 @@ export const AscensionView = ({ visible, onClose, onDeployMission }: {
             const current = slots[index] ?? { taskId: '', domain: 'health' as Domain };
             const next = { ...current, ...change };
             if (change.taskId && !change.domain) {
-                const category = allTasks.find(t => t.id === change.taskId)?.ascensionCategory;
-                if (category && CATEGORY_DOMAIN[category]) next.domain = CATEGORY_DOMAIN[category];
+                const task = allTasks.find(t => t.id === change.taskId);
+                const category = task?.ascensionCategory;
+                const guess = task?.domain ?? (category ? CATEGORY_DOMAIN[category] : undefined);
+                if (guess) next.domain = guess;
             }
             slots[index] = next;
             return { ...prev, slots };

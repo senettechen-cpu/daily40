@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { Table, Button, Tag, Tooltip } from 'antd';
-import { Shield, Trash2, Target, Sword, Activity, Plus, FileEdit, Flame } from 'lucide-react';
+import { Shield, Trash2, Plus, FileEdit, Flame } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Task, Faction } from '../types';
+import { Task } from '../types';
+import { DOMAIN_LABELS } from '../../shared/ascension';
 import { useRequisition } from '../contexts/RequisitionContext';
 import { minutesSinceMidnight, normalizeSlots, slotProgress, slotState, type SlotState } from '../../shared/tasks';
 import { dayKey } from '../../shared/time';
@@ -21,10 +22,10 @@ const slotsOf = (task: Task) => {
  */
 type SlateRow = { key: string; task: Task; slot?: string; state?: SlotState; first: boolean };
 
-const FACTION_NAMES: Record<Faction, string> = {
-    orks: '獸人', nurgle: '納垢', khorne: '恐虐', tzeentch: '奸奇',
-    slaanesh: '色虐', necrons: '太空死靈', default: '未知',
-};
+/** A task's growth domain (2026-09-27); it replaced the enemy faction and the difficulty bars. */
+const DomainTag = ({ task }: { task: Task }) => task.domain
+    ? <span className="text-[11px] font-mono px-1 border border-emerald-800/60 text-emerald-300">{DOMAIN_LABELS[task.domain]}</span>
+    : <span className="text-[11px] font-mono text-zinc-600">—</span>;
 
 /** A slot's own clock time, coloured by where it stands today. */
 const SLOT_LOOK: Record<SlotState, { text: string; note: string }> = {
@@ -80,15 +81,6 @@ interface TaskDataSlateProps {
     onToggleView?: (mode: 'active' | 'mandates') => void;
 }
 
-const FACTION_ICONS: Record<Faction, React.ReactNode> = {
-    'nurgle': <Activity size={14} className="text-green-500" />,
-    'khorne': <Sword size={14} className="text-red-500" />,
-    'tzeentch': <Target size={14} className="text-blue-500" />,
-    'slaanesh': <Activity size={14} className="text-purple-500" />,
-    'orks': <Activity size={14} className="text-orange-500" />,
-    'necrons': <Shield size={14} className="text-zinc-400" />,
-    'default': <Shield size={14} className="text-imperial-gold" />,
-};
 
 const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
     tasks, selectedId, onSelect, onPurge, onVoid, onDelete, onOpenAddModal,
@@ -219,16 +211,11 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
 
     const columns = useMemo(() => [
         {
-            title: '威脅源',
-            key: 'faction',
+            title: '領域',
+            key: 'domain',
             width: 100,
             render: (_: unknown, { task, first }: SlateRow) => first ? (
-                <div className="flex items-center gap-2">
-                    {FACTION_ICONS[task.faction]}
-                    <span className="text-xs uppercase font-mono text-imperial-gold/50">
-                        {FACTION_NAMES[task.faction] ?? '未知'}
-                    </span>
-                </div>
+                <DomainTag task={task} />
             ) : (
                 <span className="font-mono text-imperial-gold/20 text-xs pl-2">└</span>
             ),
@@ -251,21 +238,6 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
                     {first && <CoreBadge taskId={task.id} />}
                 </div>
             ),
-        },
-        {
-            title: '威脅等級',
-            key: 'difficulty',
-            width: 120,
-            render: (_: unknown, { task, first }: SlateRow) => first ? (
-                <div className="flex gap-0.5">
-                    {[...Array(5)].map((_, i) => (
-                        <div
-                            key={i}
-                            className={`w-2 h-3 border border-imperial-gold/20 ${i < task.difficulty ? 'bg-red-600/60 shadow-[0_0_5px_rgba(220,38,38,0.5)]' : 'bg-transparent'}`}
-                        />
-                    ))}
-                </div>
-            ) : null,
         },
         {
             title: '期限',
@@ -540,27 +512,11 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
                                             {task.title}
                                         </span>
                                         <div className="flex items-center gap-2 mt-1">
-                                            <span className="text-[10px] text-zinc-500 uppercase font-mono">
-                                                {task.faction === 'orks' ? '獸人' :
-                                                    task.faction === 'nurgle' ? '納垢' :
-                                                        task.faction === 'khorne' ? '恐虐' :
-                                                            task.faction === 'tzeentch' ? '奸奇' :
-                                                                task.faction === 'slaanesh' ? '色虐' :
-                                                                    task.faction === 'necrons' ? '太空死靈' : '未知'}
-                                            </span>
+                                            <DomainTag task={task} />
                                             <CoreBadge taskId={task.id} />
                                         </div>
                                     </div>
                                     <div className="flex flex-col items-end gap-1">
-                                        {FACTION_ICONS[task.faction]}
-                                        <div className="flex gap-0.5">
-                                            {[...Array(5)].map((_, i) => (
-                                                <div
-                                                    key={i}
-                                                    className={`w-1.5 h-2 border border-imperial-gold/20 ${i < task.difficulty ? 'bg-red-600/60' : 'bg-transparent'}`}
-                                                />
-                                            ))}
-                                        </div>
                                     </div>
                                 </div>
 

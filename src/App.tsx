@@ -522,9 +522,11 @@ const MainDashboard = ({ currentUser, onLogout }: { currentUser: any, onLogout: 
       <AddTaskModal
         visible={isAddModalOpen}
         onClose={() => { setIsAddModalOpen(false); setEditingTask(null); setKeyword(''); }}
-        onAdd={(title, faction, diff, date, isRec, dueTime, ascCat, subCat) => {
-          if (editingTask) { updateTask(editingTask.id, { title, faction, difficulty: diff, dueDate: date, isRecurring: isRec, dueTime, ascensionCategory: ascCat, subCategory: subCat }); }
-          else { addTask(title, faction, diff, date, isRec, dueTime, ascCat, subCat); }
+        onAdd={(title, faction, diff, date, isRec, dueTime, domain, subCat, slots, link) => {
+          // The times of day and the plan link used to be dropped here, so a
+          // multi-slot task made in this dialog lost its slots (fixed 2026-09-27).
+          if (editingTask) { updateTask(editingTask.id, { title, faction, difficulty: diff, dueDate: date, isRecurring: isRec, dueTime, domain, subCategory: subCat, dueTimes: slots ?? [] }); }
+          else { addTask(title, faction, diff, date, isRec, dueTime, domain, subCat, slots, link); }
         }}
         initialKeyword={keyword}
         initialTask={editingTask}

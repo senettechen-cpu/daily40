@@ -146,3 +146,17 @@ test('server: a specialty is picked once, needs its level, and is reported with 
     const again = (await roster('GET', '/')).body.characters.find(c => c.id === rifleman.id);
     assert.deepEqual([...again.specialties], ['steady-aim', 'dig-in', null]);
 });
+
+test('server: a task carries its growth domain through create, read and update; nonsense is dropped', async () => {
+    process.env.V15_ECONOMY = 'on';
+    const db = createFakeDb();
+    const tasks = mount('server/src/routes/tasks.ts', db);
+    const base = { title: '跑步', faction: 'default', difficulty: 1, dueDate: new Date().toISOString(), createdAt: new Date().toISOString(), status: 'active', isRecurring: true };
+    await tasks('POST', '/', { body: { ...base, id: 'run', domain: 'health' } });
+    await tasks('POST', '/', { body: { ...base, id: 'odd', domain: 'wizardry' } });
+    const read = (await tasks('GET', '/')).body;
+    assert.equal(read.find(t => t.id === 'run').domain, 'health');
+    assert.equal(read.find(t => t.id === 'odd').domain, undefined);
+    await tasks('PUT', '/:id', { params: { id: 'run' }, body: { domain: 'learning' } });
+    assert.equal(db.tables.tasks.find(t => t.id === 'run').domain, 'learning');
+});

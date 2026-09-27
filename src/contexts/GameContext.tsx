@@ -10,6 +10,7 @@ import { LEGACY_PENALTIES_FROZEN } from '../game/legacyFreeze';
 import { localDay, type CampaignState, type Site, type Tactic } from '../game/campaign';
 import { completeNextSlot, completeSlot, normalizeSlots, slotsMet } from '../../shared/tasks';
 import { dayKey } from '../../shared/time';
+import type { Domain } from '../../shared/ascension';
 
 /** Where a one-off task came from, when it was deployed from an operation plan. */
 export interface SubTaskLink { projectId: string; subTaskId: string }
@@ -23,7 +24,7 @@ export interface GameContextType {
     corruption: number;
     ownedUnits: string[];
     isPenitentMode: boolean;
-    addTask: (title: string, faction: Faction, difficulty: number, dueDate: Date, isRecurring?: boolean, dueTime?: string, ascensionCategory?: AscensionCategory, subCategory?: string, dueTimes?: string[], link?: SubTaskLink) => void;
+    addTask: (title: string, faction: Faction, difficulty: number, dueDate: Date, isRecurring?: boolean, dueTime?: string, domain?: Domain, subCategory?: string, dueTimes?: string[], link?: SubTaskLink) => void;
     updateTask: (id: string, updates: Partial<Task>) => void;
     purgeTask: (id: string, slot?: string) => void;
     /** Voids a one-off task: it leaves the list and counts as nothing. */
@@ -599,7 +600,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }, [corruption, isPenitentMode]);
 
     // Actions
-    const addTask = async (title: string, faction: Faction, difficulty: number, dueDate: Date, isRecurring: boolean = false, dueTime?: string, ascensionCategory?: AscensionCategory, subCategory?: string, dueTimes?: string[], link?: SubTaskLink) => {
+    const addTask = async (title: string, faction: Faction, difficulty: number, dueDate: Date, isRecurring: boolean = false, dueTime?: string, domain?: Domain, subCategory?: string, dueTimes?: string[], link?: SubTaskLink) => {
         // Only a one-off task stands for a subtask; the server enforces the same.
         const linked = !isRecurring && link ? link : undefined;
         const newTask: Task = {
@@ -614,7 +615,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             streak: 0,
             dueTime,
             dueTimes: normalizeSlots(dueTimes),
-            ascensionCategory,
+            domain,
             subCategory,
             projectId: linked?.projectId,
             subTaskId: linked?.subTaskId,

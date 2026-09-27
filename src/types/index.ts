@@ -19,6 +19,12 @@ export interface Task {
     slotsDay?: string; // YYYY-MM-DD
     ascensionCategory?: AscensionCategory;
     subCategory?: string; // 子項目描述 (e.g. "跑步 5km")
+    /**
+     * Growth domain (2026-09-27): replaces the enemy faction and the 1-5
+     * difficulty, neither of which did anything. Carried into the ascension
+     * designation so a task arrives with its domain already set.
+     */
+    domain?: import('../../shared/ascension').Domain;
     /** A one-off task deployed from an operation plan's subtask; completing it ticks the subtask. */
     projectId?: string;
     subTaskId?: string;
