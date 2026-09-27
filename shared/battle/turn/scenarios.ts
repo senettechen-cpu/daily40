@@ -3,6 +3,7 @@ import { ARMOUR_STATS, DUTY_STATS, ENEMY_ARMOUR_STATS, ENEMY_WEAPON_STATS, FISTS
 import { ArmourType, Objective, Stance, UnitSpec } from './types';
 import ROSTERS from './enemy-rosters.json';
 import CAMPAIGN_ROSTERS from './campaign-rosters.json';
+import ASCENSION_ROSTERS from './ascension-rosters.json';
 
 // v2 scenarios. The user decided (design §12) that the enemy is built the same
 // way the squad is — duty, gear and stance — so the counters run both ways:
@@ -117,11 +118,51 @@ const COMMAND_HUB = board({
     '5,2': 'hazard',
 });
 
+// Ascension missions (2026-09-27): three escort-and-assessment extractions and
+// one training operation per stage.
+
+/** Extraction field: a clear run to the Ultramarines' landing marker at 5,1, broken by wreckage. */
+const EVAC_FIELD = board({
+    '2,3': 'cover', '4,3': 'cover', '6,3': 'cover', '8,3': 'cover',
+    '3,5': 'cover', '7,5': 'cover', '1,4': 'block', '9,4': 'block', '5,4': 'block',
+});
+
+/** Forge extraction: a fenced loading apron the squad must hold until the gunship lands. */
+const FORGE_EVAC = board({
+    '3,5': 'cover', '5,5': 'cover', '7,5': 'cover', '2,6': 'cover', '8,6': 'cover',
+    '1,3': 'block', '9,3': 'block', '4,3': 'hazard', '6,3': 'hazard', '5,2': 'cover',
+});
+
+/** Shrine extraction: a broken plaza, the landing pad at 5,3 between two collapsed spires. */
+const SHRINE_EVAC = board({
+    '3,3': 'block', '7,3': 'block', '4,4': 'cover', '6,4': 'cover',
+    '2,5': 'cover', '8,5': 'cover', '5,5': 'cover', '1,2': 'cover', '9,2': 'cover',
+});
+
+/** Training yard: sandbag lines and a watchtower, the ground an assessor picks. */
+const TRAINING_YARD = board({
+    '2,3': 'cover', '5,3': 'cover', '8,3': 'cover', '3,5': 'cover', '7,5': 'cover', '5,5': 'high',
+});
+
+/** Firing range: the spotter's tower at 5,0 behind a line of target walls. */
+const FIRING_RANGE = board({
+    '5,0': 'high', '3,2': 'block', '7,2': 'block', '2,4': 'cover', '5,4': 'cover', '8,4': 'cover',
+    '4,6': 'cover', '6,6': 'cover',
+});
+
+/** Hazard course: burning ground between the squad and the casualty at 5,1. */
+const HAZARD_COURSE = board({
+    '3,3': 'hazard', '5,3': 'hazard', '7,3': 'hazard', '4,4': 'hazard', '6,4': 'hazard',
+    '2,5': 'cover', '8,5': 'cover', '5,5': 'cover', '1,3': 'cover', '9,3': 'cover', '5,2': 'cover',
+});
+
 const BOARDS: Record<string, Board> = {
     standard: RUINS, 'close-assault': OPEN_FIELD, outnumbered: RUINS,
     landing: LANDING, dockyard: DOCKYARD, 'vox-tower': VOX_TOWER, 'orbital-lift': ORBITAL_LIFT,
     smelter: SMELTER, armoury: ARMOURY, 'power-core': POWER_CORE, 'vehicle-bay': VEHICLE_BAY,
     'outer-city': OUTER_CITY, cathedral: CATHEDRAL, 'ritual-node': RITUAL_NODE, 'command-hub': COMMAND_HUB,
+    'evac-field': EVAC_FIELD, 'forge-evac': FORGE_EVAC, 'shrine-evac': SHRINE_EVAC,
+    'training-yard': TRAINING_YARD, 'firing-range': FIRING_RANGE, 'hazard-course': HAZARD_COURSE,
 };
 
 const NAMES: Record<string, string> = {
@@ -233,6 +274,14 @@ const DESCRIPTIONS: Record<string, { name: string; description: string }> = {
     'w3-n2': { name: '聖殤大教堂', description: '目標：讓任一名隊員抵達祭壇（5,1），救出被俘的牧師。祭壇前有叛軍班長與一台奇美拉把守。' },
     'w3-n4': { name: '邪教指揮中樞', description: '目標：擊倒教派首領。兩座廣播節點讓敵軍命中提高，也讓首領每兩回合呼叫一次轟擊；炸掉兩座節點就能讓轟擊停止。' },
     'w3-n3': { name: '儀式節點', description: '目標：佔住儀式節點（5,3）撐過四個回合結束。一台叛軍奇美拉在旁掩護。' },
+    'asc-escort-1': { name: '援護撤離：維斯帕里斯', description: '目標：任一名隊員抵達候選人所在的降落標記（5,0）。叛軍班長守在標記上。' },
+    'asc-escort-2': { name: '援護撤離：赫克斯鑄造環', description: '目標：撐過六個回合，等雷鷹砲艇降落。一台哨兵步行機與電漿槍班長壓上來。' },
+    'asc-escort-3': { name: '援護撤離：卡斯托盧姆', description: '目標：佔住降落平台（5,3）撐過三個回合結束。奇美拉與教徒群守著廣場。' },
+    'asc-stage-1': { name: '適應評估', description: '候選人第一次在評估官面前作戰：清除訓練場上裝備簡陋的叛軍。' },
+    'asc-stage-2': { name: '生理穩定評估', description: '目標：撐過六個回合。成群的教徒衝上來，看新器官能不能撐住。' },
+    'asc-stage-3': { name: '感官與射界訓練', description: '目標：擊倒塔上的叛軍觀測官。兩側各有一名射手，觀測官身邊有衛兵。' },
+    'asc-stage-4': { name: '環境適應與救援演練', description: '目標：任一名隊員穿過燃燒地帶，抵達傷員位置（5,0）。叛軍班長與步行機守在後方。' },
+    'asc-stage-5': { name: '裝甲介面訓練與授銜審核', description: '目標：佔住廣場（5,3）撐過三個回合結束。對手有奇美拉與步行機，這是授銜前最後一戰。' },
 };
 
 type RosterFile = { scenarios: { id: string; board?: string; objective?: Objective; enemies: RosterEntry[] }[] };
@@ -253,7 +302,10 @@ export const BASELINE_SCENARIOS: Scenario[] = scenariosFrom(ROSTERS as RosterFil
 /** One scenario per sector-campaign stronghold, keyed by the stronghold id. */
 export const CAMPAIGN_SCENARIOS: Scenario[] = scenariosFrom(CAMPAIGN_ROSTERS as RosterFile);
 
-export const SCENARIOS: Scenario[] = [...BASELINE_SCENARIOS, ...CAMPAIGN_SCENARIOS];
+/** Ascension missions: escorts and stage trainings, keyed 'asc-…'. */
+export const ASCENSION_SCENARIOS: Scenario[] = scenariosFrom(ASCENSION_ROSTERS as RosterFile);
+
+export const SCENARIOS: Scenario[] = [...BASELINE_SCENARIOS, ...CAMPAIGN_SCENARIOS, ...ASCENSION_SCENARIOS];
 
 export const scenarioById = (id: string) => SCENARIOS.find(scenario => scenario.id === id);
 

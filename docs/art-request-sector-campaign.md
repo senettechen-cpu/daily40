@@ -88,3 +88,16 @@ Claude 匯入時逐檔重驗：格式、尺寸、容量、SVG 是否使用 `curr
 
 程式端已預先接好頭像 ID（`shared/battle/turn/scenarios.ts` 的 `ENEMY_ART`），
 素材到了只要加進 `src/data/reportArtIndex.ts` 的 `PORTRAIT_ASSETS` 就會顯示。
+
+## 7. 飛昇頭像（2026-09-27 新增）
+
+飛昇已上線（[實作紀錄](ascension-implementation.md)）。器官卡、階段圖、醫療艙背景都已接入；缺的是人物頭像，
+目前名冊以名字縮寫圓片暫代。規格同第 2 節（`<id>-head.webp` 128×128、`<id>-half.webp` 480×480，RGB WebP，主體在中央 60%）。
+
+| 素材 ID | 角色 | 要傳達的 |
+| --- | --- | --- |
+| `ultramarines-aspirant` | 極限戰士候選人（未改造的少年／青年，三位共用或各一張） | 還是人類、體格普通，穿候選人訓練服，不能看起來已經是星際戰士 |
+| `ultramarines-neophyte` | 改造中（第 3–4 階）的候選人（選做） | 體格明顯變大、身上有手術痕跡，還沒有動力甲 |
+| `ultramarines-marine` | 授銜後的極限戰士 | 藍色制式動力甲，和 `astartes-boltgun`、`astartes-power-armour` 的裝備圖一致 |
+
+原創分支的角色保留原本的星界軍頭像，授銜後是否換圖由使用者決定，不需要另做。

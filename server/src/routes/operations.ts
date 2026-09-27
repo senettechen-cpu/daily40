@@ -36,8 +36,9 @@ router.post('/', async (req, res) => {
         const userId = req.user?.uid;
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-        const { squadId, strongholdId, traineeIds, lanes } = req.body ?? {};
-        if (typeof squadId !== 'string' || typeof strongholdId !== 'string') {
+        const { squadId, strongholdId, missionId, candidateId, traineeIds, lanes } = req.body ?? {};
+        const target = typeof strongholdId === 'string' || typeof missionId === 'string';
+        if (typeof squadId !== 'string' || !target) {
             // An older page still sends a phase-one scenarioId; those left play with the campaign.
             return res.status(400).json({ error: '出戰改為攻打星區據點，請重新整理頁面。' });
         }
@@ -45,7 +46,13 @@ router.post('/', async (req, res) => {
             return res.status(400).json({ error: 'traineeIds 必須是人員 ID 的陣列。' });
         }
 
-        const result = await withTransaction(db => startOperation(db, userId, { squadId, strongholdId, traineeIds, lanes }, new Date()));
+        const result = await withTransaction(db => startOperation(db, userId, {
+            squadId,
+            strongholdId: typeof missionId === 'string' ? undefined : strongholdId,
+            missionId: typeof missionId === 'string' ? missionId : undefined,
+            candidateId: typeof candidateId === 'string' ? candidateId : undefined,
+            traineeIds, lanes,
+        }, new Date()));
         if ('error' in result) return res.status(400).json({ error: result.error });
         res.status(201).json(result);
     } catch (err) {

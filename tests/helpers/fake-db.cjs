@@ -3,7 +3,7 @@
 // (user_id, seq), preset upsert) and rolls back on error like a transaction.
 // It is not a SQL engine: an unknown statement throws so tests cannot pass silently.
 function createFakeDb() {
-    const tables = { expenses: [], reward_entries: [], ledger_presets: [], core_plans: [], tasks: [], projects: [], roster_characters: [], squads: [], equipment_items: [], equipment_authorizations: [], personnel_authorizations: [], operations: [], project_crates: [] };
+    const tables = { expenses: [], reward_entries: [], ledger_presets: [], core_plans: [], tasks: [], projects: [], roster_characters: [], squads: [], equipment_items: [], equipment_authorizations: [], personnel_authorizations: [], operations: [], project_crates: [], growth_plans: [], growth_records: [], ascension_implants: [], game_state: [] };
     const log = [];
     const normalized = sql => sql.replace(/\s+/g, ' ').trim();
 
@@ -123,7 +123,7 @@ function createFakeDb() {
         if (s.startsWith('SELECT COUNT(*)::int AS count FROM roster_characters')) {
             return { rows: [{ count: tables.roster_characters.filter(r => r.user_id === p[0]).length }], rowCount: 1 };
         }
-        if (s.startsWith('SELECT id, name, origin, duty, asset_id, xp, health, wounded_day, recruited_at FROM roster_characters')) {
+        if (s.startsWith('SELECT id, name, origin, duty, asset_id, xp, health, wounded_day, recruited_at, ascension_route, ascension_stage FROM roster_characters')) {
             const rows = tables.roster_characters.filter(r => r.user_id === p[0]);
             return { rows, rowCount: rows.length };
         }
@@ -149,6 +149,85 @@ function createFakeDb() {
                 tables.personnel_authorizations.push({ user_id: p[0], template_id: p[1] });
             }
             return { rows: [], rowCount: 1 };
+        }
+        if (s.startsWith('INSERT INTO roster_characters (id, user_id, name, origin, duty, asset_id, xp, health, ascension_route, ascension_stage)')) {
+            // An escort's aspirant: a fixed id, ON CONFLICT (id) DO NOTHING.
+            if (tables.roster_characters.some(r => r.id === p[0])) return { rows: [], rowCount: 0 };
+            tables.roster_characters.push({
+                id: p[0], user_id: p[1], name: p[2], origin: p[3], duty: p[4], asset_id: p[5], xp: p[6], health: p[7],
+                ascension_route: p[8], ascension_stage: p[9], recruited_at: new Date(fake.now += 1000),
+            });
+            return { rows: [], rowCount: 1 };
+        }
+        if (s.startsWith("UPDATE roster_characters SET ascension_route = 'original-existing-soldier', ascension_stage = 0 WHERE id = $1 AND user_id = $2 AND ascension_route IS NULL")) {
+            const row = tables.roster_characters.find(r => r.id === p[0] && r.user_id === p[1] && !r.ascension_route);
+            if (row) Object.assign(row, { ascension_route: 'original-existing-soldier', ascension_stage: 0 });
+            return { rows: [], rowCount: row ? 1 : 0 };
+        }
+        if (s.startsWith('UPDATE roster_characters SET ascension_route = NULL WHERE id = $1 AND user_id = $2 AND ascension_stage = 0')) {
+            const row = tables.roster_characters.find(r => r.id === p[0] && r.user_id === p[1] && !r.ascension_stage);
+            if (row) row.ascension_route = null;
+            return { rows: [], rowCount: row ? 1 : 0 };
+        }
+        if (s.startsWith('UPDATE roster_characters SET ascension_stage = $1 WHERE id = $2 AND user_id = $3 AND ascension_stage = $4')) {
+            const row = tables.roster_characters.find(r => r.id === p[1] && r.user_id === p[2] && (r.ascension_stage ?? 0) === p[3]);
+            if (row) row.ascension_stage = p[0];
+            return { rows: [], rowCount: row ? 1 : 0 };
+        }
+        if (s.startsWith("UPDATE roster_characters SET origin = 'astartes' WHERE id = $1 AND user_id = $2")) {
+            const row = tables.roster_characters.find(r => r.id === p[0] && r.user_id === p[1]);
+            if (row) row.origin = 'astartes';
+            return { rows: [], rowCount: row ? 1 : 0 };
+        }
+        if (s.startsWith('SELECT source_key, candidate_id, stage, domain, day, task_id FROM growth_records WHERE user_id = $1')) {
+            const rows = tables.growth_records.filter(r => r.user_id === p[0]);
+            return { rows, rowCount: rows.length };
+        }
+        if (s.startsWith('INSERT INTO growth_records')) {
+            if (tables.growth_records.some(r => r.user_id === p[0] && r.source_key === p[1])) return { rows: [], rowCount: 0 };
+            const [user_id, source_key, candidate_id, stage, domain, day, task_id] = p;
+            tables.growth_records.push({ user_id, source_key, candidate_id, stage, domain, day, task_id });
+            return { rows: [], rowCount: 1 };
+        }
+        if (s.startsWith('SELECT candidate_id, slots FROM growth_plans WHERE user_id = $1 AND day = $2')) {
+            const rows = tables.growth_plans.filter(r => r.user_id === p[0] && r.day === p[1]);
+            return { rows, rowCount: rows.length };
+        }
+        if (s.startsWith('INSERT INTO growth_plans')) {
+            const [user_id, day, candidate_id, slots] = p;
+            const row = tables.growth_plans.find(r => r.user_id === user_id && r.day === day);
+            const next = { user_id, day, candidate_id, slots: JSON.parse(slots) };
+            if (row) Object.assign(row, next); else tables.growth_plans.push(next);
+            return { rows: [], rowCount: 1 };
+        }
+        if (s.startsWith("UPDATE growth_plans SET candidate_id = NULL, slots = '[]'::jsonb WHERE user_id = $1 AND day = $2")) {
+            const row = tables.growth_plans.find(r => r.user_id === p[0] && r.day === p[1]);
+            if (row) Object.assign(row, { candidate_id: null, slots: [] });
+            return { rows: [], rowCount: row ? 1 : 0 };
+        }
+        if (s.startsWith("SELECT mission_id, candidate_id FROM operations WHERE user_id = $1 AND mission_id IS NOT NULL AND outcome = 'victory'")) {
+            const rows = tables.operations.filter(o => o.user_id === p[0] && o.mission_id && o.outcome === 'victory');
+            return { rows, rowCount: rows.length };
+        }
+        if (s.startsWith('SELECT character_id, stage, organ_ids, implanted_at FROM ascension_implants WHERE user_id = $1')) {
+            const rows = tables.ascension_implants.filter(r => r.user_id === p[0]).sort((a, b) => a.stage - b.stage);
+            return { rows, rowCount: rows.length };
+        }
+        if (s.startsWith('INSERT INTO ascension_implants')) {
+            if (tables.ascension_implants.some(r => r.character_id === p[1] && r.stage === p[2])) return { rows: [], rowCount: 0 };
+            tables.ascension_implants.push({ user_id: p[0], character_id: p[1], stage: p[2], profile_id: p[3], organ_ids: JSON.parse(p[4]), implanted_at: new Date(fake.now += 1000) });
+            return { rows: [], rowCount: 1 };
+        }
+        if (s.startsWith('SELECT astartes FROM game_state WHERE user_id = $1')) {
+            const rows = tables.game_state.filter(r => r.user_id === p[0]);
+            return { rows, rowCount: rows.length };
+        }
+        if (s.startsWith('SELECT id, last_completed_at, due_times, slots_done, slots_day FROM tasks WHERE user_id = $1')) {
+            const rows = tables.tasks.filter(t => t.user_id === p[0]).map(t => ({
+                id: t.id, last_completed_at: t.last_completed_at ?? null, due_times: t.due_times ?? null,
+                slots_done: t.slots_done ?? null, slots_day: t.slots_day ?? null,
+            }));
+            return { rows, rowCount: rows.length };
         }
         if (s.startsWith('INSERT INTO roster_characters')) {
             // Recruiting writes xp as a literal 0 (7 params); a crate soldier binds it (8 params).
@@ -218,7 +297,8 @@ function createFakeDb() {
                 id: p[0], user_id: p[1], squad_id: p[2], scenario_id: p[3], seed: p[4],
                 crew: JSON.parse(p[5]), trainee_ids: JSON.parse(p[6]), outcome: p[7], pays_xp: p[8],
                 engine: 'v2', board: p[9] ? JSON.parse(p[9]) : null, rounds: p[10] ?? null,
-                stronghold_id: p[11] ?? null, started_at: new Date(fake.now += 1000),
+                stronghold_id: p[11] ?? null, mission_id: p[12] ?? null, candidate_id: p[13] ?? null,
+                started_at: new Date(fake.now += 1000),
             });
             return { rows: [], rowCount: 1 };
         }

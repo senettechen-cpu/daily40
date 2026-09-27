@@ -296,6 +296,44 @@ const initDb = async () => {
         // Progress is derived from these rows, so there is no separate table to drift.
         await pool.query('ALTER TABLE operations ADD COLUMN IF NOT EXISTS stronghold_id TEXT');
 
+        // Ascension (2026-09-27). Additive only: the old account-wide astartes
+        // JSON in game_state is left exactly as it was and only ever read.
+        await pool.query('ALTER TABLE roster_characters ADD COLUMN IF NOT EXISTS ascension_route TEXT');
+        await pool.query('ALTER TABLE roster_characters ADD COLUMN IF NOT EXISTS ascension_stage INTEGER NOT NULL DEFAULT 0');
+        await pool.query('ALTER TABLE operations ADD COLUMN IF NOT EXISTS mission_id TEXT');
+        await pool.query('ALTER TABLE operations ADD COLUMN IF NOT EXISTS candidate_id TEXT');
+        // The day's designation: one candidate, up to two tasks in different domains.
+        await pool.query(`CREATE TABLE IF NOT EXISTS growth_plans (
+            user_id TEXT NOT NULL,
+            day TEXT NOT NULL,
+            candidate_id TEXT,
+            slots JSONB NOT NULL DEFAULT '[]'::jsonb,
+            PRIMARY KEY (user_id, day)
+        )`);
+        // A growth record belongs to one candidate and one stage; the source key
+        // (day and task) makes a re-sent completion land once.
+        await pool.query(`CREATE TABLE IF NOT EXISTS growth_records (
+            user_id TEXT NOT NULL,
+            source_key TEXT NOT NULL,
+            candidate_id TEXT NOT NULL,
+            stage INTEGER NOT NULL,
+            domain TEXT NOT NULL,
+            day TEXT NOT NULL,
+            task_id TEXT NOT NULL,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            PRIMARY KEY (user_id, source_key)
+        )`);
+        // One row per implanted stage; the key makes a re-sent confirmation a no-op.
+        await pool.query(`CREATE TABLE IF NOT EXISTS ascension_implants (
+            user_id TEXT NOT NULL,
+            character_id TEXT NOT NULL,
+            stage INTEGER NOT NULL,
+            profile_id TEXT NOT NULL,
+            organ_ids JSONB NOT NULL,
+            implanted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            PRIMARY KEY (character_id, stage)
+        )`);
+
         console.log('Migrations applied.');
 
         // Initialize default game state if not exists

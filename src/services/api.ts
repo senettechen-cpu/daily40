@@ -4,6 +4,7 @@ import type { LedgerPreset, PresetFields, Suggestion } from '../../shared/ledger
 import type { Character, RecruitTemplate, Squad } from '../../shared/roster';
 import type { CatalogItem, EquipmentItem } from '../../shared/armory';
 import type { ServiceEntry, StrongholdRecord } from '../../shared/sector';
+import type { Domain, EscortState, GrowthPlan, GrowthRecord, Route } from '../../shared/ascension';
 
 export interface LedgerQuickMenuData { pinned: LedgerPreset[]; suggestions: Suggestion[] }
 
@@ -25,7 +26,7 @@ export interface XpAward { characterId: string; amount: number; role: 'deployed'
 /** The server's own result. The client replays it; it never reports one. */
 export interface StartedOperation {
     operation: {
-        id: string; scenarioId: string; strongholdId?: string; seed: number; engine: 'v2';
+        id: string; scenarioId: string; strongholdId?: string; missionId?: string; candidateId?: string; seed: number; engine: 'v2';
         crew: unknown[]; board: unknown; rounds: number; placements: unknown[];
         outcome: 'victory' | 'defeat' | 'timeout'; paysXp: boolean;
     };
@@ -38,6 +39,32 @@ export interface StartedOperation {
     firstCapture?: boolean;
     /** Authorizations the first capture just opened. */
     unlocked?: { equipment: string[]; personnel: string[] };
+    /** The Ultramarines aspirant an escort's first win brought onto the roster. */
+    aspirant?: Character;
+}
+
+/** Where a squad departs for: a stronghold, or an ascension mission (a stage mission names its candidate). */
+export type OperationTarget = { strongholdId: string } | { missionId: string; candidateId?: string };
+
+export interface CandidateView {
+    id: string;
+    stage: number;
+    route: Route;
+    graduated: boolean;
+    records: (GrowthRecord & { taskId: string })[];
+    stagesWon: number[];
+    implants: { characterId: string; stage: number; organIds: string[]; at: string }[];
+}
+
+export interface AscensionView {
+    day: string;
+    profileId: string;
+    plan: GrowthPlan;
+    recordedTaskIds: string[];
+    candidates: CandidateView[];
+    escorts: { id: string; name: string; after?: string; aspirantName?: string; state: EscortState }[];
+    eligibleOriginal: string[];
+    legacy: { unlockedImplants: string[]; completedStages: number[] } | null;
 }
 
 /** The sector campaign as the server derives it from the account's operations. */
@@ -371,9 +398,9 @@ export const api = {
         return response.json();
     },
 
-    startOperation: async (squadId: string, strongholdId: string, traineeIds: string[], token?: string): Promise<StartedOperation> => {
+    startOperation: async (squadId: string, target: OperationTarget, traineeIds: string[], token?: string): Promise<StartedOperation> => {
         const response = await fetch(`${API_URL}/operations`, {
-            method: 'POST', headers: getHeaders(token), body: JSON.stringify({ squadId, strongholdId, traineeIds }),
+            method: 'POST', headers: getHeaders(token), body: JSON.stringify({ squadId, ...target, traineeIds }),
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error || '無法出戰');
@@ -387,6 +414,46 @@ export const api = {
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error || '無法設定里程碑');
         return data.milestoneIds;
+    },
+
+    // Ascension (2026-09-27)
+    getAscension: async (token?: string): Promise<AscensionView> => {
+        const response = await fetch(`${API_URL}/ascension`, { headers: getHeaders(token) });
+        if (!response.ok) throw new Error('無法讀取飛昇進度');
+        return response.json();
+    },
+
+    saveGrowthPlan: async (candidateId: string | null, slots: { taskId: string; domain: Domain }[], token?: string): Promise<GrowthPlan> => {
+        const response = await fetch(`${API_URL}/ascension/plan`, {
+            method: 'PUT', headers: getHeaders(token), body: JSON.stringify({ candidateId, slots }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || '無法儲存今日指定');
+        return data.plan;
+    },
+
+    applyOriginalBranch: async (characterId: string, token?: string): Promise<void> => {
+        const response = await fetch(`${API_URL}/ascension/original`, {
+            method: 'POST', headers: getHeaders(token), body: JSON.stringify({ characterId, acknowledged: true }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || '無法申請原創路線');
+    },
+
+    withdrawOriginalBranch: async (characterId: string, token?: string): Promise<void> => {
+        const response = await fetch(`${API_URL}/ascension/original/${encodeURIComponent(characterId)}`, { method: 'DELETE', headers: getHeaders(token) });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || '無法撤回申請');
+    },
+
+    /** Implants one whole stage. Safe to retry: a re-send returns the stored result. */
+    implantStage: async (characterId: string, stage: number, token?: string): Promise<{ stage: number; organIds: string[]; already?: boolean; graduation?: { returned: string[]; loaned: string[] } }> => {
+        const response = await fetch(`${API_URL}/ascension/candidates/${encodeURIComponent(characterId)}/implant`, {
+            method: 'POST', headers: getHeaders(token), body: JSON.stringify({ stage }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || '無法植入');
+        return data;
     },
 
     /** Final: seals the plan and opens its supply crate if it earned one. Safe to retry. */

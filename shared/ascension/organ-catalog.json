@@ -1,0 +1,275 @@
+{
+  "note": "Trimmed from handoff-assets/ascension-20260921-gpt-v1/organ-catalog.json (GPT, designVersion ascension-handoff-20260921-v1). Stable ids are GPT's; do not rename. Ultramarines profile ultramarines-standard19-v1.",
+  "profileId": "ultramarines-standard19-v1",
+  "stages": [
+    {
+      "stage": 1,
+      "name": "身體基礎",
+      "records": 12,
+      "hp": 110,
+      "mission": "適應評估",
+      "ids": [
+        "secondary-heart",
+        "ossmodula",
+        "biscopea"
+      ],
+      "maximumOneDomainRecords": 9
+    },
+    {
+      "stage": 2,
+      "name": "生理穩定",
+      "records": 16,
+      "hp": 120,
+      "mission": "生理穩定評估",
+      "ids": [
+        "haemastamen",
+        "larramans-organ",
+        "catalepsean-node"
+      ],
+      "maximumOneDomainRecords": 12
+    },
+    {
+      "stage": 3,
+      "name": "感官整合",
+      "records": 20,
+      "hp": 130,
+      "mission": "感官與射界訓練",
+      "ids": [
+        "preomnor",
+        "omophagea",
+        "multi-lung",
+        "occulobe",
+        "lymans-ear"
+      ],
+      "maximumOneDomainRecords": 15
+    },
+    {
+      "stage": 4,
+      "name": "綜合適應",
+      "records": 24,
+      "hp": 130,
+      "mission": "環境適應與救援演練",
+      "ids": [
+        "sus-an-membrane",
+        "melanchromic",
+        "oolitic-kidney",
+        "neuroglottis",
+        "mucranoid",
+        "betchers-gland",
+        "progenoids"
+      ],
+      "maximumOneDomainRecords": 18
+    },
+    {
+      "stage": 5,
+      "name": "介面與授銜",
+      "records": 28,
+      "hp": 160,
+      "mission": "裝甲介面訓練與授銜審核",
+      "ids": [
+        "black-carapace"
+      ],
+      "maximumOneDomainRecords": 21
+    }
+  ],
+  "implants": [
+    {
+      "id": "secondary-heart",
+      "labelZh": "第二心臟",
+      "labelEn": "Secondary Heart",
+      "canonicalPhase": 1,
+      "gameStage": 1,
+      "enabledInBaseline": true,
+      "loreFunctionShort": "心臟支援"
+    },
+    {
+      "id": "ossmodula",
+      "labelZh": "骨化器",
+      "labelEn": "Ossmodula",
+      "canonicalPhase": 2,
+      "gameStage": 1,
+      "enabledInBaseline": true,
+      "loreFunctionShort": "骨骼成長"
+    },
+    {
+      "id": "biscopea",
+      "labelZh": "肌肉增生器",
+      "labelEn": "Biscopea",
+      "canonicalPhase": 3,
+      "gameStage": 1,
+      "enabledInBaseline": true,
+      "loreFunctionShort": "肌肉成長"
+    },
+    {
+      "id": "haemastamen",
+      "labelZh": "血液調節器",
+      "labelEn": "Haemastamen",
+      "canonicalPhase": 4,
+      "gameStage": 2,
+      "enabledInBaseline": true,
+      "loreFunctionShort": "血液調節"
+    },
+    {
+      "id": "larramans-organ",
+      "labelZh": "拉瑞曼器官",
+      "labelEn": "Larraman’s Organ",
+      "canonicalPhase": 5,
+      "gameStage": 2,
+      "enabledInBaseline": true,
+      "loreFunctionShort": "凝血"
+    },
+    {
+      "id": "catalepsean-node",
+      "labelZh": "休眠節點",
+      "labelEn": "Catalepsean Node",
+      "canonicalPhase": 6,
+      "gameStage": 2,
+      "enabledInBaseline": true,
+      "loreFunctionShort": "休眠調節"
+    },
+    {
+      "id": "preomnor",
+      "labelZh": "預胃",
+      "labelEn": "Preomnor",
+      "canonicalPhase": 7,
+      "gameStage": 3,
+      "enabledInBaseline": true,
+      "loreFunctionShort": "預胃處理"
+    },
+    {
+      "id": "omophagea",
+      "labelZh": "食憶器",
+      "labelEn": "Omophagea",
+      "canonicalPhase": 8,
+      "gameStage": 3,
+      "enabledInBaseline": true,
+      "loreFunctionShort": "食憶"
+    },
+    {
+      "id": "multi-lung",
+      "labelZh": "多肺器",
+      "labelEn": "Multi-lung",
+      "canonicalPhase": 9,
+      "gameStage": 3,
+      "enabledInBaseline": true,
+      "loreFunctionShort": "呼吸適應"
+    },
+    {
+      "id": "occulobe",
+      "labelZh": "視覺增強葉",
+      "labelEn": "Occulobe",
+      "canonicalPhase": 10,
+      "gameStage": 3,
+      "enabledInBaseline": true,
+      "loreFunctionShort": "視覺調節"
+    },
+    {
+      "id": "lymans-ear",
+      "labelZh": "萊曼之耳",
+      "labelEn": "Lyman’s Ear",
+      "canonicalPhase": 11,
+      "gameStage": 3,
+      "enabledInBaseline": true,
+      "loreFunctionShort": "聽覺平衡"
+    },
+    {
+      "id": "sus-an-membrane",
+      "labelZh": "懸生膜",
+      "labelEn": "Sus-an Membrane",
+      "canonicalPhase": 12,
+      "gameStage": 4,
+      "enabledInBaseline": true,
+      "loreFunctionShort": "懸生"
+    },
+    {
+      "id": "melanchromic",
+      "labelZh": "黑色素器官",
+      "labelEn": "Melanchromic Organ",
+      "canonicalPhase": 13,
+      "gameStage": 4,
+      "enabledInBaseline": true,
+      "loreFunctionShort": "色素調節"
+    },
+    {
+      "id": "oolitic-kidney",
+      "labelZh": "卵石腎",
+      "labelEn": "Oolitic Kidney",
+      "canonicalPhase": 14,
+      "gameStage": 4,
+      "enabledInBaseline": true,
+      "loreFunctionShort": "過濾"
+    },
+    {
+      "id": "neuroglottis",
+      "labelZh": "神經舌",
+      "labelEn": "Neuroglottis",
+      "canonicalPhase": 15,
+      "gameStage": 4,
+      "enabledInBaseline": true,
+      "loreFunctionShort": "味覺辨識"
+    },
+    {
+      "id": "mucranoid",
+      "labelZh": "黏液腺",
+      "labelEn": "Mucranoid",
+      "canonicalPhase": 16,
+      "gameStage": 4,
+      "enabledInBaseline": true,
+      "loreFunctionShort": "保護分泌"
+    },
+    {
+      "id": "betchers-gland",
+      "labelZh": "貝切爾腺",
+      "labelEn": "Betcher’s Gland",
+      "canonicalPhase": 17,
+      "gameStage": 4,
+      "enabledInBaseline": true,
+      "loreFunctionShort": "酸液分泌"
+    },
+    {
+      "id": "progenoids",
+      "labelZh": "基因種子腺",
+      "labelEn": "Progenoids",
+      "canonicalPhase": 18,
+      "gameStage": 4,
+      "enabledInBaseline": true,
+      "loreFunctionShort": "基因種子保存"
+    },
+    {
+      "id": "black-carapace",
+      "labelZh": "黑色甲殼",
+      "labelEn": "Black Carapace",
+      "canonicalPhase": 19,
+      "gameStage": 5,
+      "enabledInBaseline": true,
+      "loreFunctionShort": "裝甲神經介面"
+    },
+    {
+      "id": "sinew-coils",
+      "labelZh": "肌腱線圈",
+      "labelEn": "Sinew Coils",
+      "canonicalPhase": null,
+      "gameStage": null,
+      "enabledInBaseline": false,
+      "loreFunctionShort": "肌腱強化"
+    },
+    {
+      "id": "magnificat",
+      "labelZh": "增幅器",
+      "labelEn": "Magnificat",
+      "canonicalPhase": null,
+      "gameStage": null,
+      "enabledInBaseline": false,
+      "loreFunctionShort": "成長增幅"
+    },
+    {
+      "id": "belisarian-furnace",
+      "labelZh": "貝利撒留熔爐",
+      "labelEn": "Belisarian Furnace",
+      "canonicalPhase": null,
+      "gameStage": null,
+      "enabledInBaseline": false,
+      "loreFunctionShort": "創傷應急"
+    }
+  ]
+}

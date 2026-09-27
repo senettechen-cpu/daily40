@@ -12,7 +12,8 @@ import { RequisitionForm } from './components/RequisitionForm'
 import { NavigationArray } from './components/NavigationArray'
 import { SectorMap } from './components/SectorMap'
 import TaskDataSlate from './components/TaskDataSlate' // Added
-import { AscensionTracker } from './components/astartes/AscensionTracker'
+import { AscensionView } from './components/AscensionView'
+import type { MissionOrder } from './components/RosterView'
 import { GameProvider, useGame } from './contexts/GameContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { useAuth } from './contexts/AuthContext'
@@ -296,8 +297,10 @@ const MainDashboard = ({ currentUser, onLogout }: { currentUser: any, onLogout: 
 
   // The stronghold picked on the sector map, handed to the roster's departure.
   const [rosterStronghold, setRosterStronghold] = useState<string | null>(null);
+  // An ascension mission picked on the ascension page; while set, the roster departs for it.
+  const [rosterMission, setRosterMission] = useState<MissionOrder | null>(null);
   const openShop = (strongholdId?: string) => {
-    if (typeof strongholdId === 'string') setRosterStronghold(strongholdId);
+    if (typeof strongholdId === 'string') { setRosterStronghold(strongholdId); setRosterMission(null); }
     setIsShopOpen(true);
     setIsArmoryOpen(false);
     setIsLedgerOpen(false);
@@ -510,7 +513,8 @@ const MainDashboard = ({ currentUser, onLogout }: { currentUser: any, onLogout: 
         onLogout={onLogout}
       />
 
-      <RosterView visible={isShopOpen} onClose={() => setIsShopOpen(false)} strongholdId={rosterStronghold} />
+      <RosterView visible={isShopOpen} onClose={() => setIsShopOpen(false)} strongholdId={rosterStronghold}
+        mission={rosterMission} onClearMission={() => setRosterMission(null)} />
 
       <AddTaskModal
         visible={isAddModalOpen}
@@ -529,7 +533,8 @@ const MainDashboard = ({ currentUser, onLogout }: { currentUser: any, onLogout: 
 
       <RequisitionForm visible={isLedgerOpen} onClose={() => setIsLedgerOpen(false)} />
 
-      <AscensionTracker visible={isAscensionOpen} onClose={() => setIsAscensionOpen(false)} />
+      <AscensionView visible={isAscensionOpen} onClose={() => setIsAscensionOpen(false)}
+        onDeployMission={order => { setRosterMission(order); openShop(); }} />
     </div>
   );
 }

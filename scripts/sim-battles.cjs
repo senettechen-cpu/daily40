@@ -57,8 +57,19 @@ const PRESETS = {
     },
 };
 
+// A stage mission is fought by a squad the candidate is in: the rifleman c3
+// stands in as an Ultramarines aspirant who has implanted the stages before it.
+// Their gear stays whatever the preset gave c3, so only the body changes.
+const asCandidate = (scenario, members) => {
+    const match = /^asc-stage-(\d)$/.exec(scenario.id);
+    if (!match) return members;
+    return members.map(c => (c.id === 'c3' ? { ...c, origin: 'aspirant', ascensionRoute: 'new-aspirant', ascensionStage: Number(match[1]) - 1 } : c));
+};
+
 function crewFor(scenario, presetName) {
-    const { members, items } = PRESETS[presetName]();
+    const preset = PRESETS[presetName]();
+    const items = preset.items;
+    const members = asCandidate(scenario, preset.members);
     const placements = turn.placementsFor(scenario.board, members, undefined);
     const built = turn.crewFor(members, items, placements);
     return turn.assignHeavyCrew(turn.resolveGuards(built.units));

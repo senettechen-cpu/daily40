@@ -4,12 +4,14 @@ import { MAX_TRAINEES, Outcome, awardsFor, operationGate } from '../shared/battl
 import {
     assignHeavyCrew, crewFor, placementsFor, resolveGuards, runBattle, scenarioById,
 } from '../shared/battle/turn';
-import { SQUAD_SIZE, validateSquad } from '../shared/roster';
+import { SQUAD_SIZE, inAscension, validateSquad } from '../shared/roster';
+import { MissionDef, missionById, missionSquadError, strongholdSquadError } from '../shared/ascension';
 import { DEFAULT_TIME_ZONE, dayKey } from '../shared/rewards';
 import { FIRST_CAPTURE_XP, OperationSummary, campaignFrom, checkAttack } from '../shared/sector';
 import { loadBook } from '../rewards/store';
 import { loadCharacters, loadSquads } from '../roster/service';
 import { loadItems } from '../armory/service';
+import { bringAspirant, loadMissionWins, stagesWonBy } from '../ascension/service';
 
 /** Cores already paid today; the G1 gate counts these, not anything the client says. */
 async function completedCoresToday(db: Db, userId: string, now: Date): Promise<number> {
@@ -51,7 +53,11 @@ export async function readCampaign(db: Db, userId: string) {
 
 export interface StartRequest {
     squadId: string;
-    strongholdId: string;
+    /** A stronghold of the sector campaign, or… */
+    strongholdId?: string;
+    /** …an ascension mission; a stage mission also names its candidate. */
+    missionId?: string;
+    candidateId?: string;
     traineeIds?: string[];
     lanes?: number[];
 }
@@ -71,10 +77,16 @@ export async function startOperation(db: Db, userId: string, request: StartReque
 
     const history = await loadCampaignOperations(db, userId);
     const { captured } = campaignFrom(history);
-    const attack = checkAttack(request.strongholdId, captured);
-    if (!attack.ok) return { error: attack.reason };
 
-    const scenario = scenarioById(attack.scenarioId);
+    // An ascension mission is fought the same way; only what it asks of the
+    // squad and what a win brings differ.
+    const mission: MissionDef | undefined = request.missionId ? missionById(request.missionId) : undefined;
+    if (request.missionId && !mission) return { error: '找不到這個人物任務。' };
+    const check = mission ? undefined : checkAttack(request.strongholdId ?? '', captured);
+    if (check && !check.ok) return { error: check.reason };
+    const attack = check && check.ok ? check : undefined;
+
+    const scenario = scenarioById(mission ? mission.scenarioId : attack?.scenarioId ?? '');
     if (!scenario) return { error: '找不到這個據點的作戰。' };
 
     const [squads, roster, items] = await Promise.all([
@@ -90,6 +102,20 @@ export async function startOperation(db: Db, userId: string, request: StartReque
     const byId = new Map(roster.map(character => [character.id, character]));
     const members = squad.memberIds.map(id => byId.get(id)!);
 
+    const candidate = mission?.kind === 'stage' && request.candidateId ? byId.get(request.candidateId) : undefined;
+    if (mission) {
+        const wins = await loadMissionWins(db, userId);
+        const missionError = missionSquadError(mission, members, candidate, {
+            captured: new Set(captured),
+            escortsWon: new Set(wins.map(w => w.missionId)),
+            stagesWon: candidate ? stagesWonBy(wins, candidate.id) : [],
+        });
+        if (missionError) return { error: missionError };
+    } else {
+        const candidateError = strongholdSquadError(members);
+        if (candidateError) return { error: candidateError };
+    }
+
     // The saved formation when it still fits the squad, a sensible default when
     // it does not, so a roster change never leaves a squad unable to deploy.
     const placements = placementsFor(scenario.board, members, squad.placements);
@@ -99,8 +125,9 @@ export async function startOperation(db: Db, userId: string, request: StartReque
 
     // Trainees must be on the roster and not already deployed.
     const deployedIds = new Set(squad.memberIds);
+    // A candidate in training watches nobody else's battles either.
     const trainees = (request.traineeIds ?? [])
-        .filter(id => byId.has(id) && !deployedIds.has(id))
+        .filter(id => byId.has(id) && !deployedIds.has(id) && !inAscension(byId.get(id)!))
         .slice(0, MAX_TRAINEES)
         .map(id => byId.get(id)!);
 
@@ -110,15 +137,17 @@ export async function startOperation(db: Db, userId: string, request: StartReque
     const seed = randomInt(1, 2 ** 31 - 1);
     const finished = runBattle({ board: scenario.board, units: [...crew, ...scenario.enemies], seed, objective: scenario.objective });
     const outcome = finished.outcome as Outcome;
-    const firstCapture = outcome === 'victory' && attack.firstCapture;
+    const firstCapture = outcome === 'victory' && !!attack?.firstCapture;
+    const strongholdId = attack?.stronghold.id ?? null;
 
     const id = randomUUID();
     await db.query(
-        `INSERT INTO operations (id, user_id, squad_id, scenario_id, seed, crew, trainee_ids, outcome, pays_xp, engine, board, rounds, stronghold_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'v2', $10, $11, $12)`,
+        `INSERT INTO operations (id, user_id, squad_id, scenario_id, seed, crew, trainee_ids, outcome, pays_xp, engine, board, rounds, stronghold_id, mission_id, candidate_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'v2', $10, $11, $12, $13, $14)`,
         [id, userId, squad.id, scenario.id, seed, JSON.stringify(crew),
             JSON.stringify(trainees.map(t => t.id)), outcome, gate.paysRequisition,
-            JSON.stringify(scenario.board), finished.rounds, attack.stronghold.id],
+            JSON.stringify(scenario.board), finished.rounds, strongholdId,
+            mission?.id ?? null, candidate?.id ?? null],
     );
 
     // A rest day or exemption opens the gate but pays nothing, XP included.
@@ -139,7 +168,10 @@ export async function startOperation(db: Db, userId: string, request: StartReque
     // the only thing that writes an authorization; the count of won operations
     // no longer grants anything. Inserts ignore rows already there, so a retry
     // never double-grants, and an authorization is never taken back.
-    const unlocked = firstCapture ? await grantUnlocks(db, userId, attack.stronghold.unlocks) : { equipment: [], personnel: [] };
+    const unlocked = firstCapture && attack ? await grantUnlocks(db, userId, attack.stronghold.unlocks) : { equipment: [], personnel: [] };
+
+    // The first win of an escort brings the Ultramarines' candidate onto the roster.
+    const aspirant = mission && outcome === 'victory' ? await bringAspirant(db, userId, mission, now) : undefined;
 
     // A defeat puts the squad that fought it out of action for the rest of the
     // day. Trainees stayed behind, so they are untouched.
@@ -153,7 +185,8 @@ export async function startOperation(db: Db, userId: string, request: StartReque
 
     return {
         operation: {
-            id, scenarioId: scenario.id, strongholdId: attack.stronghold.id, seed, crew, outcome, engine: 'v2' as const,
+            id, scenarioId: scenario.id, strongholdId: strongholdId ?? undefined, missionId: mission?.id, candidateId: candidate?.id,
+            seed, crew, outcome, engine: 'v2' as const,
             board: scenario.board, rounds: finished.rounds, placements,
             paysXp: gate.paysRequisition,
         },
@@ -163,6 +196,7 @@ export async function startOperation(db: Db, userId: string, request: StartReque
         woundedIds,
         firstCapture,
         unlocked,
+        aspirant,
     };
 }
 

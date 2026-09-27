@@ -27,6 +27,8 @@ interface Handoff {
     summary?: string;
     /** The sector-campaign stronghold this was fought at. */
     strongholdId?: string;
+    /** Or the ascension mission it was. */
+    missionName?: string;
 }
 
 const OUTCOME_LABELS: Record<string, string> = { victory: '勝利', defeat: '失敗', timeout: '超時' };
@@ -124,7 +126,8 @@ export function HexReportApp() {
                     </p>
                     {(() => {
                         const place = handoff.strongholdId ? strongholdById(handoff.strongholdId) : undefined;
-                        return place && <p className="br-summary">{worldById(place.world)?.name} · {place.name}</p>;
+                        if (place) return <p className="br-summary">{worldById(place.world)?.name} · {place.name}</p>;
+                        return handoff.missionName && <p className="br-summary">人物任務 · {handoff.missionName}</p>;
                     })()}
                     <h1>{handoff.squadName} · {OUTCOME_LABELS[battle.outcome]}（{battle.rounds} 回合）</h1>
                     <p className="bt-hint">{ENDING_LABELS[battle.ending] ?? ''}</p>

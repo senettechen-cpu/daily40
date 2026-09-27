@@ -37,6 +37,10 @@ export function assignmentError(
     if (definition.restricted && !authorized.includes(definition.id)) {
         return `${definition.name} 尚未取得授權。`;
     }
+    // Ascension handoff §5: armour comes only from a legal fit, and human plate does not fit a marine.
+    if (definition.category === 'armour' && character.origin === 'astartes' && !definition.origins?.includes('astartes')) {
+        return '阿斯塔特穿不下人類的護甲。';
+    }
 
     const slot = definition.category;
     const held = itemsOf(items, character.id).filter(other => other.id !== item.id && slotOf(other) === slot);

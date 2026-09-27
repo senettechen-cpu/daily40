@@ -5,8 +5,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 import {
     Character, DUTY_LABELS, Duty, HEALTH_LABELS, ORIGIN_LABELS, SQUAD_SIZE, Squad,
-    isDeployable, isWoundedOn, levelOf, maxHp, xpToNext,
+    inAscension, isDeployable, isWoundedOn, levelOf, maxHp, xpToNext,
 } from '../../shared/roster';
+import { missionById } from '../../shared/ascension';
 import { dayKey } from '../../shared/time';
 import { RecruitTemplate, recruitError, validateSquad } from '../../shared/roster';
 import {
@@ -20,7 +21,25 @@ import { DEPLOYMENT_KEY } from '../battle/handoff';
 import { equipmentArt, portraitHead } from '../data/reportArtIndex';
 import { MAX_TRAINEES } from '../../shared/battle';
 import { ServiceEntry, strongholdById, worldById } from '../../shared/sector';
-import type { CampaignView } from '../services/api';
+import type { CampaignView, OperationTarget } from '../services/api';
+
+/** An ascension mission chosen on the ascension page; the squad departs for it instead of a stronghold. */
+export interface MissionOrder { missionId: string; candidateId?: string }
+
+/** The tag a soldier on the ascension path carries everywhere they appear. */
+const AscensionTag = ({ character }: { character: Character }) => {
+    if (!character.ascensionRoute) return null;
+    const original = character.ascensionRoute === 'original-existing-soldier';
+    const label = inAscension(character)
+        ? `${original ? '原創飛昇' : '候選人'} · 第 ${character.ascensionStage ?? 0}/5 階`
+        : original ? '原創飛昇 · 已授銜' : '已授銜';
+    return (
+        <span className="text-[10px] font-mono px-1 border text-sky-300 border-sky-800/60"
+            title={inAscension(character) ? '改造中，只能出自己的人物任務' : '已完成飛昇'}>
+            {label}
+        </span>
+    );
+};
 
 const OUTCOME_LABELS: Record<string, string> = { victory: '勝利', defeat: '失敗', timeout: '超時' };
 
@@ -84,6 +103,7 @@ const CharacterCard = ({ character, action, onAction, onOpen }: {
                             今日負傷
                         </span>
                     )}
+                    <AscensionTag character={character} />
                 </div>
                 <div className="text-[11px] font-mono text-zinc-500 truncate">
                     {ORIGIN_LABELS[character.origin]} · {DUTY_LABELS[character.duty]} · Lv{level}
@@ -323,11 +343,14 @@ const SoldierDossier = ({ character, items, authorized, busy, service, onAssign,
     );
 };
 
-export const RosterView = ({ visible, onClose, strongholdId: requestedStronghold }: {
+export const RosterView = ({ visible, onClose, strongholdId: requestedStronghold, mission, onClearMission }: {
     visible: boolean;
     onClose: () => void;
     /** Chosen on the sector map; the squad departs for it. */
     strongholdId?: string | null;
+    /** Chosen on the ascension page; while set, the squad departs for it instead. */
+    mission?: MissionOrder | null;
+    onClearMission?: () => void;
 }) => {
     const { getToken } = useAuth();
     const [characters, setCharacters] = useState<Character[]>([]);
@@ -413,7 +436,9 @@ export const RosterView = ({ visible, onClose, strongholdId: requestedStronghold
      * the server would fall back to. Shown rather than an empty state, so the
      * squad's stances are never a surprise at departure.
      */
-    const board = scenarioById(strongholdById(strongholdId)?.scenarioId ?? '')?.board;
+    const missionDef = mission ? missionById(mission.missionId) : undefined;
+    const missionCandidate = mission?.candidateId ? characters.find(c => c.id === mission.candidateId) : undefined;
+    const board = scenarioById(missionDef ? missionDef.scenarioId : strongholdById(strongholdId)?.scenarioId ?? '')?.board;
     const placements = useMemo(() => {
         if (!activeSquad || !board) return [];
         const saved = activeSquad.placements ?? [];
@@ -460,8 +485,17 @@ export const RosterView = ({ visible, onClose, strongholdId: requestedStronghold
                 setError(`模擬目前固定部署 ${SQUAD_SIZE} 個通道，請補滿再出戰。`);
                 return;
             }
+            const training = members.find(inAscension);
+            if (!missionDef && training) { setError(`${training.name} 正在接受飛昇改造，只能出自己的人物任務。`); return; }
+            if (missionDef?.kind === 'stage' && missionCandidate && !members.some(m => m.id === missionCandidate.id)) {
+                setError(`${missionCandidate.name} 必須在出戰編成裡。`);
+                return;
+            }
 
-            const started = await api.startOperation(activeSquad.id, strongholdId, traineeIds, token);
+            const target: OperationTarget = missionDef
+                ? { missionId: missionDef.id, candidateId: mission?.candidateId }
+                : { strongholdId };
+            const started = await api.startOperation(activeSquad.id, target, traineeIds, token);
 
             const gained = started.awards.filter(a => a.role === 'deployed')[0]?.amount ?? 0;
             const base = started.operation.paysXp
@@ -469,10 +503,13 @@ export const RosterView = ({ visible, onClose, strongholdId: requestedStronghold
                 : `行動結束：${OUTCOME_LABELS[started.operation.outcome]}（本次不計 XP）`;
             const wounded = started.woundedIds?.length ?? 0;
             const earned = [...(started.unlocked?.equipment ?? []), ...(started.unlocked?.personnel ?? [])];
-            const place = strongholdById(strongholdId);
+            const place = missionDef ? undefined : strongholdById(strongholdId);
+            const passed = !!missionDef && started.operation.outcome === 'victory';
             const result = [
                 base,
                 started.firstCapture ? `首次收復${place ? ` ${place.name}` : ''}` : '',
+                passed && missionDef?.kind === 'stage' ? `通過人物任務「${missionDef.name}」，可以回改造計畫確認植入` : '',
+                started.aspirant ? `極限戰士候選人 ${started.aspirant.name} 加入名冊` : '',
                 wounded > 0 ? `${wounded} 人負傷，今日不得再出戰` : '',
                 earned.length > 0 ? `開放 ${earned.map(id => catalogItem(id)?.name ?? RECRUIT_NAMES[id] ?? id).join('、')}` : '',
             ].filter(Boolean).join(' · ');
@@ -485,7 +522,8 @@ export const RosterView = ({ visible, onClose, strongholdId: requestedStronghold
                 unmodelled: started.unmodelled,
                 squadName: activeSquad.name,
                 scenarioId: started.operation.scenarioId,
-                strongholdId,
+                strongholdId: missionDef ? undefined : strongholdId,
+                missionName: missionDef?.name,
                 seed: started.operation.seed,
                 outcome: started.operation.outcome,
                 rounds: started.operation.rounds,
@@ -494,6 +532,7 @@ export const RosterView = ({ visible, onClose, strongholdId: requestedStronghold
                 summary: result,
             }));
             setDeparture(result);
+            if (passed) onClearMission?.();
             await load();
 
             // The result is already recorded; the report only replays it. It opens
@@ -618,15 +657,23 @@ export const RosterView = ({ visible, onClose, strongholdId: requestedStronghold
                         )}
 
                         <div className="mt-3 flex flex-wrap items-center gap-3">
-                            <Select size="small" value={strongholdId} onChange={setStrongholdId} className="!min-w-[180px]"
-                                aria-label="攻打據點"
-                                options={targets.map(record => {
-                                    const place = strongholdById(record.id);
-                                    return { value: record.id, label: `${worldById(place?.world ?? 0)?.name ?? ''} · ${place?.name ?? record.id}${record.state === 'captured' ? '（已收復）' : ''}` };
-                                })} />
+                            {missionDef ? (
+                                <span className="flex items-center gap-2 font-mono text-xs text-sky-300 border border-sky-800/60 px-2 py-1">
+                                    人物任務：{missionDef.name}{missionCandidate ? `（候選人 ${missionCandidate.name}）` : ''}
+                                    <button type="button" className="text-zinc-500 hover:text-imperial-gold underline"
+                                        onClick={() => onClearMission?.()}>改回攻打據點</button>
+                                </span>
+                            ) : (
+                                <Select size="small" value={strongholdId} onChange={setStrongholdId} className="!min-w-[180px]"
+                                    aria-label="攻打據點"
+                                    options={targets.map(record => {
+                                        const place = strongholdById(record.id);
+                                        return { value: record.id, label: `${worldById(place?.world ?? 0)?.name ?? ''} · ${place?.name ?? record.id}${record.state === 'captured' ? '（已收復）' : ''}` };
+                                    })} />
+                            )}
                             <Select size="small" mode="multiple" allowClear value={traineeIds} onChange={setTraineeIds}
                                 maxTagCount={2} placeholder={`備訓（最多 ${MAX_TRAINEES}）`} className="!min-w-[180px]"
-                                options={characters.filter(c => !activeSquad.memberIds.includes(c.id))
+                                options={characters.filter(c => !activeSquad.memberIds.includes(c.id) && !inAscension(c))
                                     .map(c => ({ value: c.id, label: c.name, disabled: traineeIds.length >= MAX_TRAINEES && !traineeIds.includes(c.id) }))} />
                             <Button size="small" icon={<Swords size={14} />} disabled={busy || members.length === 0}
                                 onClick={() => void depart()}

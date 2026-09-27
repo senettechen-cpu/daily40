@@ -47,6 +47,9 @@ app.use('/api/armory', verifyToken, armoryRoutes);
 import operationRoutes from './routes/operations';
 app.use('/api/operations', verifyToken, operationRoutes);
 
+import ascensionRoutes from './routes/ascension';
+app.use('/api/ascension', verifyToken, ascensionRoutes);
+
 import notificationRoutes from './routes/notifications';
 app.use('/api/notifications', verifyToken, notificationRoutes);
 

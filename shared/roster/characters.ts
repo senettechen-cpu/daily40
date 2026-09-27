@@ -2,7 +2,9 @@
 // property of a character, so the same origin can field several of one duty and
 // each keeps its own record.
 
-export type Origin = 'cadian' | 'catachan' | 'krieg' | 'kasrkin' | 'scion' | 'ecclesiarchy' | 'sororitas' | 'astartes';
+import { Route, stageHp } from '../ascension/rules';
+
+export type Origin = 'cadian' | 'catachan' | 'krieg' | 'kasrkin' | 'scion' | 'ecclesiarchy' | 'sororitas' | 'astartes' | 'aspirant';
 
 export type Duty = 'rifleman' | 'sergeant' | 'medic' | 'comms' | 'engineer' | 'marksman' | 'flamer' | 'plasma' | 'heavy';
 
@@ -20,11 +22,16 @@ export interface Character {
     /** The day a lost battle put them out of action (YYYY-MM-DD), or absent. */
     woundedDay?: string;
     recruitedAt: string;
+    /** Ascension stages implanted (0–5); absent or 0 for anyone not in training. */
+    ascensionStage?: number;
+    /** Set once a soldier enters ascension, kept after graduation as their tag. */
+    ascensionRoute?: Route;
 }
 
 export const ORIGIN_LABELS: Record<Origin, string> = {
     cadian: '卡迪安', catachan: '卡塔昌', krieg: '克里格', kasrkin: '卡斯爾金',
     scion: '風暴兵', ecclesiarchy: '國教', sororitas: '戰鬥修女', astartes: '阿斯塔特',
+    aspirant: '極限戰士候選人',
 };
 
 export const DUTY_LABELS: Record<Duty, string> = {
@@ -40,12 +47,12 @@ export const HEALTH_LABELS: Record<Health, string> = {
 // rather than stacking on top of it, which is why this is a lookup, not a sum.
 export const BASE_HP: Record<Origin, number> = {
     cadian: 100, catachan: 100, krieg: 100, kasrkin: 100,
-    scion: 100, ecclesiarchy: 100, sororitas: 110, astartes: 160,
+    scion: 100, ecclesiarchy: 100, sororitas: 110, astartes: 160, aspirant: 100,
 };
 
 export const BASE_ACCURACY: Record<Origin, number> = {
     cadian: 75, catachan: 75, krieg: 75, kasrkin: 78,
-    scion: 78, ecclesiarchy: 72, sororitas: 76, astartes: 80,
+    scion: 78, ecclesiarchy: 72, sororitas: 76, astartes: 80, aspirant: 75,
 };
 
 export const MAX_LEVEL = 10;
@@ -70,12 +77,22 @@ export function xpToNext(xp: number): number | null {
     return LEVEL_XP[level] - xp;
 }
 
-/** v1.5 §6: every level adds 2% of the current baseline, +18% across ten levels. */
-export function maxHp(character: Pick<Character, 'origin' | 'xp'>): number {
-    return Math.round(BASE_HP[character.origin] * (1 + 0.02 * (levelOf(character.xp) - 1)));
+/**
+ * v1.5 §6: every level adds 2% of the current baseline, +18% across ten levels.
+ * A soldier partway through ascension takes the stage's baseline in place of
+ * their origin's (110/120/130/130); graduation makes them astartes, 160.
+ */
+export function maxHp(character: Pick<Character, 'origin' | 'xp' | 'ascensionStage'>): number {
+    const base = stageHp(character.ascensionStage) ?? BASE_HP[character.origin];
+    return Math.round(base * (1 + 0.02 * (levelOf(character.xp) - 1)));
 }
 
+/** v1.5 §5: accuracy stays at the origin's until stage V makes them astartes (80%). */
 export const accuracyOf = (character: Pick<Character, 'origin'>) => BASE_ACCURACY[character.origin];
+
+/** Entered ascension and not yet graduated: fights only their own missions. */
+export const inAscension = (character: Pick<Character, 'ascensionStage' | 'ascensionRoute' | 'origin'>) =>
+    !!character.ascensionRoute && character.origin !== 'astartes';
 
 export const isDeployable = (character: Character) => character.health !== 'critical';
 

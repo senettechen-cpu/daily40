@@ -5,6 +5,7 @@ import { rewardCoreCompleted } from '../rewards/coreService';
 import { v15EconomyEnabled } from '../rewards/service';
 import { DEFAULT_TIME_ZONE, dayKey } from '../shared/rewards';
 import { normalizeSlots, slotsMet } from '../shared/tasks';
+import { recordGrowthForTask } from '../ascension/service';
 
 const router = Router();
 
@@ -105,9 +106,9 @@ router.put('/:id', async (req, res) => {
             : updates.status === 'completed' ? new Date()
                 : null;
 
-        const requisition = await withTransaction(async db => {
+        const { requisition, growth } = await withTransaction(async db => {
             await db.query(sql, values);
-            if (!completedAt || !v15EconomyEnabled()) return 0;
+            if (!completedAt || !v15EconomyEnabled()) return { requisition: 0, growth: null };
 
             // A task with several times of day is only met when every one of them
             // is done, so the client cannot claim the core by reporting the first.
@@ -117,12 +118,16 @@ router.put('/:id', async (req, res) => {
             if (slots.length > 0) {
                 const today = dayKey(completedAt, DEFAULT_TIME_ZONE);
                 const done = row?.slots_day === today ? row?.slots_done : [];
-                if (!slotsMet(slots, done)) return 0;
+                if (!slotsMet(slots, done)) return { requisition: 0, growth: null };
             }
-            return rewardCoreCompleted(db, userId, id, completedAt);
+            // A task designated for today's candidate also becomes a growth record.
+            return {
+                requisition: await rewardCoreCompleted(db, userId, id, completedAt),
+                growth: await recordGrowthForTask(db, userId, id, completedAt),
+            };
         });
 
-        res.json({ message: 'Task updated', requisition });
+        res.json({ message: 'Task updated', requisition, growth });
     } catch (err) {
         console.error('Error updating task:', err);
         res.status(500).json({ error: 'Internal Server Error' });
