@@ -1,11 +1,27 @@
 
 import { Router } from 'express';
 import { query, withTransaction } from '../db';
-import { rewardCoreCompleted } from '../rewards/coreService';
+import { editPlan, rewardCoreCompleted } from '../rewards/coreService';
 import { v15EconomyEnabled } from '../rewards/service';
 import { DEFAULT_TIME_ZONE, dayKey } from '../shared/rewards';
 import { normalizeSlots, slotsMet } from '../shared/tasks';
-import { recordGrowthForTask } from '../ascension/service';
+import { recordGrowthForTask, releaseDesignation } from '../ascension/service';
+import { addDays } from '../shared/time';
+import type { Db } from '../db';
+
+/**
+ * A voided task (2026-09-27: "標記無效" is a true void, not a completion) gives
+ * back what it was holding: its place among today's and tomorrow's cores and
+ * its slot in today's growth designation, so another task can take them.
+ * Nothing is paid and nothing is reversed, because nothing was earned.
+ */
+async function releaseVoidedTask(db: Db, userId: string, taskId: string, now: Date) {
+    const today = dayKey(now, DEFAULT_TIME_ZONE);
+    for (const day of [today, addDays(today, 1)]) {
+        await editPlan(db, userId, day, { action: 'remove', taskId }, now);
+    }
+    await releaseDesignation(db, userId, taskId, now);
+}
 
 const router = Router();
 
@@ -108,6 +124,10 @@ router.put('/:id', async (req, res) => {
 
         const { requisition, growth } = await withTransaction(async db => {
             await db.query(sql, values);
+            if (updates.status === 'failed' && v15EconomyEnabled()) {
+                await releaseVoidedTask(db, userId, id, new Date());
+                return { requisition: 0, growth: null };
+            }
             if (!completedAt || !v15EconomyEnabled()) return { requisition: 0, growth: null };
 
             // A task with several times of day is only met when every one of them

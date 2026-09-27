@@ -125,7 +125,6 @@ export const AscensionView = ({ visible, onClose, onDeployMission }: {
         });
     };
 
-    const legacy = view?.legacy;
     const withdrawable = training.filter(c => c.route === 'original-existing-soldier' && c.stage === 0 && c.records.length === 0);
 
     return (
@@ -269,15 +268,6 @@ export const AscensionView = ({ visible, onClose, onDeployMission }: {
                     </div>
                 </section>
 
-                {legacy && (
-                    <section className={panel} aria-label="舊版改造紀錄">
-                        <div className={heading}>舊版改造紀錄（唯讀）</div>
-                        <p className="font-mono text-[11px] text-zinc-500 mb-2">這是舊系統的帳號共用紀錄，保留原樣供查閱，沒有轉換成任何角色的進度。</p>
-                        <div className="font-mono text-xs text-zinc-400">
-                            已完成階段：{legacy.completedStages.join('、') || '無'}；已解鎖：{legacy.unlockedImplants.map(organName).join('、') || '無'}
-                        </div>
-                    </section>
-                )}
             </div>
 
             <Modal open={!!applying} onCancel={() => setApplying(null)} title={ORIGINAL_BRANCH_NOTICE.title}

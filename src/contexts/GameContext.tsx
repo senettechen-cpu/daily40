@@ -1,5 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { Button, message } from 'antd';
 import { Task, Resources, Faction, Project, ArmyStrength, SectorTrait, PlanetaryTraitType, BattleResult, SectorHistory, UnitType, AstartesState, AstartesResources, AscensionCategory, RitualActivity, CloseProjectResult } from '../types';
 import { api } from '../services/api';
 import { RITUAL_ACTIVITIES } from '../data/astartesData';
@@ -25,6 +26,10 @@ export interface GameContextType {
     addTask: (title: string, faction: Faction, difficulty: number, dueDate: Date, isRecurring?: boolean, dueTime?: string, ascensionCategory?: AscensionCategory, subCategory?: string, dueTimes?: string[], link?: SubTaskLink) => void;
     updateTask: (id: string, updates: Partial<Task>) => void;
     purgeTask: (id: string, slot?: string) => void;
+    /** Voids a one-off task: it leaves the list and counts as nothing. */
+    voidTask: (id: string) => Promise<void>;
+    /** Changes whenever a task write has reached the server. */
+    taskSyncVersion: number;
     deleteTask: (id: string) => void; // New Action
     resetGame: () => void;
     // Armory
@@ -96,6 +101,13 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Sync Locking
     const isDirty = React.useRef(false);
+    /**
+     * Completions inside their five-second undo window. The server has not heard
+     * of them yet, so the 5 s poll must not overwrite the list meanwhile, or the
+     * finished task would reappear until the write lands.
+     */
+    const UNDO_MS = 5000;
+    const pendingCompletions = React.useRef(new Map<string, { timer: ReturnType<typeof setTimeout>; commit: () => void }>());
     const { campaign, campaignRef, loadCampaign, earnCampaignAction, attackCampaign } = useCampaign(() => { isDirty.current = true; });
     const [syncRetry, setSyncRetry] = useState(0);
     const syncQueue = React.useRef<Promise<unknown>>(Promise.resolve());
@@ -297,7 +309,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     useEffect(() => {
         const loadData = async () => {
             const campaignAtStart = campaignRef.current;
-            if (isDirty.current) {
+            if (isDirty.current || pendingCompletions.current.size > 0) {
                 console.log("Skipping loadData (local state dirty)");
                 return;
             }
@@ -320,7 +332,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
                 // Load Game State
                 const gameState = await api.getGameState(token);
-                if (isDirty.current || campaignRef.current !== campaignAtStart) return;
+                if (isDirty.current || pendingCompletions.current.size > 0 || campaignRef.current !== campaignAtStart) return;
                 setTasks(processedTasks);
                 setProjects(projectsData || []);
                 if (gameState) {
@@ -644,7 +656,33 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
      * missed slot is marked late, not locked, because locking the whole day out
      * is what made people abandon the day entirely.
      */
+    /** Bumped after each task write reaches the server, so balances re-read after the write, not before it. */
+    const [taskSyncVersion, setTaskSyncVersion] = useState(0);
+
+    /** Sends completions still inside their undo window now: another press on the task, or the page going away. */
+    const flushCompletions = React.useCallback((only?: string) => {
+        for (const [key, pending] of [...pendingCompletions.current]) {
+            if (only && key !== only) continue;
+            clearTimeout(pending.timer);
+            pendingCompletions.current.delete(key);
+            pending.commit();
+        }
+    }, []);
+
+    useEffect(() => {
+        const onHidden = () => { if (document.visibilityState === 'hidden') flushCompletions(); };
+        const onLeave = () => flushCompletions();
+        document.addEventListener('visibilitychange', onHidden);
+        window.addEventListener('pagehide', onLeave);
+        return () => {
+            document.removeEventListener('visibilitychange', onHidden);
+            window.removeEventListener('pagehide', onLeave);
+        };
+    }, [flushCompletions]);
+
     const purgeTask = async (id: string, slot?: string) => {
+        // A second press settles the first one's pending completion before it.
+        flushCompletions(id);
 
         // 1. Find the task in current state (Using closure value, which is safe for this event handler)
         const taskIndex = tasks.findIndex(t => t.id === id);
@@ -715,49 +753,74 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             updatedTask.status = 'completed';
         }
 
-        // 3. Process Rewards (if eligible)
-        if (shouldReward) {
-            earnCampaignAction(`task:${task.id}${task.isRecurring ? ':' + localDay() : ''}`, task.title);
-            const difficulty = task.difficulty || 1;
+        // 2026-09-27: a completion can be taken back for five seconds. The task
+        // updates on screen at once, but nothing leaves the device (rewards, the
+        // linked subtask, the server write that pays a core or records growth)
+        // until the window closes, so an undo has nothing to reverse.
+        const commit = () => {
+            // 3. Process Rewards (if eligible)
+            if (shouldReward) {
+                earnCampaignAction(`task:${task.id}${task.isRecurring ? ':' + localDay() : ''}`, task.title);
+                const difficulty = task.difficulty || 1;
 
-            if (task.ascensionCategory) {
-                // Ritual / Ascension Logic
-                const amount = difficulty;
-                // No glory here either; the ascension materials below are the only
-                // thing a ritual pays until the ascension phase replaces them.
-                logMsg = `Ritual Completed: ${task.title}`;
+                if (task.ascensionCategory) {
+                    // Ritual / Ascension Logic
+                    const amount = difficulty;
+                    // No glory here either; the ascension materials below are the only
+                    // thing a ritual pays until the ascension phase replaces them.
+                    logMsg = `Ritual Completed: ${task.title}`;
 
-                switch (task.ascensionCategory) {
-                    case 'exercise': ascensionRewards.adamantium = amount; break;
-                    case 'learning': ascensionRewards.neuroData = amount; break;
-                    case 'cleaning': ascensionRewards.puritySeals = amount; break;
-                    case 'parenting': ascensionRewards.geneLegacy = amount; break;
+                    switch (task.ascensionCategory) {
+                        case 'exercise': ascensionRewards.adamantium = amount; break;
+                        case 'learning': ascensionRewards.neuroData = amount; break;
+                        case 'cleaning': ascensionRewards.puritySeals = amount; break;
+                        case 'parenting': ascensionRewards.geneLegacy = amount; break;
+                    }
+                }
+                // A standard task no longer pays RP or glory here. Under v1.5 the only
+                // requisition a task can earn is the +10 the server grants when it is
+                // one of that day's committed cores.
+
+                // Apply Resource Changes
+                // Ensure we use the centralized modify functions which handle Logging and isDirty
+                if (rpChange !== 0 || gloryChange !== 0) {
+                    modifyResources(rpChange, gloryChange, logMsg);
+                }
+                if (corruptionChange !== 0) {
+                    modifyCorruption(corruptionChange, "Task Purification");
+                }
+                if (Object.keys(ascensionRewards).length > 0) {
+                    modifyAstartesResources(ascensionRewards, logMsg);
                 }
             }
-            // A standard task no longer pays RP or glory here. Under v1.5 the only
-            // requisition a task can earn is the +10 the server grants when it is
-            // one of that day's committed cores.
 
-            // Apply Resource Changes
-            // Ensure we use the centralized modify functions which handle Logging and isDirty
-            if (rpChange !== 0 || gloryChange !== 0) {
-                modifyResources(rpChange, gloryChange, logMsg);
+            // A one-off task deployed from an operation plan ticks its subtask. The
+            // project PUT settles the milestone reward on the server as usual.
+            if (!task.isRecurring && updatedTask.status === 'completed' && task.projectId && task.subTaskId) {
+                const plan = projects.find(p => p.id === task.projectId);
+                const sub = plan?.subTasks.find(s => s.id === task.subTaskId);
+                if (plan && !plan.sealedAt && sub && !sub.completed) completeSubTask(plan.id, sub.id);
             }
-            if (corruptionChange !== 0) {
-                modifyCorruption(corruptionChange, "Task Purification");
-            }
-            if (Object.keys(ascensionRewards).length > 0) {
-                modifyAstartesResources(ascensionRewards, logMsg);
-            }
-        }
 
-        // A one-off task deployed from an operation plan ticks its subtask. The
-        // project PUT settles the milestone reward on the server as usual.
-        if (!task.isRecurring && updatedTask.status === 'completed' && task.projectId && task.subTaskId) {
-            const plan = projects.find(p => p.id === task.projectId);
-            const sub = plan?.subTasks.find(s => s.id === task.subTaskId);
-            if (plan && !plan.sealedAt && sub && !sub.completed) completeSubTask(plan.id, sub.id);
-        }
+            // 5. Persist Task Update (Backend)
+            getToken().then(token => {
+                if (token) {
+                    const payload: any = { status: updatedTask.status };
+                    if (updatedTask.slotsDone) {
+                        payload.slotsDone = updatedTask.slotsDone;
+                        payload.slotsDay = updatedTask.slotsDay;
+                    }
+                    if (task.isRecurring && updatedTask.lastCompletedAt !== task.lastCompletedAt) {
+                        payload.lastCompletedAt = updatedTask.lastCompletedAt;
+                        payload.streak = updatedTask.streak;
+                    }
+                    api.updateTask(id, payload, token).then(() => setTaskSyncVersion(v => v + 1)).catch(err => {
+                        console.error("Failed to sync task update:", err);
+                        // Optional: Revert state or alert user
+                    });
+                }
+            });
+        };
 
         // 4. Update Task State (UI)
         setTasks(prev => {
@@ -765,24 +828,53 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 .filter(t => t.isRecurring || t.status !== 'completed'); // Remove non-recurring completed
         });
 
-        // 5. Persist Task Update (Backend)
-        getToken().then(token => {
-            if (token) {
-                const payload: any = { status: updatedTask.status };
-                if (updatedTask.slotsDone) {
-                    payload.slotsDone = updatedTask.slotsDone;
-                    payload.slotsDay = updatedTask.slotsDay;
-                }
-                if (task.isRecurring && updatedTask.lastCompletedAt !== task.lastCompletedAt) {
-                    payload.lastCompletedAt = updatedTask.lastCompletedAt;
-                    payload.streak = updatedTask.streak;
-                }
-                api.updateTask(id, payload, token).catch(err => {
-                    console.error("Failed to sync task update:", err);
-                    // Optional: Revert state or alert user
-                });
-            }
+        const changed = shouldReward || updatedTask.status !== task.status
+            || updatedTask.lastCompletedAt !== task.lastCompletedAt
+            || JSON.stringify(updatedTask.slotsDone ?? []) !== JSON.stringify(task.slotsDone ?? []);
+        if (!changed) { commit(); return; }
+
+        const toastKey = `undo-${id}`;
+        const undo = () => {
+            const pending = pendingCompletions.current.get(id);
+            if (!pending) return;
+            clearTimeout(pending.timer);
+            pendingCompletions.current.delete(id);
+            message.destroy(toastKey);
+            setTasks(prev => prev.some(t => t.id === id)
+                ? prev.map(t => (t.id === id ? task : t))
+                : [...prev.slice(0, taskIndex), task, ...prev.slice(taskIndex)]);
+        };
+        pendingCompletions.current.set(id, {
+            timer: setTimeout(() => { pendingCompletions.current.delete(id); commit(); }, UNDO_MS),
+            commit,
         });
+        message.open({
+            key: toastKey,
+            duration: UNDO_MS / 1000,
+            content: (
+                <span>
+                    已完成「{task.title}」{slot ? `（${slot}）` : ''}
+                    <Button size="small" type="link" onClick={undo}>復原</Button>
+                </span>
+            ),
+        });
+    };
+
+    /**
+     * "標記無效" (2026-09-27): a true void, not a completion. The task leaves the
+     * list and pays nothing; the server frees its core and designation slots.
+     */
+    const voidTask = async (id: string) => {
+        const task = tasks.find(t => t.id === id);
+        if (!task || task.isRecurring || task.status !== 'active') return;
+        setTasks(prev => prev.map(t => (t.id === id ? { ...t, status: 'failed' } : t)));
+        try {
+            const token = await getToken();
+            if (token) await api.updateTask(id, { status: 'failed' }, token);
+            setTaskSyncVersion(v => v + 1);
+        } catch (err) {
+            console.error('Failed to void task', err);
+        }
     };
 
     const deleteTask = async (id: string) => {
@@ -1176,7 +1268,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 return lastComp !== now;
             }),
             resources, corruption, ownedUnits, isPenitentMode,
-            addTask, updateTask, purgeTask, deleteTask, resetGame,
+            addTask, updateTask, purgeTask, voidTask, taskSyncVersion, deleteTask, resetGame,
             radarTheme,
             viewMode, setViewMode, projects, addProject,
             addSubTask, completeSubTask, updateSubTask, deleteSubTask, deleteProject,

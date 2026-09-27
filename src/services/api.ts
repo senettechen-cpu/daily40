@@ -64,7 +64,6 @@ export interface AscensionView {
     candidates: CandidateView[];
     escorts: { id: string; name: string; after?: string; aspirantName?: string; state: EscortState }[];
     eligibleOriginal: string[];
-    legacy: { unlockedImplants: string[]; completedStages: number[] } | null;
 }
 
 /** The sector campaign as the server derives it from the account's operations. */

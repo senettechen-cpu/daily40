@@ -101,20 +101,14 @@ async function taskStates(db: Db, userId: string, day: string): Promise<TaskStat
     });
 }
 
-/** The old account-wide astartes JSON, shown read-only; never converted (handoff §7). */
-async function loadLegacy(db: Db, userId: string) {
-    const result = await db.query('SELECT astartes FROM game_state WHERE user_id = $1', [userId]);
-    const old = result.rows[0]?.astartes;
-    const implants = Array.isArray(old?.unlockedImplants) ? old.unlockedImplants as string[] : [];
-    const stages = Array.isArray(old?.completedStages) ? old.completedStages as number[] : [];
-    return implants.length || stages.length ? { unlockedImplants: implants, completedStages: stages } : null;
-}
-
 export async function readAscension(db: Db, userId: string, now: Date) {
     const day = dayKey(now, DEFAULT_TIME_ZONE);
-    const [roster, records, plan, wins, implants, captured, legacy] = await Promise.all([
+    // The old account-wide astartes JSON in game_state is neither read nor
+    // converted here: the user decided (2026-09-27) to keep it in the database
+    // and stop showing it (handoff §7 forbids converting it without approval).
+    const [roster, records, plan, wins, implants, captured] = await Promise.all([
         loadCharacters(db, userId), loadRecords(db, userId), loadPlan(db, userId, day),
-        loadMissionWins(db, userId), loadImplants(db, userId), capturedStrongholds(db, userId), loadLegacy(db, userId),
+        loadMissionWins(db, userId), loadImplants(db, userId), capturedStrongholds(db, userId),
     ]);
 
     const escortsWon = new Set(wins.map(w => w.missionId));
@@ -138,7 +132,7 @@ export async function readAscension(db: Db, userId: string, now: Date) {
         .map(c => c.id);
 
     const recordedTaskIds = records.filter(r => r.day === day).map(r => r.taskId);
-    return { day, profileId: PROFILE_ID, plan, recordedTaskIds, candidates, escorts, eligibleOriginal, legacy };
+    return { day, profileId: PROFILE_ID, plan, recordedTaskIds, candidates, escorts, eligibleOriginal };
 }
 
 export async function savePlan(db: Db, userId: string, input: { candidateId?: unknown; slots?: unknown }, now: Date) {
@@ -203,6 +197,20 @@ export async function recordGrowthForTask(db: Db, userId: string, taskId: string
         [userId, sourceKey, candidate.id, stage, slot.domain, day, taskId],
     );
     return { recorded: true as const, candidateId: candidate.id, stage, domain: slot.domain };
+}
+
+/** A voided task leaves today's designation, unless it has already produced its record. */
+export async function releaseDesignation(db: Db, userId: string, taskId: string, now: Date) {
+    const day = dayKey(now, DEFAULT_TIME_ZONE);
+    const plan = await loadPlan(db, userId, day);
+    if (!plan.slots.some(s => s.taskId === taskId)) return;
+    const records = await loadRecords(db, userId);
+    if (records.some(r => r.sourceKey === `growth:${day}:${taskId}`)) return;
+    await db.query(
+        `INSERT INTO growth_plans (user_id, day, candidate_id, slots) VALUES ($1, $2, $3, $4)
+         ON CONFLICT (user_id, day) DO UPDATE SET candidate_id = EXCLUDED.candidate_id, slots = EXCLUDED.slots`,
+        [userId, day, plan.candidateId, JSON.stringify(plan.slots.filter(s => s.taskId !== taskId))],
+    );
 }
 
 export async function applyOriginal(db: Db, userId: string, characterId: string, acknowledged: boolean) {

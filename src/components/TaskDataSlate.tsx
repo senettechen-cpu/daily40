@@ -71,6 +71,8 @@ interface TaskDataSlateProps {
     selectedId: string | null;
     onSelect: (id: string | null) => void;
     onPurge: (id: string, slot?: string) => void;
+    /** Voids a one-off task: it counts as nothing, rather than as done. */
+    onVoid?: (id: string) => void;
     onOpenAddModal?: () => void;
     onEdit?: (task: Task) => void;
     onDelete?: (id: string) => void;
@@ -89,7 +91,7 @@ const FACTION_ICONS: Record<Faction, React.ReactNode> = {
 };
 
 const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
-    tasks, selectedId, onSelect, onPurge, onDelete, onOpenAddModal,
+    tasks, selectedId, onSelect, onPurge, onVoid, onDelete, onOpenAddModal,
     onEdit, viewMode = 'active', onToggleView
 }) => {
     const [showTodayOnly, setShowTodayOnly] = React.useState(false);
@@ -376,12 +378,16 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
                             </Tooltip>
                         )}
 
-                        {!task.isRecurring && (
-                            <Tooltip title="標記無效">
+                        {!task.isRecurring && onVoid && (
+                            <Tooltip title="標記無效（不算完成，也不發獎勵）">
                                 <Button
                                     size="small"
+                                    aria-label={`作廢 ${task.title}`}
                                     className="!bg-red-900/20 !border-red-500/50 hover:!bg-red-500 hover:!text-black !text-red-500 !p-1 h-7 w-7 flex items-center justify-center transition-all"
-                                    onClick={(e) => { e.stopPropagation(); onPurge(task.id); }}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (confirm(`作廢「${task.title}」？\n不算完成：不發軍需、不勾選連動的子計畫、不記成長紀錄。若它是今日核心，會空出一格。`)) onVoid(task.id);
+                                    }}
                                 >
                                     <Trash2 size={14} />
                                 </Button>
@@ -391,7 +397,7 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
                 );
             }
         }
-    ], [selectedId, onEdit, onDelete, onPurge, purgingKeys]);
+    ], [selectedId, onEdit, onDelete, onPurge, onVoid, purgingKeys]);
 
     return (
         <div

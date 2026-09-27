@@ -402,12 +402,36 @@ test('server: the original branch needs level 10, an Astra Militarum origin and 
     assert.equal((await env.asc('DELETE', '/original/:id', { params: { id } })).code, 400);
 });
 
-test('server: the old account-wide ascension is shown read-only and never converted', async () => {
+test('server: the old account-wide ascension stays in the database, is not shown and is never converted', async () => {
     const env = setup();
     await env.roster('GET', '/');
-    env.db.tables.game_state.push({ user_id: 'u1', astartes: { unlockedImplants: ['secondary-heart', 'ossmodula'], completedStages: [1] } });
+    const old = { user_id: 'u1', astartes: { unlockedImplants: ['secondary-heart', 'ossmodula'], completedStages: [1] } };
+    env.db.tables.game_state.push(old);
     const view = (await env.asc('GET', '/')).body;
-    assert.deepEqual([...view.legacy.unlockedImplants], ['secondary-heart', 'ossmodula']);
+    assert.equal('legacy' in view, false);
     assert.equal(view.candidates.length, 0);
     assert.equal(env.db.tables.ascension_implants.length, 0);
+    assert.deepEqual([...env.db.tables.game_state[0].astartes.unlockedImplants], ['secondary-heart', 'ossmodula']);
+});
+
+test('server: voiding a task frees its core and designation slots and pays nothing', async () => {
+    const { env, aspirant } = await withAspirant();
+    const tomorrow = new Date(Date.now() + 86_400_000);
+    const TOMORROW = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit' }).format(tomorrow);
+    for (const id of ['t1', 't2']) env.db.tables.tasks.push({ id, user_id: 'u1', title: id, status: 'active' });
+    env.db.tables.core_plans.push({ user_id: 'u1', day: TODAY(), task_ids: ['t1', 't2'] });
+    env.db.tables.core_plans.push({ user_id: 'u1', day: TOMORROW, task_ids: ['t1'] });
+    await env.asc('PUT', '/plan', { body: { candidateId: aspirant.id, slots: [{ taskId: 't1', domain: 'health' }, { taskId: 't2', domain: 'care' }] } });
+    const entriesBefore = env.db.tables.reward_entries.length;
+
+    const res = await env.tasks('PUT', '/:id', { params: { id: 't1' }, body: { status: 'failed' } });
+    assert.equal(res.code, 200);
+    assert.equal(res.body.requisition, 0);
+    assert.equal(res.body.growth, null);
+    assert.equal(env.db.tables.tasks.find(t => t.id === 't1').status, 'failed');
+    assert.deepEqual([...env.db.tables.core_plans.find(p => p.day === TODAY()).task_ids], ['t2']);
+    assert.deepEqual([...env.db.tables.core_plans.find(p => p.day === TOMORROW).task_ids], []);
+    assert.deepEqual([...env.db.tables.growth_plans[0].slots.map(s => s.taskId)], ['t2']);
+    assert.equal(env.db.tables.reward_entries.length, entriesBefore);
+    assert.equal(env.db.tables.growth_records.length, 0);
 });

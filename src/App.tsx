@@ -249,7 +249,7 @@ const MainDashboard = ({ currentUser, onLogout }: { currentUser: any, onLogout: 
   const requisition = useRequisition();
   const {
     tasks, isPenitentMode,
-    addTask, updateTask, purgeTask, deleteTask, resetGame, viewMode, allTasks
+    addTask, updateTask, purgeTask, voidTask, taskSyncVersion, deleteTask, resetGame, viewMode, allTasks
   } = useGame();
 
   useLocalNotifications(allTasks);
@@ -257,7 +257,9 @@ const MainDashboard = ({ currentUser, onLogout }: { currentUser: any, onLogout: 
   // Completing a task may have paid a core, so re-read the balance whenever a
   // task's completion state changes. The signature keeps this off other edits.
   const completionSignature = allTasks.map(t => `${t.id}:${t.status}:${t.lastCompletedAt ?? ''}`).join('|');
-  useEffect(() => { void requisition.refresh(); }, [completionSignature, requisition.refresh]);
+  // A completion now reaches the server only after its five-second undo window,
+  // so the balance is read again when the write lands, too.
+  useEffect(() => { void requisition.refresh(); }, [completionSignature, taskSyncVersion, requisition.refresh]);
 
   // Clock State
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -429,6 +431,7 @@ const MainDashboard = ({ currentUser, onLogout }: { currentUser: any, onLogout: 
                   selectedId={selectedTaskId}
                   onSelect={setSelectedTaskId}
                   onPurge={purgeTask}
+                  onVoid={voidTask}
                   onDelete={deleteTask}
                   onOpenAddModal={() => { setEditingTask(null); setIsAddModalOpen(true); setIsDrawerOpen(false); }}
                   viewMode={slateViewMode}
