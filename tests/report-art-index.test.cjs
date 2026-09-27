@@ -104,3 +104,27 @@ test('the world types with art are the ones the game can actually assign', () =>
     const declared = [...tuple.slice(0, tuple.indexOf(']')).matchAll(/'([^']+)'/g)].map(m => m[1]);
     assert.deepEqual([...declared].sort(), [...assigned].sort());
 });
+
+const CRATES = 'public/battle-assets/crates';
+
+test('every crate rarity has a frame on disk, with its colour and an empty centre', () => {
+    // border-image does not inherit currentColor, so each file must carry the
+    // rarity colour itself; a painted centre would cover the card.
+    const colours = { common: '#71717a', fine: '#22c55e', rare: '#38bdf8', legendary: '#fbbf24' };
+    const declared = setOf('CRATE_FRAMES');
+    assert.deepEqual([...declared].sort(), Object.keys(colours).sort());
+
+    for (const rarity of declared) {
+        const file = path.join(CRATES, `crate-frame-${rarity}.svg`);
+        assert.ok(fs.existsSync(file), `missing ${file}`);
+        const svg = fs.readFileSync(file, 'utf8');
+        assert.ok(svg.includes('viewBox="0 0 96 96"'), `${file} is not a 96x96 frame`);
+        assert.ok(svg.includes(`color="${colours[rarity]}"`), `${file} does not carry ${colours[rarity]}`);
+        assert.ok(!/<rect[^>]*\bx="(?:2[5-9]|[3-9]\d)"/.test(svg), `${file} paints inside the nine-slice centre`);
+    }
+});
+
+test('the rarities with frames are the ones a crate can actually roll', () => {
+    const progression = loadTs('shared/progression/index.ts');
+    assert.deepEqual([...setOf('CRATE_FRAMES')].sort(), [...progression.RARITIES].sort());
+});

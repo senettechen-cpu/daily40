@@ -61,3 +61,15 @@ const HAS_PLANET = new Set<string>(SECTOR_PLANET_TYPES);
 /** Planet art for a world type, or null when that type has none delivered. */
 export const sectorPlanetArt = (type: string, width: 96 | 192 = 96): string | null =>
     HAS_PLANET.has(type) ? `${SECTOR_BASE}sector-${type}-${width}.webp` : null;
+
+// Supply crate rarity frames (GPT, 2026-09-27). Nine-slice borders: the centre
+// is empty, so the card's own background shows through. border-image does not
+// inherit currentColor, so each file carries its own rarity colour.
+// Keep in step with public/battle-assets/crates/.
+const CRATE_BASE = `${import.meta.env.BASE_URL}battle-assets/crates/`;
+
+export const CRATE_FRAMES = new Set(['common', 'fine', 'rare', 'legendary']);
+
+/** Frame art for a rarity, or null when that rarity has none delivered. */
+export const crateFrameArt = (rarity: string): string | null =>
+    CRATE_FRAMES.has(rarity) ? `${CRATE_BASE}crate-frame-${rarity}.svg` : null;

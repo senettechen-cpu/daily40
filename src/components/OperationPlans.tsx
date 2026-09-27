@@ -13,7 +13,7 @@ import {
 import { catalogItem } from '../../shared/armory';
 import { recruitTemplate } from '../../shared/roster';
 import { dayKey } from '../../shared/time';
-import { equipmentArt, portraitHalf } from '../data/reportArtIndex';
+import { crateFrameArt, equipmentArt, portraitHalf } from '../data/reportArtIndex';
 
 // Operation plans replace the month-bound planet projects (2026-09-27): a plan
 // with subtasks, subtasks deployed as one-off tasks, and an explicit, final
@@ -21,7 +21,8 @@ import { equipmentArt, portraitHalf } from '../data/reportArtIndex';
 
 const MILESTONES = 3;
 
-// Placeholder frames until GPT delivers the crate art (docs §7).
+// Rarity colours for the label and the glow, and the border the card falls
+// back to when its frame art is missing (docs §7).
 const RARITY_STYLE: Record<ProjectCrate['rarity'], { border: string; text: string; glow: string }> = {
     common: { border: 'border-zinc-500', text: 'text-zinc-300', glow: '' },
     fine: { border: 'border-green-500', text: 'text-green-400', glow: 'shadow-[0_0_24px_rgba(34,197,94,0.35)]' },
@@ -84,11 +85,34 @@ const prizeArt = (crate: ProjectCrate) => crate.kind === 'equipment'
     ? equipmentArt(crate.catalogId ?? '', 192)
     : portraitHalf(recruitTemplate(crate.templateId ?? '')?.assetId);
 
+// GPT's rarity frames are nine-slice borders with an empty centre, drawn on a
+// 96x96 canvas with 24px corners (handoff README §3). border-image does not
+// inherit currentColor, so the rarity colour is baked into each file.
+const FRAME_SLICE = 24;
+
+const frameStyle = (rarity: ProjectCrate['rarity']): React.CSSProperties | null => {
+    const src = crateFrameArt(rarity);
+    return src ? {
+        borderStyle: 'solid',
+        borderWidth: FRAME_SLICE,
+        borderColor: 'transparent',
+        borderImageSource: `url(${src})`,
+        borderImageSlice: FRAME_SLICE,
+        borderImageWidth: `${FRAME_SLICE}px`,
+        borderImageRepeat: 'stretch',
+    } : null;
+};
+
 export const CrateCard: React.FC<{ crate: ProjectCrate; compact?: boolean }> = ({ crate, compact }) => {
     const style = RARITY_STYLE[crate.rarity];
     const art = prizeArt(crate);
+    // The compact row keeps the plain rule: a 24px frame would swallow it.
+    const frame = compact ? null : frameStyle(crate.rarity);
+    const box = frame
+        ? style.glow
+        : `border-2 ${style.border} ${compact ? 'p-2' : `p-4 ${style.glow}`}`;
     return (
-        <div className={`flex items-center gap-3 border-2 ${style.border} ${compact ? 'p-2' : 'p-4'} bg-black/60 ${compact ? '' : style.glow}`}>
+        <div style={frame ?? undefined} className={`flex items-center gap-3 bg-black/60 ${box}`}>
             {art
                 ? <img src={art} alt="" className={`${compact ? 'w-10 h-10' : 'w-24 h-24'} object-contain bg-[#2d3331] flex-shrink-0`} />
                 : <div className={`${compact ? 'w-10 h-10' : 'w-24 h-24'} bg-zinc-800 flex-shrink-0`} />}
