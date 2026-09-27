@@ -1,10 +1,12 @@
 
 import { Router } from 'express';
 import { query, withTransaction } from '../db';
-import { refreshClosedAt, saveMilestones, syncProjectRewards } from '../rewards/projectService';
+import { closeProject, isSealed, loadCrates, refreshClosedAt, saveMilestones, syncProjectRewards } from '../rewards/projectService';
 import { v15EconomyEnabled } from '../rewards/service';
 
 const router = Router();
+
+const SEALED = '這個作戰計畫已結案封存，不能再修改或刪除。';
 
 /** Re-settles a project's milestone and close rewards after its state changed. */
 async function settle(userId: string, projectId: string) {
@@ -23,6 +25,7 @@ router.get('/', async (req, res) => {
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
         const result = await query('SELECT * FROM projects WHERE user_id = $1', [userId]);
+        const crates = new Map((await loadCrates({ query }, userId)).map(crate => [crate.projectId, crate]));
         const projects = result.rows.map(row => ({
             id: row.id,
             title: row.title,
@@ -32,7 +35,9 @@ router.get('/', async (req, res) => {
             subTasks: row.sub_tasks, // JSONB automatic parsing
             milestoneIds: row.milestone_ids ?? [],
             createdAt: row.created_at,
-            closedAt: row.closed_at
+            closedAt: row.closed_at,
+            sealedAt: row.sealed_at ?? null,
+            crate: crates.get(row.id) ?? null,
         }));
         res.json(projects);
     } catch (err) {
@@ -72,7 +77,8 @@ router.put('/:id', async (req, res) => {
     if (updates.title !== undefined) { fields.push(`title = $${idx++}`); values.push(updates.title); }
     if (updates.month !== undefined) { fields.push(`month = $${idx++}`); values.push(updates.month); }
     if (updates.difficulty !== undefined) { fields.push(`difficulty = $${idx++}`); values.push(updates.difficulty); }
-    if (updates.completed !== undefined) { fields.push(`completed = $${idx++}`); values.push(updates.completed); }
+    // `completed` is set only by closing (POST /:id/close); an older client that
+    // still sends it after ticking the last subtask must not seal anything.
     if (updates.subTasks !== undefined) { fields.push(`sub_tasks = $${idx++}`); values.push(JSON.stringify(updates.subTasks)); }
 
     if (fields.length === 0) return res.status(400).json({ message: 'No updates provided' });
@@ -84,6 +90,7 @@ router.put('/:id', async (req, res) => {
     try {
         const userId = req.user?.uid;
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+        if (await isSealed({ query }, userId, id)) return res.status(409).json({ error: SEALED });
 
         await query(sql, values);
         await settle(userId, id);
@@ -102,6 +109,8 @@ router.put('/:id/milestones', async (req, res) => {
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
         if (!v15EconomyEnabled()) return res.status(409).json({ error: 'v1.5 經濟尚未啟用。' });
 
+        if (await isSealed({ query }, userId, id)) return res.status(409).json({ error: SEALED });
+
         const ids = req.body?.milestoneIds;
         if (!Array.isArray(ids) || ids.some(value => typeof value !== 'string')) {
             return res.status(400).json({ error: 'milestoneIds 必須是子項 ID 的陣列。' });
@@ -116,12 +125,31 @@ router.put('/:id/milestones', async (req, res) => {
     }
 });
 
+// POST close: final. Seals the plan and opens its supply crate if it earned one.
+router.post('/:id/close', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const userId = req.user?.uid;
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+        if (!v15EconomyEnabled()) return res.status(409).json({ error: 'v1.5 經濟尚未啟用。' });
+
+        const result = await withTransaction(db => closeProject(db, userId, id, new Date()));
+        if ('error' in result) return res.status(result.status).json({ error: result.error });
+        res.json(result);
+    } catch (err) {
+        console.error('Error closing project:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
 // DELETE project
 router.delete('/:id', async (req, res) => {
     const { id } = req.params;
     try {
         const userId = req.user?.uid;
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        if (await isSealed({ query }, userId, id)) return res.status(409).json({ error: SEALED });
 
         await query('DELETE FROM projects WHERE id = $1 AND user_id = $2', [id, userId]);
         // Reverses every reward for the project now that its cause is gone.

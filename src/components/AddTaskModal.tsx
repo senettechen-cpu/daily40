@@ -12,7 +12,7 @@ const { Option } = Select;
 interface AddTaskModalProps {
     visible: boolean;
     onClose: () => void;
-    onAdd: (title: string, faction: Faction, difficulty: number, dueDate: Date, isRecurring: boolean, dueTime?: string, ascensionCategory?: AscensionCategory, subCategory?: string, dueTimes?: string[]) => void;
+    onAdd: (title: string, faction: Faction, difficulty: number, dueDate: Date, isRecurring: boolean, dueTime?: string, ascensionCategory?: AscensionCategory, subCategory?: string, dueTimes?: string[], link?: { projectId: string; subTaskId: string }) => void;
     initialKeyword?: string;
     initialTask?: Task | null;
 }
@@ -123,8 +123,15 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ visible, onClose, on
         // With a list of times the first one is the day's nominal deadline, so the
         // sorting and overdue checks that read dueTime keep working unchanged.
         const dueTime = isRecurring ? (slots[0] ?? dueDate.format('HH:mm')) : undefined;
-        onAdd(title, faction, difficulty, dueDate.toDate(), isRecurring, dueTime, ascensionCategory, subCategory, slots);
+        // A task picked from an operation plan stays linked to that subtask, so
+        // completing it ticks the subtask. Only one-off tasks link.
+        const link = inputMode === 'project' && !isRecurring && selectedProjectId && selectedSubTaskId
+            ? { projectId: selectedProjectId, subTaskId: selectedSubTaskId }
+            : undefined;
+        onAdd(title, faction, difficulty, dueDate.toDate(), isRecurring, dueTime, ascensionCategory, subCategory, slots, link);
         setTitle('');
+        setSelectedProjectId(undefined);
+        setSelectedSubTaskId(undefined);
         setDueTimes([]);
         setAscensionCategory(undefined);
         setSubCategory('');
@@ -160,7 +167,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ visible, onClose, on
                             手動輸入
                         </Radio.Button>
                         <Radio.Button value="project" className="flex-1 text-center !bg-transparent !border-none !text-imperial-gold hover:!text-white after:!hidden checked:!bg-imperial-gold/20">
-                            從專案導入
+                            從作戰計畫部署
                         </Radio.Button>
                     </Radio.Group>
                 </div>
@@ -170,24 +177,18 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ visible, onClose, on
             {inputMode === 'project' && !initialTask && (
                 <div className="p-4 border border-imperial-gold/20 rounded bg-zinc-900/50 space-y-4 mb-4">
                     <div>
-                        <label className="text-imperial-gold/70 font-mono block mb-2 text-xs">來源專案 (SOURCE PROJECT)</label>
+                        <label className="text-imperial-gold/70 font-mono block mb-2 text-xs">來源作戰計畫 (OPERATION PLAN)</label>
                         <Select
                             className="w-full"
-                            placeholder="選擇戰略專案..."
+                            placeholder="選擇作戰計畫..."
                             value={selectedProjectId}
                             onChange={handleProjectChange}
                             dropdownStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #333' }}
                         >
                             {projects
-                                .filter(p => !p.completed)
-                                .sort((a, b) => {
-                                    // Extract numbers from something like "M1", "Month 2" etc.
-                                    const aNum = parseInt(a.month.replace(/\D/g, '')) || Number.MAX_SAFE_INTEGER;
-                                    const bNum = parseInt(b.month.replace(/\D/g, '')) || Number.MAX_SAFE_INTEGER;
-                                    return aNum - bNum;
-                                })
+                                .filter(p => !p.sealedAt && p.subTasks.some(st => !st.completed))
                                 .map(p => (
-                                    <Option key={p.id} value={p.id}>{p.month} - {p.title}</Option>
+                                    <Option key={p.id} value={p.id}>{p.title}</Option>
                                 ))}
                         </Select>
                     </div>
@@ -201,13 +202,16 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ visible, onClose, on
                             disabled={!selectedProjectId}
                             dropdownStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #333' }}
                         >
-                            {projects.find(p => p.id === selectedProjectId)?.subTasks.map(st => (
-                                <Option key={st.id} value={st.id}>
-                                    {st.completed ? '[已完成] ' : ''}{st.title}
-                                </Option>
+                            {projects.find(p => p.id === selectedProjectId)?.subTasks.filter(st => !st.completed).map(st => (
+                                <Option key={st.id} value={st.id}>{st.title}</Option>
                             ))}
                         </Select>
                     </div>
+                    <p className="font-mono text-[11px] text-zinc-500 m-0">
+                        {isRecurring
+                            ? '每日固定任務不會連動子計畫；要連動請取消勾選每日固定任務。'
+                            : '完成這個任務時，會自動勾掉對應的子計畫。'}
+                    </p>
                 </div>
             )}
 

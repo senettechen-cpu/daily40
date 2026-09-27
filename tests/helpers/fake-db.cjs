@@ -3,7 +3,7 @@
 // (user_id, seq), preset upsert) and rolls back on error like a transaction.
 // It is not a SQL engine: an unknown statement throws so tests cannot pass silently.
 function createFakeDb() {
-    const tables = { expenses: [], reward_entries: [], ledger_presets: [], core_plans: [], tasks: [], projects: [], roster_characters: [], squads: [], equipment_items: [], equipment_authorizations: [], personnel_authorizations: [], operations: [] };
+    const tables = { expenses: [], reward_entries: [], ledger_presets: [], core_plans: [], tasks: [], projects: [], roster_characters: [], squads: [], equipment_items: [], equipment_authorizations: [], personnel_authorizations: [], operations: [], project_crates: [] };
     const log = [];
     const normalized = sql => sql.replace(/\s+/g, ' ').trim();
 
@@ -78,12 +78,34 @@ function createFakeDb() {
             const rows = tables.projects.filter(r => r.id === p[0] && r.user_id === p[1]);
             return { rows, rowCount: rows.length };
         }
+        if (s.startsWith('SELECT sub_tasks, milestone_ids, created_at, sealed_at, difficulty FROM projects')) {
+            const rows = tables.projects.filter(r => r.id === p[0] && r.user_id === p[1]);
+            return { rows, rowCount: rows.length };
+        }
+        if (s.startsWith('SELECT sealed_at FROM projects WHERE id = $1 AND user_id = $2')) {
+            const rows = tables.projects.filter(r => r.id === p[0] && r.user_id === p[1]).map(r => ({ sealed_at: r.sealed_at ?? null }));
+            return { rows, rowCount: rows.length };
+        }
+        if (s.startsWith('SELECT * FROM projects WHERE user_id = $1')) {
+            const rows = tables.projects.filter(r => r.user_id === p[0]);
+            return { rows, rowCount: rows.length };
+        }
+        if (s.startsWith('SELECT project_id, difficulty, rarity, kind, catalog_id, template_id, veteran, item_id, character_id, opened_at FROM project_crates')) {
+            const rows = tables.project_crates.filter(r => r.user_id === p[0] && (p.length < 2 || r.project_id === p[1]));
+            return { rows, rowCount: rows.length };
+        }
+        if (s.startsWith('INSERT INTO project_crates')) {
+            if (tables.project_crates.some(r => r.user_id === p[0] && r.project_id === p[1])) throw new Error('duplicate key value violates unique constraint (user_id, project_id)');
+            const [user_id, project_id, difficulty, rarity, kind, catalog_id, template_id, veteran, item_id, character_id, opened_at] = p;
+            tables.project_crates.push({ user_id, project_id, difficulty, rarity, kind, catalog_id, template_id, veteran, item_id, character_id, opened_at });
+            return { rows: [], rowCount: 1 };
+        }
         if (s.startsWith('INSERT INTO projects')) {
             if (tables.projects.some(r => r.id === p[0])) return { rows: [], rowCount: 0 };
             tables.projects.push({
                 id: p[0], title: p[1], month: p[2], difficulty: p[3], completed: p[4],
                 sub_tasks: JSON.parse(p[5]), user_id: p[6], milestone_ids: [],
-                created_at: new Date(fake.now += 1000), closed_at: null,
+                created_at: new Date(fake.now += 1000), closed_at: null, sealed_at: null,
             });
             return { rows: [], rowCount: 1 };
         }
@@ -129,9 +151,11 @@ function createFakeDb() {
             return { rows: [], rowCount: 1 };
         }
         if (s.startsWith('INSERT INTO roster_characters')) {
+            // Recruiting writes xp as a literal 0 (7 params); a crate soldier binds it (8 params).
+            const withXp = p.length === 8;
             tables.roster_characters.push({
                 id: p[0], user_id: p[1], name: p[2], origin: p[3], duty: p[4],
-                asset_id: p[5], xp: 0, health: p[6], recruited_at: new Date(fake.now += 1000),
+                asset_id: p[5], xp: withXp ? p[6] : 0, health: withXp ? p[7] : p[6], recruited_at: new Date(fake.now += 1000),
             });
             return { rows: [], rowCount: 1 };
         }

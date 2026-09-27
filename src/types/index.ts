@@ -19,6 +19,9 @@ export interface Task {
     slotsDay?: string; // YYYY-MM-DD
     ascensionCategory?: AscensionCategory;
     subCategory?: string; // 子項目描述 (e.g. "跑步 5km")
+    /** A one-off task deployed from an operation plan's subtask; completing it ticks the subtask. */
+    projectId?: string;
+    subTaskId?: string;
 }
 
 export type AscensionCategory = 'exercise' | 'learning' | 'cleaning' | 'parenting';
@@ -74,6 +77,32 @@ export interface Project {
     completed: boolean;
     /** v1.5: exactly three designated subtasks pay a milestone reward. */
     milestoneIds?: string[];
+    createdAt?: string;
+    /** Closing is final (2026-09-27): a sealed plan is read-only. */
+    sealedAt?: string | null;
+    crate?: ProjectCrate | null;
+}
+
+/** What closing an operation plan drew from its supply crate. */
+export interface ProjectCrate {
+    projectId: string;
+    difficulty: number;
+    rarity: 'common' | 'fine' | 'rare' | 'legendary';
+    kind: 'equipment' | 'character';
+    catalogId?: string;
+    templateId?: string;
+    veteran: boolean;
+    itemId?: string;
+    characterId?: string;
+    name?: string;
+    openedAt: string;
+}
+
+export interface CloseProjectResult {
+    sealedAt: string;
+    crate: ProjectCrate | null;
+    reason: string | null;
+    alreadySealed: boolean;
 }
 
 export type UnitType = 'guardsmen' | 'space_marine' | 'custodes' | 'dreadnought' | 'baneblade' | 'wolf_guard' | 'phalanx_warder' | 'purifier' | 'pyroclast' | 'redemptor_dreadnought';

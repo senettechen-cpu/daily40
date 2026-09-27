@@ -109,13 +109,26 @@ const project = (over = {}) => ({
 const done = (p, ids, closedAt = null) => ({ ...p, closedAt, subTasks: p.subTasks.map(s => ({ ...s, completed: s.completed || ids.includes(s.id) })) });
 const sync = (book, p, at = taipei('2026-09-21')) => apply(book, ...r.reconcileProject(book, 'p1', p, at));
 
-test('project: three milestones pay 20 each and closing on a later day pays 60 (max 120)', () => {
+test('project: three milestones pay 20 each; finishing on a later day no longer adds the old +60', () => {
+    // 2026-09-27: the close bonus became a supply crate, opened by closing the plan.
     let p = project(), book = r.emptyBook();
     p = done(p, ['s1', 's2']); book = sync(book, p);
     assert.equal(r.balance(book), 40);
     p = done(p, ['s3', 's4'], taipei('2026-09-21')); book = sync(book, p);
-    assert.equal(r.balance(book), 120);
+    assert.equal(r.balance(book), 60);
     assert.equal(r.reconcileProject(book, 'p1', p, taipei('2026-09-22')).length, 0);
+});
+
+test('project: a +60 paid under the old rule survives, and reverses only as it used to', () => {
+    let p = done(project(), ['s1', 's2', 's3', 's4'], taipei('2026-09-21'));
+    let book = sync(r.emptyBook(), p);
+    book = apply(book, { sourceKey: 'project:p1:close', kind: 'grant', amount: 60, day: '2026-09-21', at: taipei('2026-09-21').toISOString(), reason: '專案結案' });
+    assert.equal(r.balance(book), 120);
+    // Re-syncing a finished plan keeps it.
+    assert.equal(r.reconcileProject(book, 'p1', p, taipei('2026-09-25')).length, 0);
+    // Deleting the plan still takes it back, exactly as before.
+    book = apply(book, ...r.reconcileProject(book, 'p1', null, taipei('2026-09-25')));
+    assert.equal(r.balance(book), 0);
 });
 
 test('project: created and closed the same day only pays milestones, even when re-synced later', () => {

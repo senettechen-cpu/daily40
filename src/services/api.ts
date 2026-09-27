@@ -1,5 +1,5 @@
 
-import { Task, Project, ArmyStrength, SectorHistory, Resources } from '../types';
+import { Task, Project, ArmyStrength, SectorHistory, Resources, CloseProjectResult } from '../types';
 import type { LedgerPreset, PresetFields, Suggestion } from '../../shared/ledger/presets';
 import type { Character, RecruitTemplate, Squad } from '../../shared/roster';
 import type { CatalogItem, EquipmentItem } from '../../shared/armory';
@@ -371,5 +371,15 @@ export const api = {
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error || '無法設定里程碑');
         return data.milestoneIds;
+    },
+
+    /** Final: seals the plan and opens its supply crate if it earned one. Safe to retry. */
+    closeProject: async (projectId: string, token?: string): Promise<CloseProjectResult> => {
+        const response = await fetch(`${API_URL}/projects/${encodeURIComponent(projectId)}/close`, {
+            method: 'POST', headers: getHeaders(token)
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || '無法結案');
+        return data as CloseProjectResult;
     }
 };

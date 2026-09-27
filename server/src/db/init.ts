@@ -269,6 +269,29 @@ const initDb = async () => {
         )`);
         await pool.query('CREATE INDEX IF NOT EXISTS idx_operations_user_id ON operations(user_id)');
 
+        // Operation plans (2026-09-27): closing is an explicit, final act that
+        // seals the plan and opens one supply crate. Additive only: existing
+        // projects keep every column they had and are simply not sealed.
+        await pool.query('ALTER TABLE projects ADD COLUMN IF NOT EXISTS sealed_at TIMESTAMP WITH TIME ZONE');
+        await pool.query(`CREATE TABLE IF NOT EXISTS project_crates (
+            user_id TEXT NOT NULL,
+            project_id TEXT NOT NULL,
+            difficulty INTEGER NOT NULL,
+            rarity TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            catalog_id TEXT,
+            template_id TEXT,
+            veteran BOOLEAN NOT NULL DEFAULT FALSE,
+            item_id TEXT,
+            character_id TEXT,
+            opened_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            PRIMARY KEY (user_id, project_id)
+        )`);
+        // A one-off task deployed from a subtask remembers where it came from,
+        // so completing the task ticks the subtask on every device.
+        await pool.query('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS project_id TEXT');
+        await pool.query('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS sub_task_id TEXT');
+
         console.log('Migrations applied.');
 
         // Initialize default game state if not exists

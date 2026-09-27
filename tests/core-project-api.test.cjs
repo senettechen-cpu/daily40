@@ -146,15 +146,15 @@ test('milestones pay 20 each, and a project created and closed the same day gets
     assert.equal(db.tables.reward_entries.filter(r => r.source_key === 'project:p1:close').length, 0);
 });
 
-test('closing on a later day than creation adds the 60 close bonus', async () => {
+test('finishing every subtask on a later day no longer pays the retired 60 close bonus', async () => {
     const { db, projects } = setup();
     await projects('POST', '/', { body: project() });
     await projects('PUT', '/:id/milestones', { params: { id: 'p1' }, body: { milestoneIds: ['s1', 's2', 's3'] } });
-    // Backdate creation so today's close counts as a later day.
+    // Backdate creation so today's close would have counted as a later day.
     db.tables.projects[0].created_at = new Date(Date.now() - 3 * 86400000);
 
     await markDone(projects, 'p1', ['s1', 's2', 's3']);
-    assert.equal(balanceOf(db), 40 + 60 + 60);
+    assert.equal(balanceOf(db), 40 + 60, 'milestones only; closing now opens a crate instead');
 });
 
 test('without three designated milestones nothing is paid', async () => {

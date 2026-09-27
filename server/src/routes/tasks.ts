@@ -31,6 +31,8 @@ router.get('/', async (req, res) => {
             dueTimes: normalizeSlots(row.due_times),
             slotsDone: normalizeSlots(row.slots_done),
             slotsDay: row.slots_day,
+            projectId: row.project_id ?? undefined,
+            subTaskId: row.sub_task_id ?? undefined,
         }));
         res.json(tasks);
     } catch (err) {
@@ -47,11 +49,15 @@ router.post('/', async (req, res) => {
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
         const dueTimes = normalizeSlots(req.body.dueTimes);
+        // Only a one-off task may stand for a subtask: a daily one would tick it
+        // the first time and then keep recurring with nothing left to tick.
+        const linked = !isRecurring && typeof req.body.projectId === 'string' && typeof req.body.subTaskId === 'string';
         await query(
-            `INSERT INTO tasks (id, title, faction, difficulty, due_date, created_at, status, is_recurring, streak, due_time, due_times, user_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+            `INSERT INTO tasks (id, title, faction, difficulty, due_date, created_at, status, is_recurring, streak, due_time, due_times, user_id, project_id, sub_task_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
             [id, title, faction, difficulty, dueDate, createdAt, status, isRecurring || false, 0,
-                req.body.dueTime, JSON.stringify(dueTimes), userId]
+                req.body.dueTime, JSON.stringify(dueTimes), userId,
+                linked ? req.body.projectId : null, linked ? req.body.subTaskId : null]
         );
         res.status(201).json({ message: 'Task created' });
     } catch (err) {

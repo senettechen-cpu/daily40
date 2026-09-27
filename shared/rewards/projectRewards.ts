@@ -1,10 +1,15 @@
-import { PlannedEntry, reconcile, RewardBook, RewardCause } from './book';
+import { activeGrant, PlannedEntry, reconcile, RewardBook, RewardCause } from './book';
 import { dayKey, DEFAULT_TIME_ZONE } from '../time';
 
-// Projects: no monthly limit, at most 120 each. Exactly three designated
-// milestones pay +20 each; closing pays +60 only when closed on a later day
-// than the project was created. Removing the cause reverses the reward.
+// Projects: no monthly limit. Exactly three designated milestones pay +20 each.
+// Removing the cause reverses the reward.
+//
+// Closing used to pay +60 when it fell on a later day than creation. Since
+// 2026-09-27 (user decision) a close opens a supply crate instead, handled in
+// the project service with shared/progression/crates.ts. A +60 already paid is
+// kept while its old condition holds, but no project is ever newly paid it.
 export const MILESTONE_REWARD = 20;
+/** The retired close bonus; only ever matched against grants already in the book. */
 export const CLOSE_REWARD = 60;
 export const MILESTONE_COUNT = 3;
 export const MIN_SUBTASKS = 3;
@@ -49,9 +54,9 @@ export function reconcileProject(book: RewardBook, projectId: string, project: R
         for (const id of project.milestoneIds) {
             if (completed.has(id)) causes.push({ sourceKey: milestoneKey(projectId, id), amount: MILESTONE_REWARD, reason: '專案里程碑', mayStart: eligible });
         }
-        const closedLater = !!project.closedAt && dayKey(project.closedAt, timeZone) > dayKey(project.createdAt, timeZone);
-        if (project.subTasks.length > 0 && completed.size === project.subTasks.length) {
-            causes.push({ sourceKey: closeKey(projectId), amount: CLOSE_REWARD, reason: '專案結案', mayStart: eligible && closedLater });
+        const legacyClose = activeGrant(book, closeKey(projectId));
+        if (legacyClose && project.subTasks.length > 0 && completed.size === project.subTasks.length) {
+            causes.push({ sourceKey: closeKey(projectId), amount: legacyClose.amount, reason: '專案結案（舊制）', mayStart: false });
         }
     }
     return reconcile(book, `project:${projectId}:`, causes, dayKey(at, timeZone), at, project ? '專案獎勵條件不再成立' : '刪除專案');

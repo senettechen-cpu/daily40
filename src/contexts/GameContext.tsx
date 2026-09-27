@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Task, Resources, Faction, Project, ArmyStrength, SectorTrait, PlanetaryTraitType, BattleResult, SectorHistory, UnitType, AstartesState, AstartesResources, AscensionCategory, RitualActivity } from '../types';
+import { Task, Resources, Faction, Project, ArmyStrength, SectorTrait, PlanetaryTraitType, BattleResult, SectorHistory, UnitType, AstartesState, AstartesResources, AscensionCategory, RitualActivity, CloseProjectResult } from '../types';
 import { api } from '../services/api';
 import { RITUAL_ACTIVITIES } from '../data/astartesData';
 import { getRecruitmentCost, UNIT_POWER } from '../data/unitVisuals';
@@ -10,6 +10,8 @@ import { localDay, type CampaignState, type Site, type Tactic } from '../game/ca
 import { completeNextSlot, completeSlot, normalizeSlots, slotsMet } from '../../shared/tasks';
 import { dayKey } from '../../shared/time';
 
+/** Where a one-off task came from, when it was deployed from an operation plan. */
+export interface SubTaskLink { projectId: string; subTaskId: string }
 
 export interface GameContextType {
     campaign: CampaignState;
@@ -20,7 +22,7 @@ export interface GameContextType {
     corruption: number;
     ownedUnits: string[];
     isPenitentMode: boolean;
-    addTask: (title: string, faction: Faction, difficulty: number, dueDate: Date, isRecurring?: boolean, dueTime?: string, ascensionCategory?: AscensionCategory, subCategory?: string) => void;
+    addTask: (title: string, faction: Faction, difficulty: number, dueDate: Date, isRecurring?: boolean, dueTime?: string, ascensionCategory?: AscensionCategory, subCategory?: string, dueTimes?: string[], link?: SubTaskLink) => void;
     updateTask: (id: string, updates: Partial<Task>) => void;
     purgeTask: (id: string, slot?: string) => void;
     deleteTask: (id: string) => void; // New Action
@@ -37,6 +39,11 @@ export interface GameContextType {
     updateSubTask: (projectId: string, subTaskId: string, title: string) => void;
     deleteSubTask: (projectId: string, subTaskId: string) => void;
     deleteProject: (projectId: string) => void;
+    setProjectDifficulty: (projectId: string, difficulty: number) => void;
+    /** Final. Seals the plan and returns what its crate held (or why there was none). */
+    closeProject: (projectId: string) => Promise<CloseProjectResult>;
+    /** A fresh, unfinished copy of a plan's title and subtasks. */
+    duplicateProject: (projectId: string) => string | null;
 
     // Deployment Actions
     armyStrength: ArmyStrength;
@@ -580,7 +587,9 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }, [corruption, isPenitentMode]);
 
     // Actions
-    const addTask = async (title: string, faction: Faction, difficulty: number, dueDate: Date, isRecurring: boolean = false, dueTime?: string, ascensionCategory?: AscensionCategory, subCategory?: string, dueTimes?: string[]) => {
+    const addTask = async (title: string, faction: Faction, difficulty: number, dueDate: Date, isRecurring: boolean = false, dueTime?: string, ascensionCategory?: AscensionCategory, subCategory?: string, dueTimes?: string[], link?: SubTaskLink) => {
+        // Only a one-off task stands for a subtask; the server enforces the same.
+        const linked = !isRecurring && link ? link : undefined;
         const newTask: Task = {
             id: Date.now().toString(36) + Math.random().toString(36).substr(2),
             title,
@@ -594,7 +603,9 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             dueTime,
             dueTimes: normalizeSlots(dueTimes),
             ascensionCategory,
-            subCategory
+            subCategory,
+            projectId: linked?.projectId,
+            subTaskId: linked?.subTaskId,
         };
 
         // Optimistic Update
@@ -740,6 +751,14 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
         }
 
+        // A one-off task deployed from an operation plan ticks its subtask. The
+        // project PUT settles the milestone reward on the server as usual.
+        if (!task.isRecurring && updatedTask.status === 'completed' && task.projectId && task.subTaskId) {
+            const plan = projects.find(p => p.id === task.projectId);
+            const sub = plan?.subTasks.find(s => s.id === task.subTaskId);
+            if (plan && !plan.sealedAt && sub && !sub.completed) completeSubTask(plan.id, sub.id);
+        }
+
         // 4. Update Task State (UI)
         setTasks(prev => {
             return prev.map(t => t.id === id ? updatedTask : t)
@@ -819,47 +838,18 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const completeSubTask = (projectId: string, subTaskId: string) => {
         const completed = projects.find(project => project.id === projectId)?.subTasks.find(task => task.id === subTaskId);
         if (completed && !completed.completed) earnCampaignAction(`subtask:${projectId}:${subTaskId}`, completed.title);
-        // Optimistic Update
+        // Optimistic Update. Finishing the last subtask no longer completes the
+        // plan: v1.5 dropped the +50 per subtask and the difficulty x500 close,
+        // and since 2026-09-27 closing is its own final act (closeProject).
         setProjects(prev => prev.map(p => {
-            if (p.id !== projectId) return p;
+            if (p.id !== projectId || p.sealedAt) return p;
+            const updatedSubTasks = (p.subTasks || []).map(st =>
+                st.id === subTaskId && !st.completed ? { ...st, completed: true } : st);
 
-            let gloryGained = false;
-            const updatedSubTasks = (p.subTasks || []).map(st => {
-                if (st.id === subTaskId && !st.completed) {
-                    gloryGained = true;
-                    return { ...st, completed: true };
-                }
-                return st;
-            });
-
-            const allCompleted = updatedSubTasks.length > 0 && updatedSubTasks.every(st => st.completed);
-            const isJustCompleted = allCompleted && !p.completed;
-
-            if (gloryGained) {
-                // Base Subtask Glory
-                modifyResources(0, 50, "Project Subtask Completed");
-            }
-
-            if (isJustCompleted) {
-                const currentMonthIdx = new Date().getMonth();
-                const currentMonthId = `M${currentMonthIdx + 1}`;
-                const currentTrait = getTraitForMonth(currentMonthId);
-                const isDeathWorld = currentTrait === 'death';
-                const isForgeWorld = currentTrait === 'forge';
-                let bonus = p.difficulty * 500;
-                if (isDeathWorld) bonus *= 2;
-                else if (isForgeWorld) bonus = Math.floor(bonus * 1.2);
-
-                modifyResources(0, bonus, `Project Completed: ${p.title}`);
-            }
-
-            // API Sync
-            // API Sync
             getToken().then(token => {
-                if (token) api.updateProject(p.id, { subTasks: updatedSubTasks, completed: allCompleted || p.completed }, token).catch(err => console.error(err));
+                if (token) api.updateProject(p.id, { subTasks: updatedSubTasks }, token).catch(err => console.error(err));
             });
-
-            return { ...p, subTasks: updatedSubTasks, completed: allCompleted || p.completed };
+            return { ...p, subTasks: updatedSubTasks };
         }));
     };
 
@@ -886,10 +876,50 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     const deleteProject = (projectId: string) => {
+        if (projects.find(p => p.id === projectId)?.sealedAt) return; // sealed plans stay; the server refuses too
         setProjects(prev => prev.filter(p => p.id !== projectId));
         getToken().then(token => {
             if (token) api.deleteProject(projectId, token).catch(err => console.error("Failed to delete project", err));
         });
+    };
+
+    const setProjectDifficulty = (projectId: string, difficulty: number) => {
+        setProjects(prev => prev.map(p => (p.id === projectId && !p.sealedAt ? { ...p, difficulty } : p)));
+        getToken().then(token => {
+            if (token) api.updateProject(projectId, { difficulty }, token).catch(err => console.error("Failed to set difficulty", err));
+        });
+    };
+
+    const closeProject = async (projectId: string): Promise<CloseProjectResult> => {
+        const token = await getToken();
+        if (!token) throw new Error('尚未登入');
+        const result = await api.closeProject(projectId, token);
+        setProjects(prev => prev.map(p => (p.id === projectId
+            ? { ...p, completed: true, sealedAt: result.sealedAt, crate: result.crate }
+            : p)));
+        return result;
+    };
+
+    const duplicateProject = (projectId: string): string | null => {
+        const source = projects.find(p => p.id === projectId);
+        if (!source) return null;
+        const newId = Date.now().toString(36) + Math.random().toString(36).substr(2);
+        const copy: Project = {
+            id: newId,
+            title: source.title,
+            difficulty: source.difficulty,
+            month: '',
+            completed: false,
+            subTasks: source.subTasks.map((sub, i) => ({ id: `${newId}-${i}`, title: sub.title, completed: false })),
+            createdAt: new Date().toISOString(),
+            sealedAt: null,
+            crate: null,
+        };
+        setProjects(prev => [...prev, copy]);
+        getToken().then(token => {
+            if (token) api.createProject(copy, token).catch(err => console.error("Failed to copy project", err));
+        });
+        return newId;
     };
 
 
@@ -1150,6 +1180,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             radarTheme,
             viewMode, setViewMode, projects, addProject,
             addSubTask, completeSubTask, updateSubTask, deleteSubTask, deleteProject,
+            setProjectDifficulty, closeProject, duplicateProject,
             deployUnit, recallUnit,
             armyStrength,
             getTraitForMonth, exportSTC, importSTC,
