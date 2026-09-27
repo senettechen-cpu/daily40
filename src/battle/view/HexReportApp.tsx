@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { Activation, BattleResult, UnitSpec } from '../../../shared/battle/turn';
-import { runBattle, scenarioById } from '../../../shared/battle/turn';
+import { objectiveText, runBattle, scenarioById } from '../../../shared/battle/turn';
 import type { Board } from '../../../shared/battle/hex';
 import { DEPLOYMENT_KEY } from '../handoff';
 import { strongholdById, worldById } from '../../../shared/sector';
@@ -39,6 +39,7 @@ const ENDING_LABELS: Record<string, string> = {
     'rounds-ahead': '回合用盡，我方存活較多',
     'rounds-behind': '回合用盡，敵方存活較多',
     'rounds-level': '回合用盡，雙方存活相同',
+    'objective-met': '達成作戰目標',
 };
 
 /**
@@ -84,7 +85,7 @@ export function HexReportApp() {
         if (!handoff) return null;
         const scenario = scenarioById(handoff.scenarioId);
         if (!scenario) return null;
-        return runBattle({ board: handoff.board, units: [...handoff.crew, ...scenario.enemies], seed: handoff.seed });
+        return runBattle({ board: handoff.board, units: [...handoff.crew, ...scenario.enemies], seed: handoff.seed, objective: scenario.objective });
     }, [handoff]);
 
     if (!handoff) {
@@ -127,6 +128,10 @@ export function HexReportApp() {
                     })()}
                     <h1>{handoff.squadName} · {OUTCOME_LABELS[battle.outcome]}（{battle.rounds} 回合）</h1>
                     <p className="bt-hint">{ENDING_LABELS[battle.ending] ?? ''}</p>
+                    {(() => {
+                        const scenario = scenarioById(handoff.scenarioId);
+                        return scenario?.objective && <p className="bt-hint">作戰目標：{objectiveText(scenario)}</p>;
+                    })()}
                     {handoff.summary && <p className="br-summary">{handoff.summary}</p>}
                 </div>
                 <div className="bt-controls" role="group" aria-label="重播控制">
@@ -142,7 +147,8 @@ export function HexReportApp() {
                 我方存活 {alive('crew')} / 敵方存活 {alive('enemy')}
             </p>
 
-            <HexMap board={handoff.board} snapshot={current?.snapshot ?? []} names={names} sides={sides} faces={faces} acting={current?.unitId} />
+            <HexMap board={handoff.board} snapshot={current?.snapshot ?? []} names={names} sides={sides} faces={faces} acting={current?.unitId}
+                objective={scenarioById(handoff.scenarioId)?.objective} />
 
             <ol className="br-feed">
                 {shown.map((activation, index) => {

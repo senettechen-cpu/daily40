@@ -3,14 +3,14 @@ import {
 } from '../hex';
 import {
     AIMED_DAMAGE, AIMED_HIT, AURA_HIT, AURA_RANGE, AURA_RANGE_WITH_VOX, canReach, carries,
-    COMMAND_MIN_TARGETS, COMMAND_MOVE, COMMAND_RANGE, coverMultiplier, damageOf, ENGINEERING_KIT,
+    COMMAND_MIN_TARGETS, COMMAND_MOVE, COMMAND_RANGE, coverMultiplier, damageOf, DEMOLITION_DAMAGE, DEMOLITION_NAME, ENGINEERING_KIT,
     ENGINEER_COVER_REDUCTION, expectedDamage, FISTS, hitChance, MAX_BUILT_COVER, MAX_ROUNDS,
     MEDICAE_KIT, MEDIC_ACTIVE_HEAL, MEDIC_ACTIVE_MIN_MISSING, MEDIC_PASSIVE_CAP, MEDIC_PASSIVE_HEAL,
     SELF_HEAL, SELF_HEAL_MIN_MISSING, skillFor, SUPPRESS_DAMAGE, SUPPRESS_HIT, threatOf,
     UNASSISTED_HITS, VOX_CASTER,
-    WEAKPOINT_HIT, WEAKPOINT_PENETRATION,
+    WEAKPOINT_HIT, WEAKPOINT_PENETRATION, isVehicle,
 } from './rules';
-import { Activation, Activity, BattleResult, BattleSetup, Ending, Outcome, Side, Stance, Unit, Weapon } from './types';
+import { Activation, Activity, BattleResult, BattleSetup, Ending, Objective, Outcome, Side, Stance, Unit, Weapon } from './types';
 
 // The turn engine. Rounds, alternating activations, and an AI that scores its
 // options by fixed rules so the report can state the reason for every move.
@@ -37,6 +37,21 @@ interface Battle {
      * the round so the order units happen to act in cannot buy a free attack.
      */
     spotting: Set<string>;
+    objective: Objective;
+    /** Consecutive round ends a soldier has stood on a seize objective. */
+    seizeRun: number;
+    /** Set at a round end when a seize or hold objective has been met. */
+    objectiveMet: boolean;
+}
+
+/**
+ * Everyone who falls stays on the field. A vehicle's wreck also becomes cover
+ * where it stopped (C2): the board is this battle's own copy, so no other
+ * battle ever sees it.
+ */
+function knockDown(battle: Battle, unit: Unit) {
+    unit.down = true;
+    if (isVehicle(unit)) battle.setup.board.tiles[hexKey(unit.at)] = 'cover';
 }
 
 const roll = (battle: Battle): number => {
@@ -224,6 +239,39 @@ function stanceBonus(battle: Battle, unit: Unit, tile: Hex, target: Unit | null)
     }
 }
 
+/**
+ * The objective pulls the squad as well as the stance does (C2). Only soldiers
+ * told to move on it feel the pull: 'hold' keeps its ground and 'guard' its
+ * ward, so which stances a player picks decides whether the objective is taken.
+ * The enemy does not chase objectives; it defends by fighting.
+ */
+function objectivePull(battle: Battle, unit: Unit, tile: Hex): number {
+    if (unit.side !== 'crew' || (unit.stance !== 'advance' && unit.stance !== 'flank')) return 0;
+    const goal = battle.objective;
+    if (goal.kind !== 'seize' && goal.kind !== 'rescue') return 0;
+    // Standing on the tile has to beat a good shot, or the squad fights beside
+    // the objective and never takes it. Reaching a rescue ends the battle.
+    if (sameHex(tile, goal.at)) return goal.kind === 'rescue' ? OBJECTIVE_REACHED_RESCUE : OBJECTIVE_ON_SEIZE;
+    return -distance(tile, goal.at) * OBJECTIVE_PULL;
+}
+
+/** Objective weights, in the same units as an attack's expected damage × threat. */
+const OBJECTIVE_PULL = 6;
+const OBJECTIVE_ON_SEIZE = 40;
+const OBJECTIVE_REACHED_RESCUE = 200;
+
+/** An engineer with a charge left works toward the nearest enemy vehicle. */
+function demolitionPull(battle: Battle, unit: Unit, tile: Hex): number {
+    if (unit.duty !== 'engineer' || unit.demolished || unit.stance === 'hold') return 0;
+    const hulls = living(battle, other(unit.side)).filter(isVehicle);
+    if (hulls.length === 0) return 0;
+    return -Math.min(...hulls.map(h => distance(tile, h.at))) * 3;
+}
+
+/** An assassination target is worth several ordinary ones to the squad. */
+const markedTarget = (battle: Battle, unit: Unit, target: Unit | null) =>
+    !!target && unit.side === 'crew' && battle.objective.kind === 'assassinate' && battle.objective.targetId === target.id;
+
 function describe(unit: Unit, tile: Hex, target: Unit | null, damage: number): string {
     const moved = !sameHex(tile, unit.at);
     if (target) {
@@ -260,8 +308,10 @@ function bestOption(battle: Battle, unit: Unit): Option {
                 : 0;
             // Finishing someone is worth more than spreading damage around.
             const finisher = target && damage >= target.hp ? 2 : 1;
-            const worth = target ? damage * finisher * threatOf(target) : 0;
-            const score = worth - exposureOf(battle, unit, tile.hex) + stanceBonus(battle, unit, tile.hex, target);
+            const marked = markedTarget(battle, unit, target) ? 2.5 : 1;
+            const worth = target ? damage * finisher * threatOf(target) * marked : 0;
+            const score = worth - exposureOf(battle, unit, tile.hex) + stanceBonus(battle, unit, tile.hex, target)
+                + objectivePull(battle, unit, tile.hex) + demolitionPull(battle, unit, tile.hex);
 
             options.push({
                 tile: tile.hex,
@@ -293,7 +343,7 @@ function attack(battle: Battle, unit: Unit, target: Unit, moved: boolean, skill?
         tuning: unit.tuning,
         skill: skill?.damage,
         extraPenetration: skill?.penetration,
-        cover: coverMultiplier(board, weapon, target.at),
+        cover: coverMultiplier(board, weapon, target.at, target.armourType),
         reduction: damageReduction(battle, target),
     });
 
@@ -305,7 +355,7 @@ function attack(battle: Battle, unit: Unit, target: Unit, moved: boolean, skill?
 
     const damage = landed * perHit;
     target.hp = Math.max(0, target.hp - damage);
-    if (target.hp === 0) target.down = true;
+    if (target.hp === 0) knockDown(battle, target);
     // Suppression bites on the target's next activation, whether or not it hurt.
     if (skill?.suppress && landed > 0 && !target.down) target.suppressed = SUPPRESS_HIT;
     return { kind: 'attack', targetId: target.id, hits: landed, damage, weapon: weapon.name, skill: skill?.name };
@@ -379,6 +429,45 @@ function trySupport(battle: Battle, unit: Unit): { activity: Activity; reason: s
     return null;
 }
 
+/**
+ * An engineer who can reach a tile beside an enemy vehicle plants a charge:
+ * once a battle, flat damage through the hull. Considered before anything else
+ * the engineer could do, because nothing else they carry hurts a vehicle.
+ */
+function tryDemolish(battle: Battle, unit: Unit): { activities: Activity[]; reason: string } | null {
+    if (unit.duty !== 'engineer' || unit.demolished) return null;
+    const board = battle.setup.board;
+    const hulls = living(battle, other(unit.side)).filter(isVehicle);
+    if (hulls.length === 0) return null;
+
+    const tiles = [
+        { hex: unit.at, cost: 0 },
+        ...[...reachable(board, unit.at, unit.movement + (unit.moveBonus ?? 0), { occupied: occupiedBy(battle, unit) }).values()],
+    ];
+    let best: { hex: Hex; cost: number; hull: Unit } | null = null;
+    for (const tile of tiles) {
+        for (const hull of hulls) {
+            if (distance(tile.hex, hull.at) !== 1) continue;
+            const better = !best || tile.cost < best.cost || (tile.cost === best.cost && hull.hp < best.hull.hp)
+                || (tile.cost === best.cost && hull.hp === best.hull.hp && hull.id < best.hull.id);
+            if (better) best = { hex: tile.hex, cost: tile.cost, hull };
+        }
+    }
+    if (!best) return null;
+
+    const activities: Activity[] = [];
+    const moved = !sameHex(best.hex, unit.at);
+    if (moved) { unit.at = best.hex; activities.push({ kind: 'move', to: best.hex }); }
+    const damage = Math.min(DEMOLITION_DAMAGE, best.hull.hp);
+    best.hull.hp -= damage;
+    if (best.hull.hp === 0) knockDown(battle, best.hull);
+    unit.demolished = true;
+    activities.push({ kind: 'attack', targetId: best.hull.id, hits: 1, damage, weapon: DEMOLITION_NAME, skill: DEMOLITION_NAME });
+    const verb = moved ? '貼近' : '就地';
+    const wrecked = best.hull.down ? '，將其擊毀' : '';
+    return { activities, reason: verb + '對 ' + best.hull.name + ' 安放' + DEMOLITION_NAME + '，造成 ' + damage + ' 傷害' + wrecked };
+}
+
 /** A medicae kit in anyone else's hands: one patch-up, on themselves, per battle. */
 function trySelfHeal(battle: Battle, unit: Unit): { activity: Activity; reason: string } | null {
     if (unit.duty === 'medic' || unit.selfHealed) return null;
@@ -428,8 +517,12 @@ function activate(battle: Battle, unit: Unit) {
         return;
     }
 
-    const support = trySupport(battle, unit);
-    if (support) {
+    const demolition = tryDemolish(battle, unit);
+    const support = demolition ? null : trySupport(battle, unit);
+    if (demolition) {
+        activities.push(...demolition.activities);
+        reason = demolition.reason;
+    } else if (support) {
         activities.push(support.activity);
         reason = support.reason;
         unit.charge = 0;
@@ -480,9 +573,10 @@ function endOfRound(battle: Battle) {
         const attrition = ruleAt(battle.setup.board, unit.at).attrition ?? 0;
         if (attrition === 0) continue;
         unit.hp = Math.max(0, unit.hp - attrition);
-        if (unit.hp === 0) unit.down = true;
+        if (unit.hp === 0) knockDown(battle, unit);
     }
 
+    judgeObjective(battle);
     if (endingOf(battle)) return; // settled: no patching a finished field
 
     battle.healed = { crew: 0, enemy: 0 };
@@ -509,14 +603,34 @@ function endOfRound(battle: Battle) {
     }
 }
 
+/**
+ * Seize and hold are judged at the end of a round, after hazard: standing on
+ * the tile when the round closes is what counts, not passing through it.
+ */
+function judgeObjective(battle: Battle) {
+    const goal = battle.objective;
+    const crew = living(battle, 'crew');
+    if (goal.kind === 'seize') {
+        battle.seizeRun = crew.some(u => sameHex(u.at, goal.at)) ? battle.seizeRun + 1 : 0;
+        if (battle.seizeRun >= goal.rounds) battle.objectiveMet = true;
+    }
+    if (goal.kind === 'hold' && battle.round >= goal.rounds && crew.length > 0) battle.objectiveMet = true;
+}
+
 const endingOf = (battle: Battle): Ending | null => {
-    const crew = living(battle, 'crew').length;
+    const crew = living(battle, 'crew');
     const enemy = living(battle, 'enemy').length;
     // Hazard can drop the last of both sides in the same end-of-round pass.
     // Checking the enemy first would have handed that to the crew.
-    if (crew === 0 && enemy === 0) return 'mutual-down';
+    if (crew.length === 0 && enemy === 0) return 'mutual-down';
     if (enemy === 0) return 'enemy-down';
-    if (crew === 0) return 'crew-down';
+    if (crew.length === 0) return 'crew-down';
+
+    const goal = battle.objective;
+    if (battle.objectiveMet) return 'objective-met';
+    // Rescue and assassination end the moment they happen, mid-round.
+    if (goal.kind === 'rescue' && crew.some(u => sameHex(u.at, goal.at))) return 'objective-met';
+    if (goal.kind === 'assassinate' && byId(battle, goal.targetId)?.down) return 'objective-met';
     return null;
 };
 
@@ -539,6 +653,7 @@ const OUTCOME_OF: Record<Ending, Outcome> = {
     'rounds-ahead': 'victory',
     'rounds-behind': 'defeat',
     'rounds-level': 'timeout',
+    'objective-met': 'victory',
 };
 
 export function runBattle(setup: BattleSetup): BattleResult {
@@ -561,6 +676,9 @@ export function runBattle(setup: BattleSetup): BattleResult {
         healed: { crew: 0, enemy: 0 },
         built: { crew: 0, enemy: 0 },
         spotting: new Set(),
+        objective: setup.objective ?? { kind: 'eliminate' },
+        seizeRun: 0,
+        objectiveMet: false,
     };
 
     // Drawn once, before anything else touches the generator, so the tie-break is

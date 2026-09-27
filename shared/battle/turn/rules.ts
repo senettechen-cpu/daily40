@@ -17,6 +17,7 @@ export const FALLOFF = 0.05;
 /** A medic left standing undoes the whole attack, so the AI shoots one first. */
 export const THREAT: Record<string, number> = {
     medic: 1.5, heavy: 1.4, sergeant: 1.3, marksman: 1.2,
+    tank: 1.4, walker: 1.3, cultist: 0.9,
 };
 export const threatOf = (unit: Unit) => THREAT[unit.duty] ?? 1;
 
@@ -29,13 +30,16 @@ export const ARMOUR_TYPES: ArmourType[] = ['none', 'flak', 'carapace', 'power'];
  * plate.
  */
 export const DAMAGE_COEFFICIENTS: Record<DamageType, Record<ArmourType, number>> = {
-    las: { none: 1.00, flak: 1.00, carapace: 0.90, power: 0.80 },
-    ballistic: { none: 1.10, flak: 1.00, carapace: 0.80, power: 0.65 },
-    bolt: { none: 1.00, flak: 1.00, carapace: 0.95, power: 0.85 },
-    plasma: { none: 1.00, flak: 1.00, carapace: 1.00, power: 1.00 },
-    flame: { none: 1.20, flak: 1.00, carapace: 0.65, power: 0.45 },
-    melee: { none: 1.00, flak: 0.95, carapace: 0.80, power: 0.60 },
+    las: { none: 1.00, flak: 1.00, carapace: 0.90, power: 0.80, vehicle: 0.25 },
+    ballistic: { none: 1.10, flak: 1.00, carapace: 0.80, power: 0.65, vehicle: 0.55 },
+    bolt: { none: 1.00, flak: 1.00, carapace: 0.95, power: 0.85, vehicle: 0.60 },
+    plasma: { none: 1.00, flak: 1.00, carapace: 1.00, power: 1.00, vehicle: 1.00 },
+    flame: { none: 1.20, flak: 1.00, carapace: 0.65, power: 0.45, vehicle: 0.20 },
+    melee: { none: 1.00, flak: 0.95, carapace: 0.80, power: 0.60, vehicle: 0.15 },
 };
+
+/** A hull, not plate: it ignores cover and it is what plasma and heavy weapons are for. */
+export const isVehicle = (unit: Pick<Unit, 'armourType'>) => unit.armourType === 'vehicle';
 
 export const coefficientFor = (damage: DamageType, armour: ArmourType) =>
     DAMAGE_COEFFICIENTS[damage]?.[armour] ?? 1;
@@ -57,6 +61,17 @@ export const WEAPON_STATS: Record<string, Weapon> = {
 };
 
 /**
+ * What only the enemy carries in the sector campaign (C2). Not catalogue items:
+ * the squad can never buy or pick these up. Rosters look here after WEAPON_STATS.
+ */
+export const ENEMY_WEAPON_STATS: Record<string, Weapon> = {
+    'cult-blade': { name: '教徒利刃', damage: 18, hits: 2, range: 1, penetration: 0, damageType: 'melee', closeQuarter: true },
+    autogun: { name: '自動步槍', damage: 12, hits: 3, range: 4, penetration: 0, damageType: 'ballistic' },
+    multilaser: { name: '多管雷射', damage: 16, hits: 3, range: 6, penetration: 0, damageType: 'las' },
+    'heavy-bolter': { name: '重爆彈槍', damage: 26, hits: 3, range: 6, penetration: 15, damageType: 'bolt' },
+};
+
+/**
  * Carapace costs initiative rather than movement. The v1 penalty was a 0.90
  * speed multiplier, which on whole tiles would round three down to two — a
  * third of a soldier's movement for a plate that is supposed to be a trade, not
@@ -67,6 +82,12 @@ export const ARMOUR_STATS: Record<string, { armour: number; type: ArmourType; in
     'flak-armour': { armour: 20, type: 'flak' },
     'carapace-armour': { armour: 40, type: 'carapace', initiative: -1 },
     'astartes-power-armour': { armour: 80, type: 'power' },
+};
+
+/** Enemy vehicle hulls (C2). A walker is light and quick; a Chimera is the heavy one. */
+export const ENEMY_ARMOUR_STATS: Record<string, { armour: number; type: ArmourType; initiative?: number }> = {
+    'sentinel-hull': { armour: 50, type: 'vehicle' },
+    'chimera-hull': { armour: 90, type: 'vehicle' },
 };
 
 export interface DutyStats { initiative: number; movement: number }
@@ -86,6 +107,10 @@ export const DUTY_STATS: Record<string, DutyStats> = {
     comms: { initiative: 10, movement: 3 },
     flamer: { initiative: 10, movement: 3 },
     plasma: { initiative: 10, movement: 3 },
+    // Enemy-only duties from the sector campaign (C2).
+    cultist: { initiative: 12, movement: 4 },
+    walker: { initiative: 9, movement: 4 },
+    tank: { initiative: 6, movement: 3 },
 };
 
 /** Tuning stages are a total, not a product: two stages are 1.10, not 1.1025. */
@@ -122,8 +147,10 @@ export function hitChance(board: Board, unit: Unit, from: Hex, target: Unit, wea
  * not help against something that flows around it — and melee is not ranged, so
  * a soldier in cover is no safer from fists.
  */
-export function coverMultiplier(board: Board, weapon: Weapon, target: Hex): number {
+export function coverMultiplier(board: Board, weapon: Weapon, target: Hex, armourType?: ArmourType): number {
     if (weapon.damageType === 'flame' || weapon.damageType === 'melee') return 1;
+    // A vehicle is too big to hide behind a sandbag.
+    if (armourType === 'vehicle') return 1;
     return ruleAt(board, target).incoming ?? 1;
 }
 
@@ -159,7 +186,7 @@ export function damageOf(weapon: Weapon, armour: number, armourType: ArmourType 
 export function expectedDamage(board: Board, unit: Unit, from: Hex, target: Unit, weapon: Weapon): number {
     const perHit = damageOf(weapon, target.armour, target.armourType, {
         tuning: unit.tuning,
-        cover: coverMultiplier(board, weapon, target.at),
+        cover: coverMultiplier(board, weapon, target.at, target.armourType),
     });
     return weapon.hits * hitChance(board, unit, from, target, weapon) * perHit;
 }
@@ -215,6 +242,15 @@ export const COMMAND_MIN_TARGETS = 2;
 
 /** A heavy weapon served by one person feeds itself one round at a time. */
 export const UNASSISTED_HITS = 1;
+
+/**
+ * An engineer's demolition charge: once a battle, planted from an adjacent tile,
+ * flat damage that ignores the hull. The answer a squad without plasma or a
+ * heavy weapon still has against a vehicle (user decision, C2 grill question 3).
+ * No kit needed, because the starting roster has an engineer and no tools.
+ */
+export const DEMOLITION_DAMAGE = 60;
+export const DEMOLITION_NAME = '爆破包';
 
 export const MEDICAE_KIT = 'medicae-kit';
 export const VOX_CASTER = 'vox-caster';

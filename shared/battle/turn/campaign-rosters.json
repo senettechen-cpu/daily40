@@ -490,6 +490,1094 @@
           }
         }
       ]
+    },
+    {
+      "id": "w2-n1",
+      "board": "smelter",
+      "enemies": [
+        {
+          "id": "w2n1-1",
+          "duty": "sergeant",
+          "maxHp": 84,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour"
+          },
+          "stance": "advance",
+          "at": {
+            "col": 5,
+            "row": 1
+          }
+        },
+        {
+          "id": "w2n1-2",
+          "duty": "rifleman",
+          "maxHp": 84,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour"
+          },
+          "stance": "advance",
+          "at": {
+            "col": 3,
+            "row": 1
+          }
+        },
+        {
+          "id": "w2n1-3",
+          "duty": "rifleman",
+          "maxHp": 84,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour"
+          },
+          "stance": "advance",
+          "at": {
+            "col": 7,
+            "row": 1
+          }
+        },
+        {
+          "id": "w2n1-4",
+          "duty": "rifleman",
+          "maxHp": 84,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour"
+          },
+          "stance": "hold",
+          "at": {
+            "col": 4,
+            "row": 0
+          }
+        },
+        {
+          "id": "w2n1-5",
+          "duty": "rifleman",
+          "maxHp": 84,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "shotgun",
+            "sidearm": "laspistol",
+            "armour": null
+          },
+          "stance": "flank",
+          "at": {
+            "col": 9,
+            "row": 1
+          }
+        },
+        {
+          "id": "w2n1-6",
+          "duty": "marksman",
+          "maxHp": 74,
+          "accuracy": 0.67,
+          "loadout": {
+            "primary": "precision-lasgun",
+            "sidearm": "laspistol",
+            "armour": null
+          },
+          "stance": "hold",
+          "at": {
+            "col": 6,
+            "row": 0
+          }
+        },
+        {
+          "id": "w2n1-7",
+          "duty": "walker",
+          "maxHp": 150,
+          "accuracy": 0.62,
+          "loadout": {
+            "primary": "multilaser",
+            "armour": "sentinel-hull",
+            "sidearm": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 5,
+            "row": 0
+          },
+          "name": "叛軍哨兵步行機"
+        }
+      ]
+    },
+    {
+      "id": "w2-n2",
+      "board": "armoury",
+      "objective": {
+        "kind": "seize",
+        "at": {
+          "col": 5,
+          "row": 2
+        },
+        "rounds": 3
+      },
+      "enemies": [
+        {
+          "id": "w2n2-1",
+          "duty": "sergeant",
+          "maxHp": 84,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "carapace-armour"
+          },
+          "stance": "hold",
+          "at": {
+            "col": 5,
+            "row": 1
+          }
+        },
+        {
+          "id": "w2n2-2",
+          "duty": "rifleman",
+          "maxHp": 84,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour"
+          },
+          "stance": "advance",
+          "at": {
+            "col": 3,
+            "row": 1
+          }
+        },
+        {
+          "id": "w2n2-3",
+          "duty": "rifleman",
+          "maxHp": 84,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour"
+          },
+          "stance": "advance",
+          "at": {
+            "col": 7,
+            "row": 1
+          }
+        },
+        {
+          "id": "w2n2-4",
+          "duty": "rifleman",
+          "maxHp": 84,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "plasma-gun",
+            "sidearm": "laspistol",
+            "armour": "carapace-armour"
+          },
+          "stance": "hold",
+          "at": {
+            "col": 4,
+            "row": 1
+          }
+        },
+        {
+          "id": "w2n2-5",
+          "duty": "heavy",
+          "maxHp": 90,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "heavy-weapon",
+            "sidearm": "laspistol",
+            "armour": "flak-armour"
+          },
+          "stance": "hold",
+          "at": {
+            "col": 5,
+            "row": 0
+          }
+        },
+        {
+          "id": "w2n2-6",
+          "duty": "rifleman",
+          "maxHp": 84,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour"
+          },
+          "stance": "guard",
+          "at": {
+            "col": 6,
+            "row": 0
+          }
+        },
+        {
+          "id": "w2n2-7",
+          "duty": "marksman",
+          "maxHp": 74,
+          "accuracy": 0.67,
+          "loadout": {
+            "primary": "precision-lasgun",
+            "sidearm": "laspistol",
+            "armour": null
+          },
+          "stance": "hold",
+          "at": {
+            "col": 8,
+            "row": 0
+          }
+        },
+        {
+          "id": "w2n2-8",
+          "duty": "rifleman",
+          "maxHp": 84,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour"
+          },
+          "stance": "hold",
+          "at": {
+            "col": 4,
+            "row": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "w2-n3",
+      "board": "power-core",
+      "objective": {
+        "kind": "assassinate",
+        "targetId": "w2n3-1"
+      },
+      "enemies": [
+        {
+          "id": "w2n3-1",
+          "duty": "sergeant",
+          "maxHp": 240,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "plasma-gun",
+            "sidearm": "laspistol",
+            "armour": "carapace-armour"
+          },
+          "stance": "hold",
+          "at": {
+            "col": 5,
+            "row": 0
+          },
+          "name": "叛軍技術軍官"
+        },
+        {
+          "id": "w2n3-2",
+          "duty": "rifleman",
+          "maxHp": 84,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "carapace-armour"
+          },
+          "stance": "hold",
+          "at": {
+            "col": 4,
+            "row": 0
+          }
+        },
+        {
+          "id": "w2n3-3",
+          "duty": "rifleman",
+          "maxHp": 84,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "carapace-armour"
+          },
+          "stance": "hold",
+          "at": {
+            "col": 6,
+            "row": 0
+          }
+        },
+        {
+          "id": "w2n3-4",
+          "duty": "rifleman",
+          "maxHp": 84,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "carapace-armour"
+          },
+          "stance": "hold",
+          "at": {
+            "col": 5,
+            "row": 1
+          }
+        },
+        {
+          "id": "w2n3-5",
+          "duty": "rifleman",
+          "maxHp": 84,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour"
+          },
+          "stance": "advance",
+          "at": {
+            "col": 3,
+            "row": 1
+          }
+        },
+        {
+          "id": "w2n3-6",
+          "duty": "rifleman",
+          "maxHp": 84,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour"
+          },
+          "stance": "advance",
+          "at": {
+            "col": 7,
+            "row": 1
+          }
+        },
+        {
+          "id": "w2n3-7",
+          "duty": "marksman",
+          "maxHp": 74,
+          "accuracy": 0.67,
+          "loadout": {
+            "primary": "precision-lasgun",
+            "sidearm": "laspistol",
+            "armour": null
+          },
+          "stance": "hold",
+          "at": {
+            "col": 9,
+            "row": 0
+          }
+        },
+        {
+          "id": "w2n3-8",
+          "duty": "walker",
+          "maxHp": 150,
+          "accuracy": 0.62,
+          "loadout": {
+            "primary": "multilaser",
+            "armour": "sentinel-hull",
+            "sidearm": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 2,
+            "row": 1
+          },
+          "name": "叛軍哨兵步行機"
+        }
+      ]
+    },
+    {
+      "id": "w2-n4",
+      "board": "vehicle-bay",
+      "enemies": [
+        {
+          "id": "w2n4-1",
+          "duty": "sergeant",
+          "maxHp": 90,
+          "accuracy": 0.7,
+          "loadout": {
+            "primary": "plasma-gun",
+            "sidearm": "laspistol",
+            "armour": "carapace-armour"
+          },
+          "stance": "advance",
+          "at": {
+            "col": 5,
+            "row": 1
+          }
+        },
+        {
+          "id": "w2n4-2",
+          "duty": "rifleman",
+          "maxHp": 84,
+          "accuracy": 0.7,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour"
+          },
+          "stance": "advance",
+          "at": {
+            "col": 3,
+            "row": 1
+          }
+        },
+        {
+          "id": "w2n4-3",
+          "duty": "marksman",
+          "maxHp": 74,
+          "accuracy": 0.72,
+          "loadout": {
+            "primary": "precision-lasgun",
+            "sidearm": "laspistol",
+            "armour": null
+          },
+          "stance": "hold",
+          "at": {
+            "col": 8,
+            "row": 0
+          }
+        },
+        {
+          "id": "w2n4-4",
+          "duty": "rifleman",
+          "maxHp": 84,
+          "accuracy": 0.7,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour"
+          },
+          "stance": "advance",
+          "at": {
+            "col": 7,
+            "row": 1
+          }
+        },
+        {
+          "id": "w2n4-5",
+          "duty": "walker",
+          "maxHp": 150,
+          "accuracy": 0.66,
+          "loadout": {
+            "primary": "multilaser",
+            "armour": "sentinel-hull",
+            "sidearm": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 2,
+            "row": 0
+          },
+          "name": "叛軍哨兵步行機 甲"
+        },
+        {
+          "id": "w2n4-6",
+          "duty": "walker",
+          "maxHp": 150,
+          "accuracy": 0.66,
+          "loadout": {
+            "primary": "multilaser",
+            "armour": "sentinel-hull",
+            "sidearm": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 9,
+            "row": 0
+          },
+          "name": "叛軍哨兵步行機 乙"
+        }
+      ]
+    },
+    {
+      "id": "w3-n1",
+      "board": "outer-city",
+      "objective": {
+        "kind": "hold",
+        "rounds": 8
+      },
+      "enemies": [
+        {
+          "id": "w3n1-1",
+          "duty": "cultist",
+          "maxHp": 55,
+          "accuracy": 0.6,
+          "loadout": {
+            "primary": "cult-blade",
+            "armour": null,
+            "sidearm": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 1,
+            "row": 0
+          }
+        },
+        {
+          "id": "w3n1-2",
+          "duty": "cultist",
+          "maxHp": 55,
+          "accuracy": 0.6,
+          "loadout": {
+            "primary": "cult-blade",
+            "armour": null,
+            "sidearm": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 2,
+            "row": 1
+          }
+        },
+        {
+          "id": "w3n1-3",
+          "duty": "cultist",
+          "maxHp": 55,
+          "accuracy": 0.6,
+          "loadout": {
+            "primary": "cult-blade",
+            "armour": null,
+            "sidearm": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 3,
+            "row": 0
+          }
+        },
+        {
+          "id": "w3n1-4",
+          "duty": "cultist",
+          "maxHp": 55,
+          "accuracy": 0.6,
+          "loadout": {
+            "primary": "cult-blade",
+            "armour": null,
+            "sidearm": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 4,
+            "row": 1
+          }
+        },
+        {
+          "id": "w3n1-5",
+          "duty": "cultist",
+          "maxHp": 55,
+          "accuracy": 0.6,
+          "loadout": {
+            "primary": "cult-blade",
+            "armour": null,
+            "sidearm": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 6,
+            "row": 1
+          }
+        },
+        {
+          "id": "w3n1-6",
+          "duty": "cultist",
+          "maxHp": 55,
+          "accuracy": 0.6,
+          "loadout": {
+            "primary": "cult-blade",
+            "armour": null,
+            "sidearm": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 7,
+            "row": 0
+          }
+        },
+        {
+          "id": "w3n1-7",
+          "duty": "cultist",
+          "maxHp": 55,
+          "accuracy": 0.6,
+          "loadout": {
+            "primary": "cult-blade",
+            "armour": null,
+            "sidearm": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 8,
+            "row": 1
+          }
+        },
+        {
+          "id": "w3n1-8",
+          "duty": "cultist",
+          "maxHp": 55,
+          "accuracy": 0.6,
+          "loadout": {
+            "primary": "cult-blade",
+            "armour": null,
+            "sidearm": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 9,
+            "row": 0
+          }
+        },
+        {
+          "id": "w3n1-9",
+          "duty": "cultist",
+          "maxHp": 55,
+          "accuracy": 0.6,
+          "loadout": {
+            "primary": "autogun",
+            "armour": null,
+            "sidearm": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 5,
+            "row": 0
+          }
+        },
+        {
+          "id": "w3n1-10",
+          "duty": "cultist",
+          "maxHp": 55,
+          "accuracy": 0.6,
+          "loadout": {
+            "primary": "autogun",
+            "armour": null,
+            "sidearm": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 5,
+            "row": 1
+          }
+        },
+        {
+          "id": "w3n1-11",
+          "duty": "sergeant",
+          "maxHp": 88,
+          "accuracy": 0.68,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour"
+          },
+          "stance": "advance",
+          "at": {
+            "col": 0,
+            "row": 1
+          }
+        },
+        {
+          "id": "w3n1-12",
+          "duty": "cultist",
+          "maxHp": 55,
+          "accuracy": 0.6,
+          "loadout": {
+            "primary": "cult-blade",
+            "armour": null,
+            "sidearm": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 10,
+            "row": 1
+          }
+        },
+        {
+          "id": "w3n1-13",
+          "duty": "cultist",
+          "maxHp": 55,
+          "accuracy": 0.6,
+          "loadout": {
+            "primary": "cult-blade",
+            "armour": null,
+            "sidearm": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 0,
+            "row": 0
+          }
+        },
+        {
+          "id": "w3n1-14",
+          "duty": "cultist",
+          "maxHp": 55,
+          "accuracy": 0.6,
+          "loadout": {
+            "primary": "cult-blade",
+            "armour": null,
+            "sidearm": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 10,
+            "row": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "w3-n2",
+      "board": "cathedral",
+      "objective": {
+        "kind": "rescue",
+        "at": {
+          "col": 5,
+          "row": 1
+        }
+      },
+      "enemies": [
+        {
+          "id": "w3n2-1",
+          "duty": "sergeant",
+          "maxHp": 88,
+          "accuracy": 0.68,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "carapace-armour"
+          },
+          "stance": "hold",
+          "at": {
+            "col": 5,
+            "row": 0
+          }
+        },
+        {
+          "id": "w3n2-2",
+          "duty": "rifleman",
+          "maxHp": 88,
+          "accuracy": 0.68,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour"
+          },
+          "stance": "hold",
+          "at": {
+            "col": 4,
+            "row": 1
+          }
+        },
+        {
+          "id": "w3n2-3",
+          "duty": "rifleman",
+          "maxHp": 88,
+          "accuracy": 0.68,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour"
+          },
+          "stance": "hold",
+          "at": {
+            "col": 6,
+            "row": 1
+          }
+        },
+        {
+          "id": "w3n2-4",
+          "duty": "tank",
+          "maxHp": 280,
+          "accuracy": 0.64,
+          "loadout": {
+            "primary": "heavy-bolter",
+            "armour": "chimera-hull",
+            "sidearm": null
+          },
+          "stance": "hold",
+          "at": {
+            "col": 4,
+            "row": 0
+          },
+          "name": "叛軍奇美拉"
+        },
+        {
+          "id": "w3n2-5",
+          "duty": "cultist",
+          "maxHp": 55,
+          "accuracy": 0.6,
+          "loadout": {
+            "primary": "cult-blade",
+            "armour": null,
+            "sidearm": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 2,
+            "row": 1
+          }
+        },
+        {
+          "id": "w3n2-6",
+          "duty": "cultist",
+          "maxHp": 55,
+          "accuracy": 0.6,
+          "loadout": {
+            "primary": "cult-blade",
+            "armour": null,
+            "sidearm": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 3,
+            "row": 0
+          }
+        },
+        {
+          "id": "w3n2-7",
+          "duty": "cultist",
+          "maxHp": 55,
+          "accuracy": 0.6,
+          "loadout": {
+            "primary": "cult-blade",
+            "armour": null,
+            "sidearm": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 7,
+            "row": 0
+          }
+        },
+        {
+          "id": "w3n2-8",
+          "duty": "cultist",
+          "maxHp": 55,
+          "accuracy": 0.6,
+          "loadout": {
+            "primary": "cult-blade",
+            "armour": null,
+            "sidearm": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 8,
+            "row": 1
+          }
+        },
+        {
+          "id": "w3n2-9",
+          "duty": "cultist",
+          "maxHp": 55,
+          "accuracy": 0.6,
+          "loadout": {
+            "primary": "autogun",
+            "armour": null,
+            "sidearm": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 1,
+            "row": 0
+          }
+        },
+        {
+          "id": "w3n2-10",
+          "duty": "cultist",
+          "maxHp": 55,
+          "accuracy": 0.6,
+          "loadout": {
+            "primary": "autogun",
+            "armour": null,
+            "sidearm": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 9,
+            "row": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "w3-n3",
+      "board": "ritual-node",
+      "objective": {
+        "kind": "seize",
+        "at": {
+          "col": 5,
+          "row": 3
+        },
+        "rounds": 4
+      },
+      "enemies": [
+        {
+          "id": "w3n3-1",
+          "duty": "tank",
+          "maxHp": 280,
+          "accuracy": 0.64,
+          "loadout": {
+            "primary": "heavy-bolter",
+            "armour": "chimera-hull",
+            "sidearm": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 5,
+            "row": 0
+          },
+          "name": "叛軍奇美拉"
+        },
+        {
+          "id": "w3n3-2",
+          "duty": "rifleman",
+          "maxHp": 88,
+          "accuracy": 0.68,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour"
+          },
+          "stance": "advance",
+          "at": {
+            "col": 3,
+            "row": 1
+          }
+        },
+        {
+          "id": "w3n3-3",
+          "duty": "rifleman",
+          "maxHp": 88,
+          "accuracy": 0.68,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour"
+          },
+          "stance": "advance",
+          "at": {
+            "col": 7,
+            "row": 1
+          }
+        },
+        {
+          "id": "w3n3-4",
+          "duty": "marksman",
+          "maxHp": 78,
+          "accuracy": 0.7,
+          "loadout": {
+            "primary": "precision-lasgun",
+            "sidearm": "laspistol",
+            "armour": null
+          },
+          "stance": "hold",
+          "at": {
+            "col": 8,
+            "row": 0
+          }
+        },
+        {
+          "id": "w3n3-5",
+          "duty": "cultist",
+          "maxHp": 55,
+          "accuracy": 0.6,
+          "loadout": {
+            "primary": "cult-blade",
+            "armour": null,
+            "sidearm": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 2,
+            "row": 1
+          }
+        },
+        {
+          "id": "w3n3-6",
+          "duty": "cultist",
+          "maxHp": 55,
+          "accuracy": 0.6,
+          "loadout": {
+            "primary": "cult-blade",
+            "armour": null,
+            "sidearm": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 4,
+            "row": 1
+          }
+        },
+        {
+          "id": "w3n3-7",
+          "duty": "cultist",
+          "maxHp": 55,
+          "accuracy": 0.6,
+          "loadout": {
+            "primary": "cult-blade",
+            "armour": null,
+            "sidearm": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 6,
+            "row": 1
+          }
+        },
+        {
+          "id": "w3n3-8",
+          "duty": "cultist",
+          "maxHp": 55,
+          "accuracy": 0.6,
+          "loadout": {
+            "primary": "cult-blade",
+            "armour": null,
+            "sidearm": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 9,
+            "row": 1
+          }
+        },
+        {
+          "id": "w3n3-9",
+          "duty": "cultist",
+          "maxHp": 55,
+          "accuracy": 0.6,
+          "loadout": {
+            "primary": "cult-blade",
+            "armour": null,
+            "sidearm": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 1,
+            "row": 0
+          }
+        },
+        {
+          "id": "w3n3-10",
+          "duty": "cultist",
+          "maxHp": 55,
+          "accuracy": 0.6,
+          "loadout": {
+            "primary": "cult-blade",
+            "armour": null,
+            "sidearm": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 10,
+            "row": 0
+          }
+        }
+      ]
     }
   ]
 }

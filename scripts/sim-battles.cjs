@@ -46,6 +46,15 @@ const PRESETS = {
         items.push(gear('c1', 'carapace-armour'), gear('c2', 'carapace-armour'));
         return { members: roster, items };
     },
+    // Into world 3: armed, plus the heavy weapon world 2 opens, a third carapace, everyone level 5.
+    veteran: () => {
+        const base = PRESETS.armed();
+        const items = base.items
+            .filter(i => !(i.assignedTo === 'c3' && i.catalogId === 'flak-armour'))
+            .map(i => (i.assignedTo === 'c2' && i.catalogId === 'shotgun' ? { ...i, catalogId: 'heavy-weapon' } : i));
+        items.push(gear('c3', 'carapace-armour'));
+        return { members: roster.map(c => ({ ...c, xp: 700 })), items };
+    },
 };
 
 function crewFor(scenario, presetName) {
@@ -66,7 +75,7 @@ function measure(scenario, presetName, battles) {
     let won = 0, timeouts = 0;
     const rounds = [], survivors = [];
     for (let i = 1; i <= battles; i += 1) {
-        const result = turn.runBattle({ board: scenario.board, units: [...crew, ...scenario.enemies], seed: i * 7919 });
+        const result = turn.runBattle({ board: scenario.board, units: [...crew, ...scenario.enemies], seed: i * 7919, objective: scenario.objective });
         rounds.push(result.rounds);
         if (result.outcome === 'victory') {
             won += 1;
@@ -81,7 +90,7 @@ const [scenarioArg, presetArg, battlesArg] = process.argv.slice(2);
 const scenarios = scenarioArg
     ? scenarioArg.split(',').map(id => turn.scenarioById(id) ?? (() => { throw new Error(`unknown scenario ${id}`); })())
     : turn.SCENARIOS;
-const presets = (presetArg || 'fresh,flak,mix,armed').split(',');
+const presets = (presetArg || 'fresh,flak,mix,armed,veteran').split(',');
 const battles = Number(battlesArg || 200);
 
 const pct = x => `${Math.round(x * 100)}%`;
@@ -95,4 +104,4 @@ for (const scenario of scenarios) {
     });
     console.log(`| ${scenario.id} ${scenario.name} | ${cells.join(' | ')} |`);
 }
-console.log('\n預設隊伍：fresh 起始配發（雷射槍＋手槍、無甲）；flak 再加防破片甲；mix 入門混編（霰彈、精準、三種工具、全防破片甲）；armed 世界 1 解鎖後（mix＋甲殼甲×2＋電漿槍）');
+console.log('\n預設隊伍：fresh 起始配發（雷射槍＋手槍、無甲）；flak 再加防破片甲；mix 入門混編（霰彈、精準、三種工具、全防破片甲）；armed 世界 1 解鎖後（mix＋甲殼甲×2＋電漿槍）；veteran 進世界 3（armed＋重武器組＋甲殼甲×3、全員 Lv5）');

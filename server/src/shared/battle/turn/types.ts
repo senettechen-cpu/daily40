@@ -15,7 +15,8 @@ export const STANCE_LABELS: Record<Stance, string> = {
 };
 
 export type DamageType = 'las' | 'ballistic' | 'bolt' | 'plasma' | 'flame' | 'melee';
-export type ArmourType = 'none' | 'flak' | 'carapace' | 'power';
+/** 'vehicle' is a hull, not plate a soldier wears: small arms barely scratch it (C2, 2026-09-27). */
+export type ArmourType = 'none' | 'flak' | 'carapace' | 'power' | 'vehicle';
 
 export interface Weapon {
     name: string;
@@ -83,6 +84,8 @@ export interface Unit extends UnitSpec {
     suppressed?: number;
     /** A non-medic's medicae kit patches them up once a battle. */
     selfHealed?: boolean;
+    /** An engineer's demolition charge, once a battle. */
+    demolished?: boolean;
 }
 
 export type Activity =
@@ -112,13 +115,31 @@ export type Ending =
     | 'mutual-down'     // the last of both fell together
     | 'rounds-ahead'    // out of rounds, more of the squad left standing
     | 'rounds-behind'   // out of rounds, fewer
-    | 'rounds-level';   // out of rounds, level on bodies
+    | 'rounds-level'    // out of rounds, level on bodies
+    | 'objective-met';  // the operation's objective was achieved before the enemy was wiped out
+
+/**
+ * What an operation asks for besides clearing the field (design §13: objectives
+ * start the moment the battle does). Wiping out the enemy always wins as well.
+ *
+ * seize:       a soldier stands on the tile at the end of `rounds` rounds in a row.
+ * hold:        any soldier is still standing at the end of round `rounds`.
+ * rescue:      a soldier reaches the tile.
+ * assassinate: the named enemy is down.
+ */
+export type Objective =
+    | { kind: 'eliminate' }
+    | { kind: 'seize'; at: Hex; rounds: number }
+    | { kind: 'hold'; rounds: number }
+    | { kind: 'rescue'; at: Hex }
+    | { kind: 'assassinate'; targetId: string };
 
 export interface BattleSetup {
     board: Board;
     units: UnitSpec[];
     seed: number;
     maxRounds?: number;
+    objective?: Objective;
 }
 
 export interface BattleResult {

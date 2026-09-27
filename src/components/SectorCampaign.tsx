@@ -6,7 +6,7 @@ import { api, CampaignView } from '../services/api';
 import {
     STRONGHOLDS, Stronghold, StrongholdRecord, StrongholdState, WORLDS, worldById,
 } from '../../shared/sector';
-import { scenarioById } from '../../shared/battle/turn';
+import { objectiveText, scenarioById } from '../../shared/battle/turn';
 import { catalogItem } from '../../shared/armory';
 import { recruitTemplate } from '../../shared/roster';
 
@@ -121,6 +121,9 @@ export const SectorCampaign: React.FC<{ onDeploy: (strongholdId: string) => void
                         </div>
                     </div>
                     <p className="m-0 text-sm text-zinc-300 leading-relaxed">{focus.briefing}</p>
+                    {scenario && (
+                        <div className="font-mono text-[11px] text-cyan-300">作戰目標：{objectiveText(scenario)}</div>
+                    )}
 
                     {unlockNames(focus).length > 0 && (
                         <div className="font-mono text-[11px] text-imperial-gold/80">首次收復開放：{unlockNames(focus).join('、')}</div>

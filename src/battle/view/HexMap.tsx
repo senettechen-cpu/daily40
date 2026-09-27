@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Board, Hex } from '../../../shared/battle/hex';
+import type { Objective } from '../../../shared/battle/turn';
 import { terrainAt } from '../../../shared/battle/hex';
 import { portraitHead } from '../../data/reportArtIndex';
 
@@ -40,8 +41,10 @@ const corners = (cx: number, cy: number) => Array.from({ length: 6 }, (_, i) => 
 
 export interface Snap { id: string; at: Hex; hp: number; down: boolean }
 
-export function HexMap({ board, snapshot, names, sides, faces, acting }: {
+export function HexMap({ board, snapshot, names, sides, faces, acting, objective }: {
     board: Board;
+    /** Marked on the map so the report shows what the squad was going for. */
+    objective?: Objective;
     snapshot: Snap[];
     names: Map<string, string>;
     sides: Map<string, 'crew' | 'enemy'>;
@@ -136,6 +139,20 @@ export function HexMap({ board, snapshot, names, sides, faces, acting }: {
                 );
             })}
 
+            {/* The tile to take or reach, drawn under the tokens. */}
+            {objective && (objective.kind === 'seize' || objective.kind === 'rescue') && (() => {
+                const { x, y } = centre(objective.at);
+                return (
+                    <g>
+                        <polygon points={corners(x, y)} fill="#dfbc72" fillOpacity={0.14} stroke="#dfbc72" strokeWidth={4} />
+                        <text x={x} y={y - HEX_H * 0.28} textAnchor="middle" fontSize={16} fontWeight="bold" fill="#dfbc72"
+                            style={{ paintOrder: 'stroke' }} stroke="#0b111a" strokeWidth={4}>
+                            {objective.kind === 'seize' ? '佔領' : '救援'}
+                        </text>
+                    </g>
+                );
+            })()}
+
             <defs>
                 {snapshot.map(unit => (
                     <clipPath key={`c${unit.id}`} id={`token-${unit.id}`}>
@@ -171,6 +188,14 @@ export function HexMap({ board, snapshot, names, sides, faces, acting }: {
                                     {unit.down ? '×' : (names.get(unit.id) ?? '?').slice(0, 1)}
                                 </text>
                             )}
+                        {/* The assassination target carries a red sight until they fall. */}
+                        {!unit.down && objective?.kind === 'assassinate' && objective.targetId === unit.id && (
+                            <g stroke="#e0503c" strokeWidth={3} fill="none">
+                                <circle cx={x} cy={y - 6} r={TOKEN + 7} />
+                                <line x1={x - TOKEN - 12} y1={y - 6} x2={x - TOKEN - 2} y2={y - 6} />
+                                <line x1={x + TOKEN + 2} y1={y - 6} x2={x + TOKEN + 12} y2={y - 6} />
+                            </g>
+                        )}
                         {!unit.down && (
                             <text x={x} y={y + HEX_H * 0.36} textAnchor="middle" fontSize={20} fontWeight="bold" fill="#e6eef6"
                                 style={{ paintOrder: 'stroke' }} stroke="#0b111a" strokeWidth={5}>

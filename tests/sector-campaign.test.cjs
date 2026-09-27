@@ -28,14 +28,36 @@ test('campaign: capturing the first stronghold opens both branches, and the four
     assert.equal(stateOf('w1-n4', captured('w1-n1', 'w1-n2', 'w1-n3')), 'open');
 });
 
-test('campaign: a world whose battles are not built yet reads as pending, not open', () => {
-    const world1 = captured('w1-n1', 'w1-n2', 'w1-n3', 'w1-n4');
-    const next = s.strongholdById('w2-n1');
-    if (next.scenarioId) return; // built in C2; nothing to check then
-    assert.equal(stateOf('w2-n1', world1), 'pending');
-    const check = s.checkAttack('w2-n1', world1);
+test('campaign: a stronghold whose battle is not built yet reads as pending, not open', () => {
+    const before = captured('w1-n1', 'w1-n2', 'w1-n3', 'w1-n4', 'w2-n1', 'w2-n2', 'w2-n3', 'w2-n4', 'w3-n1', 'w3-n2', 'w3-n3');
+    const last = s.strongholdById('w3-n4');
+    if (last.scenarioId) return; // built in C3; nothing to check then
+    assert.equal(stateOf('w3-n4', before), 'pending');
+    const check = s.checkAttack('w3-n4', before);
     assert.equal(check.ok, false);
     assert.match(check.reason, /準備中/);
+});
+
+test('campaign: every built stronghold after world 1 asks for something, and names it', () => {
+    const kinds = new Set();
+    for (const x of s.STRONGHOLDS.filter(x => x.scenarioId)) {
+        const scenario = turn.scenarioById(x.scenarioId);
+        kinds.add(scenario.objective?.kind ?? 'eliminate');
+        assert.ok(turn.objectiveText(scenario).length > 0);
+        if (scenario.objective?.kind === 'assassinate') {
+            assert.ok(scenario.enemies.some(e => e.id === scenario.objective.targetId), `${x.id} marks a missing target`);
+        }
+    }
+    for (const kind of ['eliminate', 'seize', 'hold', 'rescue', 'assassinate']) assert.ok(kinds.has(kind), `no stronghold uses ${kind}`);
+});
+
+test('campaign: worlds 2 and 3 bring the vehicles and the cult the user asked for', () => {
+    const enemiesOf = world => s.STRONGHOLDS.filter(x => x.world === world && x.scenarioId)
+        .flatMap(x => turn.scenarioById(x.scenarioId).enemies);
+    assert.ok(enemiesOf(1).every(e => e.armourType !== 'vehicle' && e.duty !== 'cultist'), 'world 1 is infantry only');
+    assert.ok(enemiesOf(2).some(e => e.duty === 'walker'), 'world 2 has walkers');
+    assert.ok(enemiesOf(3).some(e => e.duty === 'tank'), 'world 3 has a Chimera');
+    assert.ok(enemiesOf(3).filter(e => e.duty === 'cultist').length >= 10, 'world 3 is thick with cultists');
 });
 
 test('campaign: attacking names what has to fall first, and a captured stronghold can be fought again', () => {

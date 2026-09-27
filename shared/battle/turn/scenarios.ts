@@ -1,6 +1,6 @@
 import { Board, Hex } from '../hex';
-import { ARMOUR_STATS, DUTY_STATS, FISTS, WEAPON_STATS } from './rules';
-import { ArmourType, Stance, UnitSpec } from './types';
+import { ARMOUR_STATS, DUTY_STATS, ENEMY_ARMOUR_STATS, ENEMY_WEAPON_STATS, FISTS, WEAPON_STATS } from './rules';
+import { ArmourType, Objective, Stance, UnitSpec } from './types';
 import ROSTERS from './enemy-rosters.json';
 import CAMPAIGN_ROSTERS from './campaign-rosters.json';
 
@@ -61,15 +61,70 @@ const ORBITAL_LIFT = board({
     '3,3': 'cover', '7,3': 'cover', '5,5': 'cover', '3,5': 'cover', '7,5': 'cover',
 });
 
+// World 2, the forge ring (C2): walkers patrol here, and objectives other than a clear field begin.
+
+/** Smelter: two furnaces and channels of molten slag that burn whoever stands in them. */
+const SMELTER = board({
+    '3,3': 'block', '7,3': 'block',
+    '5,2': 'hazard', '5,5': 'hazard', '2,5': 'hazard', '8,5': 'hazard',
+    '4,4': 'cover', '6,4': 'cover', '1,3': 'cover', '9,3': 'cover', '3,6': 'cover', '7,6': 'cover',
+});
+
+/** Armoury: the hall door at 5,3 is the objective; walls to either side funnel the approach. */
+const ARMOURY = board({
+    '3,2': 'block', '7,2': 'block', '2,2': 'block', '8,2': 'block',
+    '4,3': 'cover', '6,3': 'cover', '2,4': 'cover', '8,4': 'cover', '5,5': 'cover', '3,6': 'cover', '7,6': 'cover',
+});
+
+/** Power core: generator housings split the field; the live core burns. */
+const POWER_CORE = board({
+    '4,3': 'block', '6,3': 'block', '5,3': 'hazard', '5,2': 'block',
+    '2,2': 'cover', '8,2': 'cover', '3,5': 'cover', '7,5': 'cover', '5,5': 'cover',
+});
+
+/** Vehicle bay: an open floor built for walkers, little to hide behind. */
+const VEHICLE_BAY = board({
+    '3,3': 'cover', '7,3': 'cover', '5,4': 'cover', '2,6': 'cover', '8,6': 'cover',
+    '5,2': 'high',
+});
+
+// World 3, Castorum (C2): the cult's own ground.
+
+/** Outer city: rubble everywhere, and the squad only has to still be standing. */
+const OUTER_CITY = board({
+    '2,3': 'cover', '4,3': 'cover', '6,3': 'cover', '8,3': 'cover',
+    '3,5': 'cover', '5,5': 'cover', '7,5': 'cover', '5,6': 'cover',
+    '1,4': 'block', '9,4': 'block',
+});
+
+/** Cathedral: pillars down the nave; the captive priest is held at the altar, 5,1. */
+const CATHEDRAL = board({
+    '2,3': 'block', '4,3': 'block', '6,3': 'block', '8,3': 'block',
+    '3,5': 'cover', '7,5': 'cover', '5,4': 'cover', '5,1': 'high',
+});
+
+/** Ritual node: the node at 5,3 has to be held; the warp bleeds out beside it. */
+const RITUAL_NODE = board({
+    '4,3': 'hazard', '6,3': 'hazard',
+    '3,2': 'cover', '7,2': 'cover', '3,5': 'cover', '7,5': 'cover', '5,5': 'cover',
+    '1,2': 'block', '9,2': 'block',
+});
+
 const BOARDS: Record<string, Board> = {
     standard: RUINS, 'close-assault': OPEN_FIELD, outnumbered: RUINS,
     landing: LANDING, dockyard: DOCKYARD, 'vox-tower': VOX_TOWER, 'orbital-lift': ORBITAL_LIFT,
+    smelter: SMELTER, armoury: ARMOURY, 'power-core': POWER_CORE, 'vehicle-bay': VEHICLE_BAY,
+    'outer-city': OUTER_CITY, cathedral: CATHEDRAL, 'ritual-node': RITUAL_NODE,
 };
 
 const NAMES: Record<string, string> = {
     sergeant: '叛軍班長', rifleman: '叛軍槍手', marksman: '叛軍射手',
     medic: '叛軍醫護', engineer: '叛軍工兵', heavy: '叛軍重裝兵',
+    cultist: '混沌教徒', walker: '叛軍哨兵步行機', tank: '叛軍奇美拉',
 };
+
+/** Only the traitor guard have a face yet; cultists and vehicles keep the lettered token until GPT delivers art. */
+const TRAITOR_DUTIES = new Set(['sergeant', 'rifleman', 'marksman', 'medic', 'engineer', 'heavy']);
 
 interface RosterEntry {
     id: string;
@@ -79,6 +134,8 @@ interface RosterEntry {
     stance: string;
     at: { col: number; row: number };
     loadout: { primary?: string | null; sidearm?: string | null; armour?: string | null; tools?: string[] };
+    /** Overrides the numbered duty name, for a leader or a vehicle worth naming. */
+    name?: string;
     note?: string;
 }
 
@@ -89,12 +146,13 @@ interface RosterEntry {
  */
 function traitorFrom(entry: RosterEntry, index: number): UnitSpec {
     const duty = DUTY_STATS[entry.duty] ?? DUTY_STATS.rifleman;
-    const plate = entry.loadout.armour ? ARMOUR_STATS[entry.loadout.armour] : undefined;
+    const armourId = entry.loadout.armour;
+    const plate = armourId ? ARMOUR_STATS[armourId] ?? ENEMY_ARMOUR_STATS[armourId] : undefined;
     if (entry.loadout.armour && !plate) throw new Error(`unknown armour ${entry.loadout.armour} for ${entry.id}`);
 
     const weaponOf = (id: string | null | undefined) => {
         if (!id) return undefined;
-        const profile = WEAPON_STATS[id];
+        const profile = WEAPON_STATS[id] ?? ENEMY_WEAPON_STATS[id];
         if (!profile) throw new Error(`unknown weapon ${id} for ${entry.id}`);
         return profile;
     };
@@ -104,12 +162,12 @@ function traitorFrom(entry: RosterEntry, index: number): UnitSpec {
 
     return {
         id: entry.id,
-        name: `${NAMES[entry.duty] ?? '叛軍'}${index + 1}`,
+        name: entry.name ?? `${NAMES[entry.duty] ?? '叛軍'}${index + 1}`,
         side: 'enemy',
         duty: entry.duty,
         // One shared traitor face until per-duty rebel art exists; the duty is
         // carried by the label, never implied by borrowing a Cadian portrait.
-        assetId: 'traitor-guardsman',
+        assetId: TRAITOR_DUTIES.has(entry.duty) ? 'traitor-guardsman' : undefined,
         maxHp: entry.maxHp,
         armour: plate?.armour ?? 0,
         armourType: (plate?.type ?? 'none') as ArmourType,
@@ -129,6 +187,8 @@ export interface Scenario {
     description: string;
     board: Board;
     enemies: UnitSpec[];
+    /** Absent means clear the field. */
+    objective?: Objective;
 }
 
 const DESCRIPTIONS: Record<string, { name: string; description: string }> = {
@@ -148,9 +208,16 @@ const DESCRIPTIONS: Record<string, { name: string; description: string }> = {
     'w1-n2': { name: '補給港', description: '貨櫃把碼頭切成幾條走道，叛軍披上防破片甲，後方有一名精準射手。' },
     'w1-n3': { name: '通訊塔', description: '兩名精準射手佔住桅杆旁的高地，兩側是燃燒的電纜溝。' },
     'w1-n4': { name: '軌道升降站', description: '貨運龍門架築成一道牆，只留五個缺口。叛軍在後方架起一組重武器。' },
+    'w2-n1': { name: '冶煉區', description: '熔爐與熔渣溝之間，一台叛軍哨兵步行機在巡邏。' },
+    'w2-n2': { name: '兵工廠', description: '目標：佔住兵工廠大門（中央）撐過兩個回合結束。守軍有電漿槍與重武器組。' },
+    'w2-n3': { name: '發電核心', description: '目標：擊倒叛軍技術軍官。他躲在發電機組後方，身邊有披甲殼甲的衛兵。' },
+    'w2-n4': { name: '裝甲庫', description: '空曠的停機坪上有兩台哨兵步行機，還有叛軍精銳。' },
+    'w3-n1': { name: '外城', description: '目標：撐過八個回合。成群的混沌教徒揮著利刃衝上來。' },
+    'w3-n2': { name: '聖殤大教堂', description: '目標：讓任一名隊員抵達祭壇（5,1），救出被俘的牧師。祭壇前有叛軍班長與一台奇美拉把守。' },
+    'w3-n3': { name: '儀式節點', description: '目標：佔住儀式節點（5,3）撐過四個回合結束。一台叛軍奇美拉在旁掩護。' },
 };
 
-type RosterFile = { scenarios: { id: string; board?: string; enemies: RosterEntry[] }[] };
+type RosterFile = { scenarios: { id: string; board?: string; objective?: Objective; enemies: RosterEntry[] }[] };
 
 const scenariosFrom = (file: RosterFile): Scenario[] => file.scenarios.map(entry => ({
     id: entry.id,
@@ -159,6 +226,7 @@ const scenariosFrom = (file: RosterFile): Scenario[] => file.scenarios.map(entry
     // The phase-one file names its board in prose; campaign entries name a key.
     board: BOARDS[entry.id] ?? (entry.board ? BOARDS[entry.board] : undefined) ?? RUINS,
     enemies: entry.enemies.map(traitorFrom),
+    objective: entry.objective,
 }));
 
 /** The three phase-one scenarios, kept as the balance baseline after the campaign replaced them in play. */
@@ -170,3 +238,20 @@ export const CAMPAIGN_SCENARIOS: Scenario[] = scenariosFrom(CAMPAIGN_ROSTERS as 
 export const SCENARIOS: Scenario[] = [...BASELINE_SCENARIOS, ...CAMPAIGN_SCENARIOS];
 
 export const scenarioById = (id: string) => SCENARIOS.find(scenario => scenario.id === id);
+
+/** What an operation asks for, in the words the briefing and the report use. */
+export function objectiveText(scenario: Pick<Scenario, 'objective' | 'enemies'>): string {
+    const goal = scenario.objective;
+    if (!goal || goal.kind === 'eliminate') return '殲滅所有敵軍';
+    const where = (hex: Hex) => `${hex.col},${hex.row}`;
+    switch (goal.kind) {
+        case 'seize': return `佔住 ${where(goal.at)}，連續撐過 ${goal.rounds} 個回合結束（或殲滅敵軍）`;
+        case 'hold': return `撐過 ${goal.rounds} 個回合，任一人存活即達成（或殲滅敵軍）`;
+        case 'rescue': return `任一名隊員抵達 ${where(goal.at)}（或殲滅敵軍）`;
+        case 'assassinate': {
+            const target = scenario.enemies.find(e => e.id === goal.targetId);
+            return `擊倒 ${target?.name ?? '指定目標'}（或殲滅敵軍）`;
+        }
+        default: return '殲滅所有敵軍';
+    }
+}

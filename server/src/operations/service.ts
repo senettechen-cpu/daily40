@@ -108,7 +108,7 @@ export async function startOperation(db: Db, userId: string, request: StartReque
     // identical, so a won fight could be replayed for xp indefinitely. The roll
     // is stored, which keeps the report an exact replay of what was resolved.
     const seed = randomInt(1, 2 ** 31 - 1);
-    const finished = runBattle({ board: scenario.board, units: [...crew, ...scenario.enemies], seed });
+    const finished = runBattle({ board: scenario.board, units: [...crew, ...scenario.enemies], seed, objective: scenario.objective });
     const outcome = finished.outcome as Outcome;
     const firstCapture = outcome === 'victory' && attack.firstCapture;
 
