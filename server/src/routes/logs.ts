@@ -45,26 +45,24 @@ router.post('/', async (req, res) => {
     }
 });
 
-// Get logs (Admin/GM view usually, but scoped to user for now? Or Global?)
-// User asked: "I want to know ALL ACCOUNTS...".
-// This implies the user (GM) wants to see EVERYONE'S logs.
-// For now, let's allow fetching all logs if the user is authenticated (Security by Obscurity per plan).
-// Or strictly, fetching OWN logs? 
-// User Request: "I want to know ALL ACCOUNTS...". So it must be global for the GM.
+/**
+ * Accounts allowed to read every account's log, from ADMIN_USER_IDS (comma
+ * separated uids, e.g. "local:owner"). Everyone else reads only their own.
+ * Before 2026-09-27 any signed-in account could read all of them.
+ */
+export const isAdmin = (uid: string | undefined) =>
+    !!uid && (process.env.ADMIN_USER_IDS ?? '').split(',').map(s => s.trim()).filter(Boolean).includes(uid);
+
 router.get('/', async (req, res) => {
     try {
-        const { limit = 50, offset = 0 } = req.query;
+        const userId = req.user?.uid;
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+        const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 50));
+        const offset = Math.max(0, Number(req.query.offset) || 0);
 
-        // TODO: Add "Admin Check" here if we implement roles strictly.
-        // Currently, anyone with the /admin URL knows the API.
-
-        const sql = `
-            SELECT * FROM resource_logs 
-            ORDER BY created_at DESC
-            LIMIT $1 OFFSET $2
-        `;
-
-        const result = await query(sql, [limit, offset]);
+        const result = isAdmin(userId)
+            ? await query('SELECT * FROM resource_logs ORDER BY created_at DESC LIMIT $1 OFFSET $2', [limit, offset])
+            : await query('SELECT * FROM resource_logs WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3', [userId, limit, offset]);
         res.json(result.rows);
     } catch (err) {
         console.error('Failed to fetch logs:', err);

@@ -6,7 +6,8 @@ import path from 'path';
 // Load env vars
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
-const pool = new Pool({
+// A fresh pool per attempt: each attempt ends its pool, so a retry needs its own.
+const newPool = () => new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
@@ -100,6 +101,7 @@ const schemaSql = `
 `;
 
 const initDb = async () => {
+    const pool = newPool();
     try {
         console.log('Connecting to database...');
         console.log('DB URL:', process.env.DATABASE_URL ? 'Loaded' : 'Missing');
@@ -350,9 +352,25 @@ const initDb = async () => {
 
     } catch (err) {
         console.error('Error initializing database:', err);
+        // Rethrown since 2026-09-27: the server used to carry on with a
+        // half-migrated schema and fail later, mid-request. index.ts now waits
+        // for this and refuses to start instead.
+        throw err;
     } finally {
         await pool.end();
     }
 };
 
-initDb();
+/** Runs the migrations, retrying while the database may still be starting up. */
+export async function runMigrations(attempts = 5, delayMs = 3000): Promise<void> {
+    for (let attempt = 1; ; attempt += 1) {
+        try {
+            await initDb();
+            return;
+        } catch (err) {
+            if (attempt >= attempts) throw err;
+            console.error(`[DB] Migration attempt ${attempt} failed; retrying in ${delayMs / 1000}s.`);
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+    }
+}

@@ -6,7 +6,7 @@ import { Pool } from 'pg';
 import taskRoutes from './routes/tasks';
 import gameStateRoutes from './routes/gameState';
 import projectRoutes from './routes/projects';
-import './db/init'; // Initialize DB and run migrations
+import { runMigrations } from './db/init';
 
 dotenv.config();
 
@@ -68,7 +68,16 @@ app.get('/', (req, res) => {
 
 import { startScheduler } from './scheduler';
 
-app.listen(port, () => {
-    console.log(`[Server]: Server is running at http://localhost:${port}`);
-    startScheduler(); // Initialize Corruption Engine
-});
+// Requests are only accepted once the schema is complete (2026-09-27). Before,
+// migrations ran alongside the server and a failure was only logged.
+runMigrations()
+    .then(() => {
+        app.listen(port, () => {
+            console.log(`[Server]: Server is running at http://localhost:${port}`);
+            startScheduler(); // Initialize Corruption Engine
+        });
+    })
+    .catch(err => {
+        console.error('[Server] Refusing to start: database migrations failed.', err);
+        process.exit(1);
+    });

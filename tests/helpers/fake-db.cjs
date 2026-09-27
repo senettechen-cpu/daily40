@@ -184,6 +184,14 @@ function createFakeDb() {
             if (row) row.specialties = JSON.parse(p[0]);
             return { rows: [], rowCount: row ? 1 : 0 };
         }
+        if (s.startsWith('SELECT * FROM resource_logs WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3')) {
+            const rows = (tables.resource_logs ?? []).filter(r => r.user_id === p[0]).sort((a, b) => b.created_at - a.created_at).slice(p[2], p[2] + p[1]);
+            return { rows, rowCount: rows.length };
+        }
+        if (s.startsWith('SELECT * FROM resource_logs ORDER BY created_at DESC LIMIT $1 OFFSET $2')) {
+            const rows = [...(tables.resource_logs ?? [])].sort((a, b) => b.created_at - a.created_at).slice(p[1], p[1] + p[0]);
+            return { rows, rowCount: rows.length };
+        }
         if (s.startsWith('SELECT source_key, candidate_id, stage, domain, day, task_id FROM growth_records WHERE user_id = $1')) {
             const rows = tables.growth_records.filter(r => r.user_id === p[0]);
             return { rows, rowCount: rows.length };
