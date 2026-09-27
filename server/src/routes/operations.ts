@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { withTransaction } from '../db';
 import { readCampaign, readGate, startOperation } from '../operations/service';
+import { previewOperation } from '../operations/preview';
 
 const router = Router();
 
@@ -26,6 +27,26 @@ router.get('/campaign', async (req, res) => {
         res.json(campaign);
     } catch (err) {
         console.error('Error reading campaign:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// POST /api/operations/preview - threats and an estimated win rate; writes nothing.
+router.post('/preview', async (req, res) => {
+    try {
+        const userId = req.user?.uid;
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+        const { squadId, strongholdId, missionId } = req.body ?? {};
+        if (typeof squadId !== 'string') return res.status(400).json({ error: 'squadId 必須是字串。' });
+        const result = await withTransaction(db => previewOperation(db, userId, {
+            squadId,
+            strongholdId: typeof strongholdId === 'string' ? strongholdId : undefined,
+            missionId: typeof missionId === 'string' ? missionId : undefined,
+        }));
+        if ('error' in result) return res.status(400).json({ error: result.error });
+        res.json(result);
+    } catch (err) {
+        console.error('Error previewing operation:', err);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });

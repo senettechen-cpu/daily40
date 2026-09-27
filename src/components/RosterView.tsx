@@ -23,6 +23,7 @@ import { equipmentArt, portraitHead } from '../data/reportArtIndex';
 import { MAX_TRAINEES } from '../../shared/battle';
 import { ServiceEntry, strongholdById, worldById } from '../../shared/sector';
 import type { CampaignView, OperationTarget } from '../services/api';
+import { BattleIntel } from './BattleIntel';
 
 /** An ascension mission chosen on the ascension page; the squad departs for it instead of a stronghold. */
 export interface MissionOrder { missionId: string; candidateId?: string }
@@ -749,6 +750,12 @@ export const RosterView = ({ visible, onClose, strongholdId: requestedStronghold
                             </Button>
                             {departure && <span className="font-mono text-[11px] text-green-400">{departure}</span>}
                         </div>
+                        <BattleIntel
+                            squadId={activeSquad.id}
+                            strongholdId={missionDef ? undefined : strongholdId}
+                            missionId={missionDef?.id}
+                            revision={`${activeSquad.memberIds.join(',')}|${JSON.stringify(activeSquad.placements ?? [])}|${items.filter(i => i.assignedTo && activeSquad.memberIds.includes(i.assignedTo)).map(i => `${i.id}:${i.assignedTo}`).join(',')}`}
+                        />
                     </div>
                 )}
 

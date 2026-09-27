@@ -4,3 +4,4 @@ export * from './engine';
 export * from './loadout';
 export * from './scenarios';
 export * from './placement';
+export * from './intel';

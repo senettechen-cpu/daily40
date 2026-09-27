@@ -5,6 +5,7 @@ import type { Board } from '../../../shared/battle/hex';
 import { DEPLOYMENT_KEY } from '../handoff';
 import { strongholdById, worldById } from '../../../shared/sector';
 import { HexMap } from './HexMap';
+import { DiagnosisPanel } from './DiagnosisPanel';
 import './battle-test.css';
 import './battle-report.css';
 
@@ -181,6 +182,11 @@ export function HexReportApp() {
             {handoff.woundedIds && handoff.woundedIds.length > 0 && (
                 <p className="bt-warn">{handoff.woundedIds.length} 人在這場敗戰中負傷，今日不得再出戰。</p>
             )}
+            <DiagnosisPanel
+                units={[...handoff.crew, ...(scenarioById(handoff.scenarioId)?.enemies ?? [])]}
+                result={battle}
+                objective={scenarioById(handoff.scenarioId)?.objective}
+            />
             <p className="bt-hint">數值為未校準的候選值，平衡尚待驗收。</p>
         </main>
     );

@@ -7,7 +7,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 import { CloseProjectResult, Project, ProjectCrate } from '../types';
 import {
-    DIFFICULTY_GATES, RARITY_LABELS, daysBetween, effectiveDifficulty, gateShortfall,
+    CHARACTER_SHARE, CRATE_POOLS, DIFFICULTY_GATES, RARITIES, RARITY_LABELS, RARITY_ODDS, daysBetween, effectiveDifficulty,
+    gateShortfall,
 } from '../../shared/progression';
 import { catalogItem } from '../../shared/armory';
 import { recruitTemplate } from '../../shared/roster';
@@ -26,6 +27,39 @@ const RARITY_STYLE: Record<ProjectCrate['rarity'], { border: string; text: strin
     fine: { border: 'border-green-500', text: 'text-green-400', glow: 'shadow-[0_0_24px_rgba(34,197,94,0.35)]' },
     rare: { border: 'border-sky-400', text: 'text-sky-300', glow: 'shadow-[0_0_28px_rgba(56,189,248,0.4)]' },
     legendary: { border: 'border-imperial-gold', text: 'text-imperial-gold', glow: 'shadow-[0_0_36px_rgba(251,191,36,0.55)]' },
+};
+
+/**
+ * The odds a crate of this difficulty rolls, and everything it can hold
+ * (2026-09-27, system review P1-7: odds are shown, not hidden in the code).
+ * Restricted entries only drop once the campaign has opened them; a rarity
+ * with nothing opened steps down a tier, so a crate is never empty.
+ */
+export const CrateOdds: React.FC<{ level: number }> = ({ level }) => {
+    const odds = RARITY_ODDS[Math.min(5, Math.max(1, level))];
+    return (
+        <div className="text-xs space-y-1">
+            <div className="font-bold">難度 {level} 補給箱機率</div>
+            <div className="flex flex-wrap gap-x-3">
+                {RARITIES.map(r => <span key={r}>{RARITY_LABELS[r]} {odds[r]}%</span>)}
+            </div>
+            <div className="text-zinc-500">同一稀有度中，約 {Math.round(CHARACTER_SHARE * 100)}% 是士兵、其餘是裝備（該級沒有可抽的士兵時一律是裝備）。</div>
+            <details>
+                <summary className="cursor-pointer">可能抽到的內容</summary>
+                {RARITIES.filter(r => odds[r] > 0).map(r => {
+                    const pool = CRATE_POOLS[r];
+                    const gear = pool.equipment.map(id => `${catalogItem(id)?.name ?? id}${catalogItem(id)?.restricted ? '*' : ''}`);
+                    const people = pool.characters.map(c => `${c.veteran ? '老兵 ' : ''}${recruitTemplate(c.templateId)?.name ?? c.templateId}${recruitTemplate(c.templateId)?.restricted ? '*' : ''}`);
+                    return (
+                        <div key={r} className="mt-1">
+                            <b>{RARITY_LABELS[r]}</b>：{[...gear, ...people].join('、')}
+                        </div>
+                    );
+                })}
+                <div className="mt-1 text-zinc-500">* 需要星區戰役先解鎖；還沒解鎖時不會抽到，若該稀有度沒有可抽的內容就降一級。</div>
+            </details>
+        </div>
+    );
 };
 
 /** Where a plan stands against its chosen difficulty, as of today. */
@@ -143,6 +177,7 @@ export const OperationPlans: React.FC = () => {
                 <div className="space-y-2 text-sm">
                     <p className="m-0"><b>結案後無法撤銷</b>，計畫會變成唯讀，里程碑也會鎖定。</p>
                     <p className="m-0">{s.noCrate ? `這次不會開補給箱：${s.noCrate}。` : `會開一個難度 ${s.level} 的補給箱。`}</p>
+                    {!s.noCrate && <CrateOdds level={s.level} />}
                     {!s.noCrate && s.level < p.difficulty && (
                         <p className="m-0 text-amber-600">你選的是難度 {p.difficulty}，目前規模只夠算難度 {s.level}。
                             {s.short.subTasks > 0 && ` 還差 ${s.short.subTasks} 個完成的子計畫。`}
