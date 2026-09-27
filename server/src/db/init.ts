@@ -344,6 +344,13 @@ const initDb = async () => {
             WHEN 'nurgle' THEN 'care' WHEN 'khorne' THEN 'health' WHEN 'tzeentch' THEN 'learning' END
             WHERE domain IS NULL AND faction IN ('nurgle', 'khorne', 'tzeentch')`);
 
+        // One-off maintenance steps record themselves here so they run once.
+        await pool.query(`CREATE TABLE IF NOT EXISTS maintenance_runs (
+            name TEXT PRIMARY KEY,
+            ran_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        )`);
+        await purgeLegacy(pool);
+
         // Specialties (2026-09-27): ids by slot; a pick is final. Additive only.
         await pool.query('ALTER TABLE roster_characters ADD COLUMN IF NOT EXISTS specialties JSONB');
 
@@ -368,6 +375,44 @@ const initDb = async () => {
         await pool.end();
     }
 };
+
+/**
+ * The legacy economy the user retired on 2026-09-27 (system review P1-1):
+ * RP and glory, corruption and penitent mode, months and sector history,
+ * army strength and owned units, the old campaign, the old account-wide
+ * ascension and its materials, the resource log that recorded them, and the
+ * enemy faction and difficulty on tasks. The code stopped reading and writing
+ * all of it at once; this step erases what is stored.
+ *
+ * It is destructive and cannot be undone, so it only runs when PURGE_LEGACY=on
+ * is set in the environment (after the user has taken a database backup), in
+ * one transaction, and only once (recorded in maintenance_runs).
+ */
+export async function purgeLegacy(pool: Pool) {
+    if (process.env.PURGE_LEGACY !== 'on') return;
+    const name = 'purge-legacy-2026-09-27';
+    const done = await pool.query('SELECT 1 FROM maintenance_runs WHERE name = $1', [name]);
+    if (done.rows.length > 0) return;
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const states = await client.query(`UPDATE game_state SET
+            resources = DEFAULT, corruption = DEFAULT, current_month = DEFAULT, is_penitent_mode = DEFAULT,
+            army_strength = DEFAULT, sector_history = DEFAULT, owned_units = DEFAULT,
+            astartes = DEFAULT, campaign = DEFAULT, last_corruption_tick = NULL`);
+        const logs = await client.query('DELETE FROM resource_logs');
+        const tasks = await client.query("UPDATE tasks SET faction = 'default', difficulty = 1");
+        await client.query('INSERT INTO maintenance_runs (name) VALUES ($1)', [name]);
+        await client.query('COMMIT');
+        console.log(`[DB] Legacy purge done: ${states.rowCount} game states reset, ${logs.rowCount} resource logs deleted, ${tasks.rowCount} tasks cleared.`);
+    } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+    } finally {
+        client.release();
+    }
+}
 
 /** Runs the migrations, retrying while the database may still be starting up. */
 export async function runMigrations(attempts = 5, delayMs = 3000): Promise<void> {

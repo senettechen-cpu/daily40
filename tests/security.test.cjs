@@ -59,3 +59,50 @@ test('security: the test email checks the address, echoes nothing and allows thr
     assert.equal(outbox.length, 3);
     assert.ok(outbox.every(m => !m.html.includes('me@example.com')), 'the body must not echo the address');
 });
+
+test('legacy: the game-state sync writes only the notification settings, from the first save', async () => {
+    const db = createFakeDb();
+    const sync = mount('server/src/routes/gameState.ts', db);
+    const first = await sync('POST', '/', { body: { notificationEmail: 'me@example.com', emailEnabled: true, resources: { rp: 999 }, corruption: 50 } });
+    assert.equal(first.code, 200);
+    const row = db.tables.game_state.find(r => r.user_id === 'u1');
+    assert.equal(row.notification_email, 'me@example.com');
+    assert.equal(row.email_enabled, true);
+    assert.equal(row.resources, undefined, 'a retired field was written');
+
+    await sync('POST', '/', { body: { emailEnabled: false, astartes: { unlockedImplants: ['x'] }, campaign: { actions: 9 } } });
+    assert.equal(row.email_enabled, false);
+    assert.equal(row.astartes, undefined);
+    assert.equal(row.campaign, undefined);
+    const nothing = await sync('POST', '/', { body: { resources: { rp: 1 } } });
+    assert.equal(nothing.code, 200);
+});
+
+test('legacy: the purge runs only with PURGE_LEGACY=on, in one transaction, and only once', async () => {
+    const { purgeLegacy } = loadTs('server/src/db/init.ts', { mocks: { pg: { Pool: class {} }, dotenv: { default: { config() {} }, config() {} }, path: { default: require('node:path') } }, defines: { __dirname: "'.'" } });
+    const statements = [];
+    const ran = new Set();
+    const exec = async (sql, params = []) => {
+        const s = sql.replace(/\s+/g, ' ').trim();
+        statements.push(s);
+        if (s.startsWith('SELECT 1 FROM maintenance_runs')) return { rows: ran.has(params[0]) ? [{}] : [], rowCount: 0 };
+        if (s.startsWith('INSERT INTO maintenance_runs')) ran.add(params[0]);
+        return { rows: [], rowCount: 1 };
+    };
+    const pool = { query: exec, connect: async () => ({ query: exec, release() {} }) };
+
+    delete process.env.PURGE_LEGACY;
+    await purgeLegacy(pool);
+    assert.equal(statements.length, 0, 'without the switch nothing is touched');
+
+    process.env.PURGE_LEGACY = 'on';
+    await purgeLegacy(pool);
+    assert.ok(statements.includes('BEGIN') && statements.includes('COMMIT'));
+    assert.ok(statements.some(s => s.startsWith('UPDATE game_state SET resources = DEFAULT')));
+    assert.ok(statements.some(s => s === 'DELETE FROM resource_logs'));
+    assert.ok(statements.some(s => s.startsWith("UPDATE tasks SET faction = 'default'")));
+    const count = statements.length;
+    await purgeLegacy(pool);
+    assert.equal(statements.length, count + 1, 'the second run only checks and stops');
+    delete process.env.PURGE_LEGACY;
+});

@@ -337,27 +337,10 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 setTasks(processedTasks);
                 setProjects(projectsData || []);
                 if (gameState) {
-                    loadCampaign(gameState.campaign);
-                    if (gameState.resources) setResources(gameState.resources);
-                    if (gameState.corruption !== undefined) setCorruption(gameState.corruption);
-                    if (gameState.ownedUnits) setOwnedUnits(Array.isArray(gameState.ownedUnits) ? gameState.ownedUnits : []);
-                    // Projects are loaded separately now
-                    if (gameState.armyStrength) setArmyStrength(gameState.armyStrength);
-                    if (gameState.currentMonth !== undefined) setCurrentMonth(gameState.currentMonth);
-                    if (gameState.sectorHistory) setSectorHistory(gameState.sectorHistory);
+                    // Only the notification settings are read back; the retired legacy
+                    // economy is neither loaded nor shown (2026-09-27).
                     if (gameState.notificationEmail) setNotificationEmail(gameState.notificationEmail);
                     if (gameState.emailEnabled !== undefined) setEmailEnabled(gameState.emailEnabled);
-                    if (gameState.astartes) {
-                        const loadedAstartes = gameState.astartes;
-                        // Fix: If ritualActivities is empty (default from DB), load defaults from code
-                        if (!loadedAstartes.ritualActivities || Object.keys(loadedAstartes.ritualActivities).length === 0) {
-                            loadedAstartes.ritualActivities = RITUAL_ACTIVITIES;
-                        }
-                        setAstartes(loadedAstartes);
-                    }
-                    if (gameState.lastCorruptionTick) {
-                        setLastCorruptionTick(new Date(gameState.lastCorruptionTick));
-                    }
                 }
                 setInitialized(true);
             } catch (err) {
@@ -382,20 +365,12 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             const token = await getToken();
             if (!token) return;
             try {
+                // Only the notification settings still sync; the whole-state
+                // upload of the legacy economy (last write wins across devices)
+                // ended with it on 2026-09-27.
                 const save = syncQueue.current.catch(() => {}).then(() => api.syncGameState({
-                    resources,
-                    corruption,
-                    ownedUnits,
-                    armyStrength,
-                    currentMonth,
-                    sectorHistory,
-
-                    isPenitentMode,
                     notificationEmail,
                     emailEnabled,
-                    astartes,
-                    campaign,
-                    lastCorruptionTick: lastCorruptionTick ? lastCorruptionTick.toISOString() : null
                 }, token));
                 syncQueue.current = save;
                 await save;
@@ -409,7 +384,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }, syncRetry ? 5000 : 1000);
 
         return () => clearTimeout(timer);
-    }, [resources, corruption, ownedUnits, armyStrength, currentMonth, sectorHistory, isPenitentMode, notificationEmail, emailEnabled, astartes, campaign, syncRetry, lastCorruptionTick, initialized, user, getToken]);
+    }, [notificationEmail, emailEnabled, syncRetry, initialized, user, getToken]);
 
     // Sector Traits Initialization
     const getTraitForMonth = (monthId: string): PlanetaryTraitType => {
@@ -693,11 +668,6 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // 2. Determine updates based on task type
         let updatedTask = { ...task };
         let shouldReward = true;
-        let logMsg = `Task Completed: ${task.title}`;
-        let rpChange = 0;
-        let gloryChange = 0;
-        let corruptionChange = 0; // v1.5: the corruption engine is frozen, so completing a task no longer purifies
-        let ascensionRewards: Partial<AstartesResources> = {};
 
         const now = new Date();
         const todayStr = now.toDateString();
@@ -759,41 +729,10 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // linked subtask, the server write that pays a core or records growth)
         // until the window closes, so an undo has nothing to reverse.
         const commit = () => {
-            // 3. Process Rewards (if eligible)
-            if (shouldReward) {
-                earnCampaignAction(`task:${task.id}${task.isRecurring ? ':' + localDay() : ''}`, task.title);
-                const difficulty = task.difficulty || 1;
-
-                if (task.ascensionCategory) {
-                    // Ritual / Ascension Logic
-                    const amount = difficulty;
-                    // No glory here either; the ascension materials below are the only
-                    // thing a ritual pays until the ascension phase replaces them.
-                    logMsg = `Ritual Completed: ${task.title}`;
-
-                    switch (task.ascensionCategory) {
-                        case 'exercise': ascensionRewards.adamantium = amount; break;
-                        case 'learning': ascensionRewards.neuroData = amount; break;
-                        case 'cleaning': ascensionRewards.puritySeals = amount; break;
-                        case 'parenting': ascensionRewards.geneLegacy = amount; break;
-                    }
-                }
-                // A standard task no longer pays RP or glory here. Under v1.5 the only
-                // requisition a task can earn is the +10 the server grants when it is
-                // one of that day's committed cores.
-
-                // Apply Resource Changes
-                // Ensure we use the centralized modify functions which handle Logging and isDirty
-                if (rpChange !== 0 || gloryChange !== 0) {
-                    modifyResources(rpChange, gloryChange, logMsg);
-                }
-                if (corruptionChange !== 0) {
-                    modifyCorruption(corruptionChange, "Task Purification");
-                }
-                if (Object.keys(ascensionRewards).length > 0) {
-                    modifyAstartesResources(ascensionRewards, logMsg);
-                }
-            }
+            // The legacy payouts that used to run here (old campaign actions,
+            // old ascension materials, RP, glory, corruption) were retired by the
+            // user on 2026-09-27. A completion now pays only what the server
+            // grants: a core's requisition and a designated growth record.
 
             // A one-off task deployed from an operation plan ticks its subtask. The
             // project PUT settles the milestone reward on the server as usual.
@@ -929,8 +868,6 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     const completeSubTask = (projectId: string, subTaskId: string) => {
-        const completed = projects.find(project => project.id === projectId)?.subTasks.find(task => task.id === subTaskId);
-        if (completed && !completed.completed) earnCampaignAction(`subtask:${projectId}:${subTaskId}`, completed.title);
         // Optimistic Update. Finishing the last subtask no longer completes the
         // plan: v1.5 dropped the +50 per subtask and the difficulty x500 close,
         // and since 2026-09-27 closing is its own final act (closeProject).

@@ -22,19 +22,22 @@ test('GET returns campaign for authenticated user', async () => {
     assert.equal(res.body.campaign, campaign);
     assert.equal(queries[0].values[0], 'user');
 });
-test('new-user INSERT includes campaign; partial existing update preserves it when omitted', async () => {
-    const campaign = { points: 2 };
+// The old campaign and the rest of the legacy economy were retired on
+// 2026-09-27: the sync no longer writes them, whatever an old page sends.
+test('the retired campaign is no longer written, on a first save or later', async () => {
     const first = route([]);
-    await first.handlers.post({ user: { uid: 'user' }, body: { campaign } }, first.res);
-    assert.match(first.queries[1].sql, /astartes, campaign/);
-    assert.equal(first.queries[1].values[10], campaign);
+    await first.handlers.post({ user: { uid: 'user' }, body: { campaign: { points: 2 }, notificationEmail: 'a@b.co' } }, first.res);
+    assert.doesNotMatch(first.queries[1].sql, /campaign/);
+    assert.match(first.queries[1].sql, /notification_email/);
+
     const update = route([{ id: 'user' }]);
-    await update.handlers.post({ user: { uid: 'user' }, body: { corruption: 4 } }, update.res);
-    assert.doesNotMatch(update.queries[1].sql, /campaign/);
+    await update.handlers.post({ user: { uid: 'user' }, body: { campaign: { points: 1 }, corruption: 4 } }, update.res);
+    assert.equal(update.queries.length, 0, 'nothing but retired fields: nothing written');
 });
-test('campaign-only update remains user-scoped', async () => {
+
+test('a settings update stays scoped to the user', async () => {
     const { handlers, queries, res } = route([{ id: 'user' }]);
-    await handlers.post({ user: { uid: 'user' }, body: { campaign: { points: 1 } } }, res);
-    assert.equal(queries[1].sql, 'UPDATE game_state SET campaign = $1 WHERE user_id = $2');
+    await handlers.post({ user: { uid: 'user' }, body: { emailEnabled: true } }, res);
+    assert.equal(queries[1].sql, 'UPDATE game_state SET email_enabled = $1 WHERE user_id = $2');
     assert.equal(queries[1].values[1], 'user');
 });

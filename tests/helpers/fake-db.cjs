@@ -240,6 +240,24 @@ function createFakeDb() {
             tables.ascension_implants.push({ user_id: p[0], character_id: p[1], stage: p[2], profile_id: p[3], organ_ids: JSON.parse(p[4]), implanted_at: new Date(fake.now += 1000) });
             return { rows: [], rowCount: 1 };
         }
+        if (s.startsWith('SELECT id FROM game_state WHERE user_id = $1')) {
+            const rows = tables.game_state.filter(r => r.user_id === p[0]).map(r => ({ id: r.id }));
+            return { rows, rowCount: rows.length };
+        }
+        if (s.startsWith('INSERT INTO game_state (id, user_id, notification_email, email_enabled)')) {
+            tables.game_state.push({ id: p[0], user_id: p[1], notification_email: p[2], email_enabled: p[3] });
+            return { rows: [], rowCount: 1 };
+        }
+        if (s.startsWith('UPDATE game_state SET')) {
+            const [, setClause, userIdx] = s.match(/^UPDATE game_state SET (.+) WHERE user_id = \$(\d+)$/) ?? [];
+            const row = tables.game_state.find(r => r.user_id === p[Number(userIdx) - 1]);
+            if (!row) return { rows: [], rowCount: 0 };
+            for (const assignment of setClause.split(', ')) {
+                const [column, placeholder] = assignment.split(' = ');
+                row[column] = p[Number(placeholder.slice(1)) - 1];
+            }
+            return { rows: [], rowCount: 1 };
+        }
         if (s.startsWith('SELECT astartes FROM game_state WHERE user_id = $1')) {
             const rows = tables.game_state.filter(r => r.user_id === p[0]);
             return { rows, rowCount: rows.length };
