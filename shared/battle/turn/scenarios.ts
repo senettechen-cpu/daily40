@@ -130,8 +130,16 @@ const NAMES: Record<string, string> = {
     cultist: '混沌教徒', walker: '叛軍哨兵步行機', tank: '叛軍奇美拉', relay: '廣播節點',
 };
 
-/** Only the traitor guard have a face yet; cultists and vehicles keep the lettered token until GPT delivers art. */
-const TRAITOR_DUTIES = new Set(['sergeant', 'rifleman', 'marksman', 'medic', 'engineer', 'heavy']);
+/**
+ * The portrait each enemy duty asks for. Only 'traitor-guardsman' exists yet;
+ * the rest are requested in docs/art-request-sector-campaign.md, and until a
+ * file lands the report falls back to the lettered token on its own.
+ */
+const ENEMY_ART: Record<string, string> = {
+    sergeant: 'traitor-guardsman', rifleman: 'traitor-guardsman', marksman: 'traitor-guardsman',
+    medic: 'traitor-guardsman', engineer: 'traitor-guardsman', heavy: 'traitor-guardsman',
+    cultist: 'chaos-cultist', walker: 'traitor-sentinel', tank: 'traitor-chimera', relay: 'cult-relay',
+};
 
 interface RosterEntry {
     id: string;
@@ -143,6 +151,8 @@ interface RosterEntry {
     loadout: { primary?: string | null; sidearm?: string | null; armour?: string | null; tools?: string[] };
     /** Overrides the numbered duty name, for a leader or a vehicle worth naming. */
     name?: string;
+    /** Overrides the duty's portrait, for a named leader. */
+    assetId?: string;
     note?: string;
 }
 
@@ -174,7 +184,7 @@ function traitorFrom(entry: RosterEntry, index: number): UnitSpec {
         duty: entry.duty,
         // One shared traitor face until per-duty rebel art exists; the duty is
         // carried by the label, never implied by borrowing a Cadian portrait.
-        assetId: TRAITOR_DUTIES.has(entry.duty) ? 'traitor-guardsman' : undefined,
+        assetId: entry.assetId ?? ENEMY_ART[entry.duty],
         maxHp: entry.maxHp,
         armour: plate?.armour ?? 0,
         armourType: (plate?.type ?? 'none') as ArmourType,

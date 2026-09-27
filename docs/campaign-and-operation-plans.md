@@ -207,7 +207,7 @@
 
 戰役部分的平衡（各據點敵方編成的勝率帶）沿用 [balance-decisions.md](balance-decisions.md) 的方法，在 C1 實作時量測。
 
-## 7. 美術需求（交 GPT，技術規格另文）
+## 7. 美術需求（交 GPT，技術規格見 [art-request-sector-campaign.md](art-request-sector-campaign.md)）
 
 - 星區總覽圖、3 張世界橫幅（目前沿用既有星球圖：巢都、鑄造、聖地）
 - 據點圖示，分鎖定、可進攻、已收復三種狀態（目前用 lucide 圖示）
