@@ -584,8 +584,10 @@ export const RosterView = ({ visible, onClose, strongholdId: requestedStronghold
 
             // The summary rides along because this page is about to be left: the
             // report is where the player now reads what the battle earned.
-            sessionStorage.setItem(DEPLOYMENT_KEY, JSON.stringify({
+            let recordingStored = true;
+            try { sessionStorage.setItem(DEPLOYMENT_KEY, JSON.stringify({
                 crew: started.operation.crew,
+                replay: started.replay,
                 board: started.operation.board,
                 unmodelled: started.unmodelled,
                 squadName: activeSquad.name,
@@ -598,10 +600,20 @@ export const RosterView = ({ visible, onClose, strongholdId: requestedStronghold
                 paysXp: started.operation.paysXp,
                 woundedIds: started.woundedIds,
                 summary: result,
-            }));
+            })); } catch {
+                recordingStored = false;
+                try { sessionStorage.removeItem(DEPLOYMENT_KEY); } catch { /* Storage may be disabled entirely. */ }
+            }
             setDeparture(result);
             if (passed) onClearMission?.();
-            await load();
+            try { await load(); } catch {
+                setError('行動已結算，但名冊更新失敗。請稍後重新整理，不必重複出戰。');
+            }
+
+            if (!recordingStored) {
+                setError('行動已完成並結算，但瀏覽器空間不足或禁止儲存，無法開啟重播。請查看上方結果；不必重複出戰。');
+                return;
+            }
 
             // The result is already recorded; the report only replays it. It opens
             // in this tab, not a new one: a window.open after an await is a blocked

@@ -23,13 +23,13 @@ export const CATALOG: CatalogItem[] = [
     { id: 'shotgun', name: '霰彈槍', category: 'primary', price: 80, note: '改打法，不是全面取代步槍' },
     { id: 'precision-lasgun', name: '精準雷射槍', category: 'primary', price: 120 },
     { id: 'flamer', name: '火焰器', category: 'primary', price: 120 },
-    { id: 'plasma-gun', name: '電漿槍', category: 'primary', price: 240, restricted: true, note: '反甲但彈少；需授權與部署取捨' },
+    { id: 'plasma-gun', name: '電漿槍', category: 'primary', price: 240, restricted: true, note: '高穿甲、單次攻擊判定；需授權與部署取捨' },
     { id: 'heavy-weapon', name: '星界軍重武器組', category: 'primary', price: 200, restricted: true, note: '雙人操作' },
     { id: 'sororitas-boltgun', name: '修女用爆彈槍', category: 'primary', price: 180, restricted: true, origins: ['sororitas'] },
     { id: 'astartes-boltgun', name: '阿斯塔特用爆彈槍', category: 'primary', price: 280, restricted: true, origins: ['astartes'] },
 
     { id: 'flak-armour', name: '防破片甲', category: 'armour', price: 60, note: '護甲 20；不影響移動' },
-    { id: 'carapace-armour', name: '甲殼甲', category: 'armour', price: 160, restricted: true, note: '護甲 40；移動速度 ×0.90' },
+    { id: 'carapace-armour', name: '甲殼甲', category: 'armour', price: 160, restricted: true, note: '護甲 40；回合制先攻 -1，不扣移動格數' },
     { id: 'astartes-power-armour', name: '阿斯塔特制式動力甲', category: 'armour', price: 400, restricted: true, origins: ['astartes'], note: '護甲 80' },
 
     { id: 'medicae-kit', name: '醫療工具', category: 'tool', price: 80, note: '操作資格獨立於持有' },

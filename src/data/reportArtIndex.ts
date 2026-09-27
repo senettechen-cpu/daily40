@@ -18,6 +18,9 @@ export const PORTRAIT_ASSETS = new Set([
     'cadian-rifleman', 'cadian-sergeant', 'cadian-medic', 'cadian-engineer',
     'cadian-vox', 'cadian-marksman', 'cadian-flamer', 'cadian-plasma',
     'cadian-heavy-team', 'traitor-guardsman',
+    'chaos-cultist', 'cult-leader', 'traitor-sentinel', 'traitor-chimera',
+    'cult-relay', 'traitor-tech-officer', 'ultramarines-aspirant',
+    'ultramarines-neophyte', 'ultramarines-marine',
 ]);
 
 /** Head crop for a roster asset id, or null when that character has no art yet. */

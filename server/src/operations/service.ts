@@ -191,6 +191,10 @@ export async function startOperation(db: Db, userId: string, request: StartReque
             paysXp: gate.paysRequisition,
         },
         activations: finished.activations,
+        replay: {
+            version: 1 as const, initialUnits: [...crew, ...scenario.enemies],
+            initialBoard: scenario.board, objective: scenario.objective, result: finished,
+        },
         awards,
         unmodelled,
         woundedIds,

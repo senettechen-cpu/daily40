@@ -102,7 +102,8 @@ export interface Unit extends UnitSpec {
 
 export type Activity =
     | { kind: 'move'; to: Hex }
-    | { kind: 'attack'; targetId: string; hits: number; damage: number; weapon: string; skill?: string }
+    | { kind: 'attack'; targetId: string; hits: number; damage: number; weapon: string; skill?: string; damageType?: DamageType; weaponSlot?: 'primary' | 'sidearm' | 'unarmed' | 'tool'; shots?: boolean[] }
+    | { kind: 'hazard'; targetId: string; damage: number }
     | { kind: 'heal'; targetId: string; amount: number; skill: string }
     | { kind: 'fortify'; at: Hex; skill: string }
     | { kind: 'command'; targetIds: string[]; skill: string }
@@ -120,6 +121,8 @@ export interface Activation {
     activities: Activity[];
     /** Every unit's position and health once this activation finished. */
     snapshot: { id: string; at: Hex; hp: number; down: boolean }[];
+    /** Terrain after this event, including new sandbags and vehicle wrecks. */
+    board?: Board;
 }
 
 export type Outcome = 'victory' | 'defeat' | 'timeout';
@@ -163,6 +166,18 @@ export interface BattleResult {
     ending: Ending;
     rounds: number;
     activations: Activation[];
+    /** Includes round-end attrition and passive aid; legacy activations stay unchanged. */
+    timeline: Activation[];
+    finalBoard: Board;
     units: Unit[];
     seed: number;
+}
+
+/** Server-recorded replay; no client-side random rolls or reward writes. */
+export interface BattleReplay {
+    version: 1;
+    initialUnits: UnitSpec[];
+    initialBoard: Board;
+    objective?: Objective;
+    result: BattleResult;
 }

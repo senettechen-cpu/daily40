@@ -1,0 +1,55 @@
+.command-panel { color: #dce5e7; font-family: system-ui, 'Noto Sans TC', sans-serif; }
+.command-masthead { display: flex; justify-content: space-between; gap: 24px; align-items: center; padding: 20px; margin-bottom: 18px; border: 1px solid #3b4b52; background: linear-gradient(120deg, #18272e, #101820); }
+.command-eyebrow { color: #c1aa74; font-size: 10px; letter-spacing: .16em; margin: 0 0 12px; }
+.command-masthead h2 { margin: 0 0 10px; color: #ece7d6; font-size: 20px; line-height: 1.6; }
+.command-masthead p:last-child { color: #a4b8c3; font-size: 12px; margin: 0; }
+.command-balance { min-width: 110px; border-left: 1px solid #4e5b5e; padding-left: 22px; display: grid; gap: 6px; }
+.command-balance small { color: #a6bbc5; }.command-balance strong { color: #edcf8a; font-size: 30px; font-variant-numeric: tabular-nums; }.command-balance span { font-size: 11px; color: #a6bbc5; }
+.command-feedback { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; border: 1px solid #446b58; background: #13291e; padding: 12px; color: #b4e4c5; margin-bottom: 12px; font-size: 13px; }
+.command-feedback.is-error { color: #ffd0bd; background: #321d1b; border-color: #884f40; }
+.command-loading, .command-empty { padding: 36px 20px; text-align: center; border: 1px dashed #44555e; background: #0b151d; color: #b6c9d0; grid-column: 1 / -1; }
+.command-empty p { margin: 12px 0 20px; font-size: 13px; }.command-empty h2 { color: #e7dab9; }
+.command-panel button:focus-visible, .command-panel input:focus-visible { outline: 2px solid #ead28e; outline-offset: 3px; }
+.armory-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) 150px auto; align-items: center; gap: 12px; margin-bottom: 8px; }
+.armory-toolbar label { display: flex; gap: 8px; align-items: center; font-size: 12px; color: #c0ced5; white-space: nowrap; }
+.armory-toolbar .ant-input-affix-wrapper, .armory-toolbar .ant-select-selector { min-height: 42px !important; align-items: center; }
+.armory-toolbar input[type=checkbox] { width: 18px; height: 18px; accent-color: #dfbc72; }
+.armory-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; max-height: 56vh; overflow: auto; padding: 3px 6px 3px 3px; }
+.armory-card, .armory-owned { padding: 16px; border: 1px solid #34454f; background: #111c24; min-width: 0; }
+.armory-card { display: flex; flex-direction: column; }
+.armory-card-top { display: flex; gap: 14px; align-items: center; min-width: 0; }.armory-card-top > div { min-width: 0; }
+.armory-art { width: 80px; height: 80px; flex-shrink: 0; object-fit: contain; background: #202c30; border: 1px solid #3a4b50; }
+.armory-placeholder { display: grid; place-items: center; color: #afbec4; }
+.armory-card-top h3 { font-size: 16px; color: #ebdfc1; margin: 7px 0; line-height: 1.5; overflow-wrap: anywhere; }.armory-card-top small { color: #a1b7c1; font-size: 11px; }.armory-card-top p { margin: 0; font-size: 12px; color: #b4c5cc; line-height: 1.6; }
+.armory-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 12px 0; border-block: 1px solid #2d414b; margin: 14px 0 10px; }
+.armory-facts:empty { display: none; }.armory-facts dt { font-size: 11px; color: #96aebc; }.armory-facts dd { margin: 5px 0 0; color: #f0e8d4; font-size: 15px; font-variant-numeric: tabular-nums; }
+.armory-note { color: #acbec9; font-size: 12px; line-height: 1.7; margin: 10px 0; }.armory-note.is-warning { color: #efbd89; border-left: 2px solid #b78e5e; padding-left: 9px; }
+.armory-stock { color: #8fb4a4; font-size: 11px; margin-top: auto; padding-top: 10px; }
+.armory-card footer { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; gap: 10px; }.armory-card footer strong { font-size: 23px; color: #ead08a; }.armory-card footer small { font-size: 11px; font-weight: 400; }
+.armory-panel .ant-btn { min-height: 42px; }.armory-card footer .ant-btn { min-width: 92px; }
+.armory-blocked { display: flex; align-items: start; gap: 6px; margin: 9px 0 0; color: #dcab88; font-size: 11px; line-height: 1.7; }.armory-blocked svg { flex-shrink: 0; margin-top: 3px; }
+.armory-inventory { display: grid; gap: 12px; max-height: 56vh; overflow: auto; padding: 3px; }
+.armory-owned { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, .8fr); gap: 14px; align-items: center; }.armory-owned > p { grid-column: 1 / -1; margin: 0; }
+.armory-owned-actions { display: flex; gap: 10px; align-items: end; min-width: 0; }.armory-owned-actions label { display: grid; gap: 6px; font-size: 11px; color: #a5b8c1; flex: 1; min-width: 0; }.armory-owned-actions .ant-select { width: 100%; min-width: 0; }.armory-owned-actions .ant-select-selector { min-height: 42px !important; align-items: center; }.armory-owned-actions button { flex-shrink: 0; }
+.armory-footnote { color: #97aeb9; font-size: 11px; line-height: 1.7; margin: 16px 0 0; }
+.campaign-panel .campaign-heading { display: flex; justify-content: space-between; align-items: end; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+.campaign-panel .campaign-heading h2 { font-size: 24px; color: #eee4cb; margin: 8px 0 0; }.campaign-panel .campaign-heading .eyebrow { font-size: 10px; letter-spacing: .2em; color: #c7af77; }.campaign-panel .campaign-heading p { font-size: 12px; color: #a7bec8; }
+.campaign-grid { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 16px; align-items: start; }
+.campaign-world-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.campaign-node-icon { flex: 0 0 22px; height: 22px; background-color: currentColor; mask-size: contain; mask-repeat: no-repeat; mask-position: center; }
+.campaign-world { overflow: hidden; }.campaign-world-banner { width: calc(100% + 24px); max-width: none; height: 100px; object-fit: cover; margin: -12px -12px 8px; border-bottom: 1px solid #475247; }
+.campaign-world-summary { color: #adbec6; font-size: 12px; line-height: 1.8; min-height: 65px; margin: 3px 0 10px; }
+.campaign-progress { width: 100%; height: 5px; accent-color: #c8ac6f; margin-bottom: 12px; }
+.campaign-stronghold { min-height: 58px; width: 100%; }.campaign-stronghold img { flex-shrink: 0; }.campaign-stronghold span { overflow-wrap: anywhere; }.campaign-stronghold small { display: block; font-size: 10px; opacity: .85; margin-top: 6px; }
+.campaign-panel .text-zinc-600 { color: #a1b3bd; }.campaign-panel .text-zinc-500 { color: #a5b6bf; }
+.campaign-briefing { min-width: 0; }.campaign-briefing .ant-btn { min-height: 44px; white-space: normal; height: auto; padding-block: 10px; }
+.campaign-enemy { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid #2e3d44; }.campaign-enemy img { flex-shrink: 0; border: 1px solid #706153; }.campaign-enemy small { display: block; color: #a0b4bf; margin-top: 3px; }
+.campaign-prerequisite { padding: 12px; margin: 0; border-left: 2px solid #aa905d; color: #d7c49a; background: #241f14; font-size: 12px; line-height: 1.8; }
+@media(max-width: 1120px) { .campaign-grid { grid-template-columns: minmax(0, 1fr); }.campaign-briefing { grid-row: 1; }.campaign-world-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media(max-width: 820px) { .campaign-world-grid { grid-template-columns: minmax(0, 1fr); }.campaign-world-summary { min-height: 0; } }
+@media(max-width: 640px) {
+    .command-masthead { flex-wrap: wrap; padding: 16px; gap: 16px; }.command-masthead h2 { font-size: 18px; }.command-balance { width: 100%; border-left: 0; border-top: 1px solid #3b4c52; padding: 12px 0 0; grid-template-columns: 1fr auto; align-items: center; }.command-balance span { grid-column: 1 / -1; }
+    .armory-toolbar { grid-template-columns: minmax(0, 1fr) 125px; gap: 10px; }.armory-toolbar label { grid-column: 1 / -1; min-height: 32px; }.armory-cards { grid-template-columns: 1fr; max-height: 52dvh; }.armory-inventory { max-height: 52dvh; }
+    .armory-card, .armory-owned { padding: 13px; }.armory-owned { grid-template-columns: minmax(0, 1fr); }.armory-art { width: 70px; height: 70px; }.armory-owned-actions { flex-wrap: wrap; }.armory-owned-actions label { min-width: 150px; }
+    .campaign-world-summary { min-height: 0; }.campaign-world-banner { height: 120px; }.command-modal { max-width: calc(100vw - 16px) !important; top: 16px; }.command-modal .ant-modal-content { padding: 16px 12px !important; }
+}

@@ -27,6 +27,7 @@ interface Battle {
     round: number;
     random: number;
     activations: Activation[];
+    timeline: Activation[];
     /** Stable tie-break for equal initiative, drawn from the seed, not from side. */
     order: Map<string, number>;
     zones: Record<Side, Set<string>>;
@@ -124,6 +125,12 @@ function assistedHits(battle: Battle, unit: Unit, weapon: Weapon): number {
 
 const snapshot = (battle: Battle) =>
     battle.units.map(u => ({ id: u.id, at: u.at, hp: u.hp, down: u.down }));
+
+function record(battle: Battle, activation: Activation, legacy = true) {
+    activation.board = { ...battle.setup.board, tiles: { ...battle.setup.board.tiles } };
+    battle.timeline.push(activation);
+    if (legacy) battle.activations.push(activation);
+}
 
 const occupiedBy = (battle: Battle, self: Unit) =>
     battle.units.filter(u => u.id !== self.id && !u.down).map(u => u.at);
@@ -428,7 +435,12 @@ function attack(battle: Battle, unit: Unit, target: Unit, moved: boolean, skill?
     // chance for four times the damage.
     const shots = assistedHits(battle, unit, weapon);
     let landed = 0;
-    for (let i = 0; i < shots; i += 1) if (roll(battle) < chance) landed += 1;
+    const shotResults: boolean[] = [];
+    for (let i = 0; i < shots; i += 1) {
+        const hit = roll(battle) < chance;
+        shotResults.push(hit);
+        if (hit) landed += 1;
+    }
 
     const damage = landed * perHit;
     target.hp = Math.max(0, target.hp - damage);
@@ -437,7 +449,9 @@ function attack(battle: Battle, unit: Unit, target: Unit, moved: boolean, skill?
     unit.firstShotDone = true;
     // Suppression bites on the target's next activation, whether or not it hurt.
     if (skill?.suppress && landed > 0 && !target.down) target.suppressed = SUPPRESS_HIT;
-    return { kind: 'attack', targetId: target.id, hits: landed, damage, weapon: weapon.name, skill: skill?.name };
+    return { kind: 'attack', targetId: target.id, hits: landed, damage, weapon: weapon.name, skill: skill?.name,
+        damageType: weapon.damageType, shots: shotResults,
+        weaponSlot: weapon.name === FISTS.name ? 'unarmed' : weapon.name === unit.weapon.name ? 'primary' : weapon.name === unit.sidearm?.name ? 'sidearm' : 'primary' };
 }
 
 const missing = (unit: Unit) => unit.maxHp - unit.hp;
@@ -542,7 +556,7 @@ function tryDemolish(battle: Battle, unit: Unit): { activities: Activity[]; reas
     best.hull.hp -= damage;
     if (best.hull.hp === 0) knockDown(battle, best.hull);
     unit.demolished = true;
-    activities.push({ kind: 'attack', targetId: best.hull.id, hits: 1, damage, weapon: DEMOLITION_NAME, skill: DEMOLITION_NAME });
+    activities.push({ kind: 'attack', targetId: best.hull.id, hits: 1, damage, weapon: DEMOLITION_NAME, skill: DEMOLITION_NAME, damageType: 'bolt', weaponSlot: 'tool', shots: [true] });
     const verb = moved ? '貼近' : '就地';
     const wrecked = best.hull.down ? '，將其擊毀' : '';
     return { activities, reason: verb + '對 ' + best.hull.name + ' 安放' + DEMOLITION_NAME + '，造成 ' + damage + ' 傷害' + wrecked };
@@ -604,7 +618,7 @@ function activate(battle: Battle, unit: Unit) {
             { occupied: occupiedBy(battle, unit) }) : null;
         if (step) { unit.at = step; activities.push({ kind: 'move', to: step }); }
         if (activities.length === 0) activities.push({ kind: 'idle' });
-        battle.activations.push({
+        record(battle, {
             round: battle.round,
             unitId: unit.id,
             reason: `為 ${gunner?.name ?? '重武器'} 助裝，本輪不另行攻擊`,
@@ -655,7 +669,7 @@ function activate(battle: Battle, unit: Unit) {
     unit.moveBonus = undefined;
     unit.suppressed = undefined;
 
-    battle.activations.push({
+    record(battle, {
         round: battle.round,
         unitId: unit.id,
         reason,
@@ -671,13 +685,17 @@ function activate(battle: Battle, unit: Unit) {
  * reviving a battle that is already over; the dead neither heal nor charge.
  */
 function endOfRound(battle: Battle) {
+    const hazards: Activity[] = [];
     for (const unit of battle.units) {
         if (unit.down) continue;
         const attrition = ruleAt(battle.setup.board, unit.at).attrition ?? 0;
         if (attrition === 0) continue;
         unit.hp = Math.max(0, unit.hp - attrition);
         if (unit.hp === 0) knockDown(battle, unit);
+        hazards.push({ kind: 'hazard', targetId: unit.id, damage: attrition });
     }
+
+    if (hazards.length) record(battle, { round: battle.round, unitId: '', reason: '回合結束：危險地形損傷', activities: hazards, snapshot: snapshot(battle) }, false);
 
     resolveBarrage(battle);
     judgeObjective(battle);
@@ -698,6 +716,7 @@ function endOfRound(battle: Battle) {
         const amount = Math.min(Math.round(MEDIC_PASSIVE_HEAL * healBoost(medic)), room, missing(patient));
         patient.hp += amount;
         battle.healed[medic.side] += amount;
+        record(battle, { round: battle.round, unitId: medic.id, reason: '回合結束：醫療照護', activities: [{ kind: 'heal', targetId: patient.id, amount, skill: '被動醫療' }], snapshot: snapshot(battle) }, false);
     }
 
     for (const unit of battle.units) {
@@ -725,7 +744,7 @@ function resolveBarrage(battle: Battle) {
             unit.hp = Math.max(0, unit.hp - BARRAGE_DAMAGE);
             if (unit.hp === 0) knockDown(battle, unit);
         }
-        battle.activations.push({
+        record(battle, {
             round: battle.round, unitId: leader.id,
             reason: '轟擊落在 ' + hexKey(at) + '，' + (struck.length > 0 ? struck.length + ' 人各受 ' + BARRAGE_DAMAGE + ' 點傷害' : '無人在範圍內'),
             activities: [{ kind: 'barrage', at, targetIds: struck.map(u => u.id), damage: BARRAGE_DAMAGE }],
@@ -739,7 +758,7 @@ function resolveBarrage(battle: Battle) {
     const huddle = (u: Unit) => crew.filter(o => distance(o.at, u.at) <= 1).length;
     const mark = [...crew].sort((a, b) => huddle(b) - huddle(a) || (a.id < b.id ? -1 : 1))[0].at;
     battle.barrage = { at: mark, lands: battle.round + 1 };
-    battle.activations.push({
+    record(battle, {
         round: battle.round, unitId: leader.id,
         reason: '標出轟擊區 ' + hexKey(mark) + '，下一回合結束時落下',
         activities: [{ kind: 'barrage-mark', at: mark }],
@@ -812,6 +831,7 @@ export function runBattle(setup: BattleSetup): BattleResult {
         round: 0,
         random: setup.seed >>> 0,
         activations: [],
+        timeline: [],
         order: new Map(),
         zones: {
             crew: new Set(deploymentZone(board, 'crew').map(hexKey)),
@@ -854,6 +874,8 @@ export function runBattle(setup: BattleSetup): BattleResult {
         ending: settled,
         rounds: battle.round,
         activations: battle.activations,
+        timeline: battle.timeline,
+        finalBoard: { ...board, tiles: { ...board.tiles } },
         units: battle.units,
         seed: setup.seed,
     };

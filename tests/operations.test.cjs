@@ -84,6 +84,17 @@ test('the server resolves the battle itself and pays the roster', async () => {
     assert.ok(['victory', 'defeat', 'timeout'].includes(res.body.operation.outcome));
     assert.equal(db.tables.operations.length, 1);
 
+    const replay = res.body.replay;
+    assert.equal(replay.version, 1);
+    assert.equal(replay.result.outcome, res.body.operation.outcome);
+    assert.equal(replay.result.rounds, res.body.operation.rounds);
+    assert.ok(replay.initialUnits.some(u => u.side === 'enemy'));
+    assert.equal(replay.initialUnits.filter(u => u.side === 'crew').length, 6);
+    assert.ok(replay.result.timeline.length >= replay.result.activations.length);
+    const lastFrame = replay.result.timeline.at(-1).snapshot;
+    assert.deepEqual(JSON.parse(JSON.stringify(lastFrame.map(u => [u.id, u.hp, u.down]))),
+        JSON.parse(JSON.stringify(replay.result.units.map(u => [u.id, u.hp, u.down]))));
+
     // Every deployed soldier gained the outcome's xp, written by the server.
     const paid = res.body.awards[0].amount;
     for (const character of characters) {

@@ -3,6 +3,7 @@ import type { Board, Hex } from '../../../shared/battle/hex';
 import type { Objective } from '../../../shared/battle/turn';
 import { neighbours, terrainAt } from '../../../shared/battle/hex';
 import { portraitHead } from '../../data/reportArtIndex';
+import type { ReactNode } from 'react';
 
 // A flat drawing of the hex board. It shows the state after the activation the
 // reader is on, so the picture always matches the line of text beside it.
@@ -42,7 +43,11 @@ const corners = (cx: number, cy: number) => Array.from({ length: 6 }, (_, i) => 
 export interface Snap { id: string; at: Hex; hp: number; down: boolean }
 
 
-export function HexMap({ board, snapshot, names, sides, faces, acting, objective, barrage }: {
+export function HexMap({ board, snapshot, names, sides, faces, acting, objective, barrage, effects, selected, onSelect, maxHp }: {
+    effects?: ReactNode;
+    selected?: string;
+    onSelect?: (id: string) => void;
+    maxHp?: Map<string, number>;
     board: Board;
     /** A barrage marked and not yet landed: drawn so the squad's dodge makes sense. */
     barrage?: Hex | null;
@@ -55,7 +60,7 @@ export function HexMap({ board, snapshot, names, sides, faces, acting, objective
     faces?: Map<string, string | undefined>;
     acting?: string;
 }) {
-    const TOKEN = HEX_W * 0.26;
+    const TOKEN = HEX_W * 0.32;
     const width = HEX_W * (board.cols + 0.5);
     const height = ROW_STEP * (board.rows - 1) + HEX_H;
     const tiles = Array.from({ length: board.rows }).flatMap((_, row) =>
@@ -89,7 +94,7 @@ export function HexMap({ board, snapshot, names, sides, faces, acting, objective
         <svg
             className="hex-map"
             viewBox={`0 0 ${width.toFixed(0)} ${height.toFixed(0)}`}
-            role="img"
+            role="group"
             aria-label={`戰場俯視圖，我方 ${snapshot.filter(s => sides.get(s.id) === 'crew' && !s.down).length} 人存活`}
         >
             {tiles.map(hex => {
@@ -116,6 +121,7 @@ export function HexMap({ board, snapshot, names, sides, faces, acting, objective
                         y={y - TILE_H / 2}
                         width={TILE_W}
                         height={TILE_H}
+                        opacity={0.72}
                     />
                 );
             })}
@@ -184,7 +190,11 @@ export function HexMap({ board, snapshot, names, sides, faces, acting, objective
                 const colour = unit.down ? '#4a5563' : mine ? '#7fd6a4' : '#e08a76';
                 const face = unit.down ? null : portraitHead(faces?.get(unit.id));
                 return (
-                    <g key={unit.id} opacity={unit.down ? 0.5 : 1}>
+                    <g key={unit.id} opacity={unit.down ? 0.5 : 1} role={onSelect ? 'button' : undefined}
+                        tabIndex={onSelect ? 0 : undefined} aria-label={`${names.get(unit.id)} · ${mine ? '我方' : '敵方'} · ${unit.down ? '倒地' : `${unit.hp} HP`}`}
+                        onClick={() => onSelect?.(unit.id)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect?.(unit.id); } }}
+                        className="hex-unit">
+                        {selected === unit.id && <circle cx={x} cy={y - 6} r={TOKEN + 8} fill="none" stroke="#fff1c1" strokeWidth={2} strokeDasharray="4 4" />}
                         <circle cx={x} cy={y - 6} r={TOKEN} fill={colour}
                             stroke={unit.id === acting ? '#dfbc72' : '#0b1118'}
                             strokeWidth={unit.id === acting ? 5 : 3} />
@@ -205,6 +215,7 @@ export function HexMap({ board, snapshot, names, sides, faces, acting, objective
                                     {unit.down ? '×' : (names.get(unit.id) ?? '?').slice(0, 1)}
                                 </text>
                             )}
+                        <text x={x - TOKEN - 2} y={y - TOKEN - 3} fill={colour} fontSize={16} stroke="#07111a" strokeWidth={3} style={{ paintOrder: 'stroke' }}>{mine ? '◆' : '◇'}</text>
                         {/* The assassination target carries a red sight until they fall. */}
                         {!unit.down && objective?.kind === 'assassinate' && objective.targetId === unit.id && (
                             <g stroke="#e0503c" strokeWidth={3} fill="none">
@@ -214,14 +225,17 @@ export function HexMap({ board, snapshot, names, sides, faces, acting, objective
                             </g>
                         )}
                         {!unit.down && (
-                            <text x={x} y={y + HEX_H * 0.36} textAnchor="middle" fontSize={20} fontWeight="bold" fill="#e6eef6"
+                            <text x={x} y={y + 47} textAnchor="middle" fontSize={17} fontWeight="bold" fill="#e6eef6"
                                 style={{ paintOrder: 'stroke' }} stroke="#0b111a" strokeWidth={5}>
                                 {unit.hp}
                             </text>
                         )}
+                        {!unit.down && maxHp && <g><rect x={x - 24} y={y + 28} width={48} height={4} rx={2} fill="#060c12" />
+                            <rect x={x - 24} y={y + 28} width={48 * Math.max(0, Math.min(1, unit.hp / (maxHp.get(unit.id) || 1)))} height={4} rx={2} fill={colour} /></g>}
                     </g>
                 );
             })}
+            {effects}
         </svg>
         </div>
         </div>

@@ -5,6 +5,7 @@ import type { Character, RecruitTemplate, Squad } from '../../shared/roster';
 import type { CatalogItem, EquipmentItem } from '../../shared/armory';
 import type { ServiceEntry, StrongholdRecord } from '../../shared/sector';
 import type { Domain, EscortState, GrowthPlan, GrowthRecord, Route } from '../../shared/ascension';
+import type { BattleReplay } from '../../shared/battle/turn/types';
 
 export interface LedgerQuickMenuData { pinned: LedgerPreset[]; suggestions: Suggestion[] }
 
@@ -31,6 +32,7 @@ export interface StartedOperation {
         outcome: 'victory' | 'defeat' | 'timeout'; paysXp: boolean;
     };
     activations?: unknown[];
+    replay?: BattleReplay;
     awards: XpAward[];
     unmodelled: string[];
     /** Who a defeat put out of action for the rest of the day. */
