@@ -3,6 +3,7 @@ import type { Activation, BattleResult, UnitSpec } from '../../../shared/battle/
 import { runBattle, scenarioById } from '../../../shared/battle/turn';
 import type { Board } from '../../../shared/battle/hex';
 import { DEPLOYMENT_KEY } from '../handoff';
+import { strongholdById, worldById } from '../../../shared/sector';
 import { HexMap } from './HexMap';
 import './battle-test.css';
 import './battle-report.css';
@@ -24,6 +25,8 @@ interface Handoff {
     woundedIds?: string[];
     /** What the battle earned (XP, wounds, unlocks), written by the roster before it navigates here. */
     summary?: string;
+    /** The sector-campaign stronghold this was fought at. */
+    strongholdId?: string;
 }
 
 const OUTCOME_LABELS: Record<string, string> = { victory: '勝利', defeat: '失敗', timeout: '超時' };
@@ -118,6 +121,10 @@ export function HexReportApp() {
                     <p className="bt-eyebrow">
                         重播伺服器判定的行動 · {handoff.paysXp === false ? '本場不計 XP' : 'XP 已於出戰時結算'} · 不扣軍需、無永久傷亡
                     </p>
+                    {(() => {
+                        const place = handoff.strongholdId ? strongholdById(handoff.strongholdId) : undefined;
+                        return place && <p className="br-summary">{worldById(place.world)?.name} · {place.name}</p>;
+                    })()}
                     <h1>{handoff.squadName} · {OUTCOME_LABELS[battle.outcome]}（{battle.rounds} 回合）</h1>
                     <p className="bt-hint">{ENDING_LABELS[battle.ending] ?? ''}</p>
                     {handoff.summary && <p className="br-summary">{handoff.summary}</p>}

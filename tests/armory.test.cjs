@@ -103,10 +103,12 @@ test('issued gear refunds nothing, so selling cannot mint requisition', async ()
     assert.equal(balanceOf(db), before);
 });
 
-test('one weapon cannot be carried by two soldiers', async () => {
-    const { armory, roster } = setup();
+test('one piece of gear cannot be carried by two soldiers', async () => {
+    const { db, armory, roster } = setup();
+    grant(db, 100);
     const { characters } = (await roster('GET', '/')).body;
-    const bought = (await armory('POST', '/purchase', { body: { catalogId: 'laspistol' } })).body;
+    // Armour: the starting kit fills every weapon slot but no armour slot.
+    const bought = (await armory('POST', '/purchase', { body: { catalogId: 'flak-armour' } })).body;
 
     const first = await armory('POST', '/items/:id/assign', { params: { id: bought.id }, body: { characterId: characters[0].id } });
     assert.equal(first.code, 200);
@@ -145,10 +147,10 @@ test('unassigning returns an item to the armoury', async () => {
     const { db, armory, roster } = setup();
     grant(db, 100);
     const { characters } = (await roster('GET', '/')).body;
-    const item = (await armory('POST', '/purchase', { body: { catalogId: 'laspistol' } })).body;
+    const item = (await armory('POST', '/purchase', { body: { catalogId: 'flak-armour' } })).body;
 
     await armory('POST', '/items/:id/assign', { params: { id: item.id }, body: { characterId: characters[0].id } });
     const res = await armory('POST', '/items/:id/assign', { params: { id: item.id }, body: { characterId: null } });
     assert.equal(res.body.assignedTo, null);
-    assert.equal(db.tables.equipment_items[0].assigned_to, null);
+    assert.equal(db.tables.equipment_items.find(r => r.id === item.id).assigned_to, null);
 });

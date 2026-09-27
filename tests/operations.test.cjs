@@ -6,6 +6,7 @@ const { createFakeDb } = require('./helpers/fake-db.cjs');
 const xp = loadTs('shared/battle/xp.ts');
 const turn = loadTs('shared/battle/turn/index.ts');
 const hex = loadTs('shared/battle/hex/board.ts');
+const sector = loadTs('shared/sector/campaign.ts');
 
 function mount(file, db) {
     const handlers = {};
@@ -67,7 +68,7 @@ test('the gate refuses an operation before any core is done, and no row is writt
     const { db, ops, roster } = setup();
     const { squads } = (await roster('GET', '/')).body;
 
-    const res = await ops('POST', '/', { body: { squadId: squads[0].id, scenarioId: 'standard' } });
+    const res = await ops('POST', '/', { body: { squadId: squads[0].id, strongholdId: 'w1-n1' } });
     assert.equal(res.code, 400);
     assert.match(res.body.error, /還沒完成任何今日核心/);
     assert.equal(db.tables.operations.length, 0);
@@ -78,7 +79,7 @@ test('the server resolves the battle itself and pays the roster', async () => {
     const { squads, characters } = (await roster('GET', '/')).body;
     completeCore(db);
 
-    const res = await ops('POST', '/', { body: { squadId: squads[0].id, scenarioId: 'standard' } });
+    const res = await ops('POST', '/', { body: { squadId: squads[0].id, strongholdId: 'w1-n1' } });
     assert.equal(res.code, 201);
     assert.ok(['victory', 'defeat', 'timeout'].includes(res.body.operation.outcome));
     assert.equal(db.tables.operations.length, 1);
@@ -98,14 +99,15 @@ test('the client cannot claim a result: anything it asserts is ignored', async (
     const { squads } = (await roster('GET', '/')).body;
     completeCore(db);
 
-    const lying = await ops('POST', '/', { body: { squadId: squads[0].id, scenarioId: 'standard', outcome: 'victory', awards: 9999, seed: 1 } });
+    const lying = await ops('POST', '/', { body: { squadId: squads[0].id, strongholdId: 'w1-n1', outcome: 'victory', awards: 9999, seed: 1 } });
 
     // The claimed outcome and payout are dropped: what comes back is what the
     // server resolved and stored, paid from its own table.
     const stored = db.tables.operations[0];
     assert.equal(lying.body.operation.outcome, stored.outcome);
     assert.equal(lying.body.operation.seed, stored.seed);
-    assert.equal(lying.body.awards[0].amount, xp.DEPLOYED_XP[stored.outcome]);
+    const bonus = lying.body.firstCapture ? sector.FIRST_CAPTURE_XP : 0;
+    assert.equal(lying.body.awards[0].amount, xp.DEPLOYED_XP[stored.outcome] + bonus);
     assert.notEqual(lying.body.awards[0].amount, 9999);
 });
 
@@ -116,7 +118,7 @@ test('each operation rolls its own seed, so one won battle cannot be replayed fo
 
     const seeds = new Set();
     for (let i = 0; i < 8; i += 1) {
-        const res = await ops('POST', '/', { body: { squadId: squads[0].id, scenarioId: 'standard' } });
+        const res = await ops('POST', '/', { body: { squadId: squads[0].id, strongholdId: 'w1-n1' } });
         if (!res.body.operation) break; // a defeat bars the squad for the rest of the day
         seeds.add(res.body.operation.seed);
         for (const row of db.tables.roster_characters) row.wounded_day = null; // keep rolling
@@ -129,14 +131,14 @@ test('a defeat puts the squad out of action for the rest of the day', async () =
     const { squads } = (await roster('GET', '/')).body;
     completeCore(db);
 
-    const first = await ops('POST', '/', { body: { squadId: squads[0].id, scenarioId: 'outnumbered' } });
+    const first = await ops('POST', '/', { body: { squadId: squads[0].id, strongholdId: 'w1-n1' } });
     const today = TODAY();
     const barred = db.tables.roster_characters.filter(c => c.wounded_day === today).map(c => c.id);
 
     if (first.body.operation.outcome === 'defeat') {
         assert.deepEqual([...first.body.woundedIds].sort(), [...squads[0].memberIds].sort());
         assert.deepEqual(barred.sort(), [...squads[0].memberIds].sort());
-        const again = await ops('POST', '/', { body: { squadId: squads[0].id, scenarioId: 'outnumbered' } });
+        const again = await ops('POST', '/', { body: { squadId: squads[0].id, strongholdId: 'w1-n1' } });
         assert.match(again.body.error, /負傷/);
     } else {
         // A battle that was not lost costs nobody their day.
@@ -146,17 +148,17 @@ test('a defeat puts the squad out of action for the rest of the day', async () =
 
     // Whatever happened today, tomorrow's roster is clear again.
     for (const row of db.tables.roster_characters) row.wounded_day = '2020-01-01';
-    const tomorrow = await ops('POST', '/', { body: { squadId: squads[0].id, scenarioId: 'standard' } });
+    const tomorrow = await ops('POST', '/', { body: { squadId: squads[0].id, strongholdId: 'w1-n1' } });
     assert.ok(tomorrow.body.operation, tomorrow.body.error);
 });
 
-test('an unknown scenario, or another account reaching for this squad, is refused', async () => {
+test('an unknown stronghold, or another account reaching for this squad, is refused', async () => {
     const { db, ops, roster } = setup();
     const { squads } = (await roster('GET', '/')).body;
     completeCore(db);
 
-    assert.equal((await ops('POST', '/', { body: { squadId: squads[0].id, scenarioId: 'nope' } })).code, 400);
-    assert.equal((await ops('POST', '/', { user: 'u2', body: { squadId: squads[0].id, scenarioId: 'standard' } })).code, 400);
+    assert.equal((await ops('POST', '/', { body: { squadId: squads[0].id, strongholdId: 'nope' } })).code, 400);
+    assert.equal((await ops('POST', '/', { user: 'u2', body: { squadId: squads[0].id, strongholdId: 'w1-n1' } })).code, 400);
 });
 
 test('a trainee who is also deployed is paid once, as deployed', async () => {
@@ -165,7 +167,7 @@ test('a trainee who is also deployed is paid once, as deployed', async () => {
     completeCore(db);
 
     const res = await ops('POST', '/', {
-        body: { squadId: squads[0].id, scenarioId: 'standard', traineeIds: [characters[0].id] },
+        body: { squadId: squads[0].id, strongholdId: 'w1-n1', traineeIds: [characters[0].id] },
     });
     const forFirst = res.body.awards.filter(a => a.characterId === characters[0].id);
     assert.equal(forFirst.length, 1);
@@ -177,7 +179,7 @@ test('the stored seed replays the battle the server resolved, exactly', async ()
     const { squads } = (await roster('GET', '/')).body;
     completeCore(db);
 
-    const res = await ops('POST', '/', { body: { squadId: squads[0].id, scenarioId: 'standard' } });
+    const res = await ops('POST', '/', { body: { squadId: squads[0].id, strongholdId: 'w1-n1' } });
     const { seed, crew, outcome, board, rounds } = res.body.operation;
     const stored = db.tables.operations[0];
     assert.equal(stored.seed, seed);
@@ -185,7 +187,7 @@ test('the stored seed replays the battle the server resolved, exactly', async ()
 
     // What the report does: re-run from the stored seed and board, and get the
     // same battle down to the last activation.
-    const scenario = turn.scenarioById('standard');
+    const scenario = turn.scenarioById('w1-n1');
     const replay = turn.runBattle({ board, units: [...crew, ...scenario.enemies], seed });
     assert.equal(replay.outcome, outcome);
     assert.equal(replay.rounds, rounds);
@@ -204,7 +206,7 @@ test('a squad with no saved formation still deploys, in its own half', async () 
     const { squads } = (await roster('GET', '/')).body;
     completeCore(db);
 
-    const res = await ops('POST', '/', { body: { squadId: squads[0].id, scenarioId: 'standard' } });
+    const res = await ops('POST', '/', { body: { squadId: squads[0].id, strongholdId: 'w1-n1' } });
     const { crew, placements, board } = res.body.operation;
     assert.equal(crew.length, 6);
     assert.equal(placements.length, 6);
@@ -231,7 +233,7 @@ test('a saved formation is the one that fights', async () => {
     }));
     db.tables.squads.find(s => s.id === squads[0].id).placements = saved;
 
-    const res = await ops('POST', '/', { body: { squadId: squads[0].id, scenarioId: 'standard' } });
+    const res = await ops('POST', '/', { body: { squadId: squads[0].id, strongholdId: 'w1-n1' } });
     for (const soldier of res.body.operation.crew) {
         const placed = saved.find(p => p.characterId === soldier.id);
         assert.deepEqual([soldier.at.col, soldier.at.row], [placed.at.col, placed.at.row]);

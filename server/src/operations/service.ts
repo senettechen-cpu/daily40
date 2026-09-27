@@ -6,7 +6,7 @@ import {
 } from '../shared/battle/turn';
 import { SQUAD_SIZE, validateSquad } from '../shared/roster';
 import { DEFAULT_TIME_ZONE, dayKey } from '../shared/rewards';
-import { newlyUnlocked } from '../shared/progression';
+import { FIRST_CAPTURE_XP, OperationSummary, campaignFrom, checkAttack } from '../shared/sector';
 import { loadBook } from '../rewards/store';
 import { loadCharacters, loadSquads } from '../roster/service';
 import { loadItems } from '../armory/service';
@@ -29,24 +29,53 @@ export async function readGate(db: Db, userId: string, now: Date) {
     };
 }
 
+/** Every campaign operation the account has fought, oldest first. */
+async function loadCampaignOperations(db: Db, userId: string): Promise<OperationSummary[]> {
+    const result = await db.query(
+        'SELECT stronghold_id, outcome, started_at, crew FROM operations WHERE user_id = $1 AND stronghold_id IS NOT NULL ORDER BY started_at',
+        [userId],
+    );
+    return result.rows.map(row => ({
+        strongholdId: row.stronghold_id,
+        outcome: row.outcome,
+        at: new Date(row.started_at).toISOString(),
+        crewIds: (Array.isArray(row.crew) ? row.crew : []).map((unit: { id: string }) => unit.id),
+    }));
+}
+
+/** The campaign as the account stands: every stronghold's state and every soldier's service record. */
+export async function readCampaign(db: Db, userId: string) {
+    const { strongholds, service, recovered } = campaignFrom(await loadCampaignOperations(db, userId));
+    return { strongholds, service, recovered };
+}
+
 export interface StartRequest {
     squadId: string;
-    scenarioId: string;
+    strongholdId: string;
     traineeIds?: string[];
     lanes?: number[];
 }
 
 /**
- * Starts and resolves one operation. The server builds the deployment from its
- * own records, runs the simulation itself and stores the outcome, so a client
- * can replay the battle but can never claim a result it did not get.
+ * Starts and resolves one operation against a stronghold. The server builds
+ * the deployment from its own records, runs the simulation itself and stores
+ * the outcome, so a client can replay the battle but never claim a result.
+ *
+ * Since the sector campaign (2026-09-27) every operation is fought at a
+ * stronghold; the three phase-one scenarios left play and stay only as the
+ * balance baseline.
  */
 export async function startOperation(db: Db, userId: string, request: StartRequest, now: Date) {
     const gate = await readGate(db, userId, now);
     if (!gate.allowed) return { error: gate.reason };
 
-    const scenario = scenarioById(request.scenarioId);
-    if (!scenario) return { error: '找不到這個情境。' };
+    const history = await loadCampaignOperations(db, userId);
+    const { captured } = campaignFrom(history);
+    const attack = checkAttack(request.strongholdId, captured);
+    if (!attack.ok) return { error: attack.reason };
+
+    const scenario = scenarioById(attack.scenarioId);
+    if (!scenario) return { error: '找不到這個據點的作戰。' };
 
     const [squads, roster, items] = await Promise.all([
         loadSquads(db, userId), loadCharacters(db, userId), loadItems(db, userId),
@@ -75,36 +104,42 @@ export async function startOperation(db: Db, userId: string, request: StartReque
         .slice(0, MAX_TRAINEES)
         .map(id => byId.get(id)!);
 
-    // A fresh seed per operation: reusing the scenario's own seed made every
-    // battle of a scenario identical, so a won fight could be replayed for xp
-    // indefinitely. The roll is stored, which keeps the report an exact replay of
-    // what the server resolved.
+    // A fresh seed per operation: reusing one made every battle of a stronghold
+    // identical, so a won fight could be replayed for xp indefinitely. The roll
+    // is stored, which keeps the report an exact replay of what was resolved.
     const seed = randomInt(1, 2 ** 31 - 1);
     const finished = runBattle({ board: scenario.board, units: [...crew, ...scenario.enemies], seed });
     const outcome = finished.outcome as Outcome;
+    const firstCapture = outcome === 'victory' && attack.firstCapture;
 
     const id = randomUUID();
     await db.query(
-        `INSERT INTO operations (id, user_id, squad_id, scenario_id, seed, crew, trainee_ids, outcome, pays_xp, engine, board, rounds)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'v2', $10, $11)`,
+        `INSERT INTO operations (id, user_id, squad_id, scenario_id, seed, crew, trainee_ids, outcome, pays_xp, engine, board, rounds, stronghold_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'v2', $10, $11, $12)`,
         [id, userId, squad.id, scenario.id, seed, JSON.stringify(crew),
             JSON.stringify(trainees.map(t => t.id)), outcome, gate.paysRequisition,
-            JSON.stringify(scenario.board), finished.rounds],
+            JSON.stringify(scenario.board), finished.rounds, attack.stronghold.id],
     );
 
     // A rest day or exemption opens the gate but pays nothing, XP included.
     const awards = gate.paysRequisition
         ? awardsFor(outcome, members.map(m => ({ id: m.id, xp: m.xp })), trainees.map(t => ({ id: t.id, xp: t.xp })))
         : [];
+    // The first capture of a stronghold pays each soldier who took it a little more.
+    if (gate.paysRequisition && firstCapture) {
+        for (const award of awards) if (award.role === 'deployed') award.amount += FIRST_CAPTURE_XP;
+    }
 
     for (const award of awards) {
         await db.query('UPDATE roster_characters SET xp = xp + $1 WHERE id = $2 AND user_id = $3',
             [award.amount, award.characterId, userId]);
     }
 
-    // A victory may earn a commendation, which is the only thing in v1.5 that
-    // writes an authorization: without it the restricted catalogue is unreachable.
-    const unlocked = outcome === 'victory' ? await grantCommendations(db, userId) : { equipment: [], personnel: [] };
+    // Capturing a stronghold for the first time opens what it holds. This is
+    // the only thing that writes an authorization; the count of won operations
+    // no longer grants anything. Inserts ignore rows already there, so a retry
+    // never double-grants, and an authorization is never taken back.
+    const unlocked = firstCapture ? await grantUnlocks(db, userId, attack.stronghold.unlocks) : { equipment: [], personnel: [] };
 
     // A defeat puts the squad that fought it out of action for the rest of the
     // day. Trainees stayed behind, so they are untouched.
@@ -118,7 +153,7 @@ export async function startOperation(db: Db, userId: string, request: StartReque
 
     return {
         operation: {
-            id, scenarioId: scenario.id, seed, crew, outcome, engine: 'v2' as const,
+            id, scenarioId: scenario.id, strongholdId: attack.stronghold.id, seed, crew, outcome, engine: 'v2' as const,
             board: scenario.board, rounds: finished.rounds, placements,
             paysXp: gate.paysRequisition,
         },
@@ -126,30 +161,21 @@ export async function startOperation(db: Db, userId: string, request: StartReque
         awards,
         unmodelled,
         woundedIds,
+        firstCapture,
         unlocked,
     };
 }
 
-/**
- * Counts the account's won operations and writes any authorization that count
- * has just earned. Inserts ignore a row that is already there, so replaying or
- * retrying never double-grants, and an authorization is never taken away.
- */
-async function grantCommendations(db: Db, userId: string) {
-    const counted = await db.query(
-        "SELECT COUNT(*)::int AS won FROM operations WHERE user_id = $1 AND outcome = 'victory'", [userId]);
-    const victories = counted.rows[0]?.won ?? 0;
-    const earned = newlyUnlocked(victories);
-
-    for (const catalogId of earned.equipment) {
+async function grantUnlocks(db: Db, userId: string, unlocks: { equipment: string[]; personnel: string[] }) {
+    for (const catalogId of unlocks.equipment) {
         await db.query(
             'INSERT INTO equipment_authorizations (user_id, catalog_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
             [userId, catalogId]);
     }
-    for (const templateId of earned.personnel) {
+    for (const templateId of unlocks.personnel) {
         await db.query(
             'INSERT INTO personnel_authorizations (user_id, template_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
             [userId, templateId]);
     }
-    return { ...earned, victories };
+    return { equipment: [...unlocks.equipment], personnel: [...unlocks.personnel] };
 }

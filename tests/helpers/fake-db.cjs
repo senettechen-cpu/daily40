@@ -177,7 +177,16 @@ function createFakeDb() {
             const rows = tables.equipment_items.filter(r => r.user_id === p[0]);
             return { rows, rowCount: rows.length };
         }
+        if (s.startsWith("SELECT COUNT(*)::int AS count FROM equipment_items WHERE user_id = $1 AND id LIKE 'kit-%'")) {
+            return { rows: [{ count: tables.equipment_items.filter(r => r.user_id === p[0] && r.id.startsWith('kit-')).length }], rowCount: 1 };
+        }
+        if (s.startsWith('SELECT stronghold_id, outcome, started_at, crew FROM operations WHERE user_id = $1 AND stronghold_id IS NOT NULL')) {
+            const rows = tables.operations.filter(o => o.user_id === p[0] && o.stronghold_id).sort((a, b) => a.started_at - b.started_at);
+            return { rows, rowCount: rows.length };
+        }
         if (s.startsWith('INSERT INTO equipment_items')) {
+            // ON CONFLICT (id) DO NOTHING: the starting kit uses fixed ids.
+            if (/ON CONFLICT \(id\) DO NOTHING$/.test(s) && tables.equipment_items.some(r => r.id === p[0])) return { rows: [], rowCount: 0 };
             tables.equipment_items.push({ id: p[0], user_id: p[1], catalog_id: p[2], assigned_to: null, paid: p[3], acquired_at: new Date(fake.now += 1000) });
             return { rows: [], rowCount: 1 };
         }
@@ -209,7 +218,7 @@ function createFakeDb() {
                 id: p[0], user_id: p[1], squad_id: p[2], scenario_id: p[3], seed: p[4],
                 crew: JSON.parse(p[5]), trainee_ids: JSON.parse(p[6]), outcome: p[7], pays_xp: p[8],
                 engine: 'v2', board: p[9] ? JSON.parse(p[9]) : null, rounds: p[10] ?? null,
-                started_at: new Date(fake.now += 1000),
+                stronghold_id: p[11] ?? null, started_at: new Date(fake.now += 1000),
             });
             return { rows: [], rowCount: 1 };
         }

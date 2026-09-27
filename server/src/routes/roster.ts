@@ -2,16 +2,21 @@ import { Router } from 'express';
 import { withTransaction } from '../db';
 import { createSquad, deleteSquad, readRoster, recruit, updateSquad } from '../roster/service';
 import { RECRUITS } from '../shared/roster';
+import { ensureStartingKit } from '../armory/service';
 
 const router = Router();
 
 // GET /api/roster - every character and saved formation. Grants the six free
-// starting soldiers on the first read.
+// starting soldiers, and then their starting kit, on the first read.
 router.get('/', async (req, res) => {
     try {
         const userId = req.user?.uid;
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
-        const roster = await withTransaction(db => readRoster(db, userId, new Date()));
+        const roster = await withTransaction(async db => {
+            const read = await readRoster(db, userId, new Date());
+            await ensureStartingKit(db, userId);
+            return read;
+        });
         res.json({ ...roster, recruits: RECRUITS });
     } catch (err) {
         console.error('Error reading roster:', err);

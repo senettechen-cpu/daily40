@@ -19,13 +19,15 @@ import {
 import { DEPLOYMENT_KEY } from '../battle/handoff';
 import { equipmentArt, portraitHead } from '../data/reportArtIndex';
 import { MAX_TRAINEES } from '../../shared/battle';
-import { SCENARIOS } from '../../shared/battle/turn';
+import { ServiceEntry, strongholdById, worldById } from '../../shared/sector';
+import type { CampaignView } from '../services/api';
 
 const OUTCOME_LABELS: Record<string, string> = { victory: '勝利', defeat: '失敗', timeout: '超時' };
 
 /** Recruit templates are named by the roster payload; this covers the unlock notice. */
 const RECRUIT_NAMES: Record<string, string> = {
     kasrkin: '卡斯爾金', 'catachan-fighter': '卡塔昌叢林戰士', 'krieg-infantry': '克里格步兵',
+    scion: '風暴兵', preacher: '國教牧師',
 };
 
 // Each character keeps their own portrait; a duty with no delivered crop falls
@@ -189,11 +191,13 @@ const SlotRow = ({ label, current, options, disabled, onChange }: {
  * deployment function the battle runs on, so what is shown here is what fights;
  * gear the simulation cannot model yet says so instead of implying an effect.
  */
-const SoldierDossier = ({ character, items, authorized, busy, onAssign, onClose }: {
+const SoldierDossier = ({ character, items, authorized, busy, service, onAssign, onClose }: {
     character: Character;
     items: EquipmentItem[];
     authorized: string[];
     busy: boolean;
+    /** This soldier's line in the sector campaign, oldest first. */
+    service: ServiceEntry[];
     onAssign: (currentItemId: string | null, nextItemId: string | null) => void;
     onClose: () => void;
 }) => {
@@ -285,6 +289,27 @@ const SoldierDossier = ({ character, items, authorized, busy, onAssign, onClose 
                 </div>
             )}
 
+            <div className="mt-4">
+                <div className="eyebrow mb-1">戰史</div>
+                {service.length === 0
+                    ? <div className="font-mono text-[11px] text-zinc-600">還沒有參與過星區作戰。</div>
+                    : (
+                        <ol className="flex flex-col gap-1 m-0 p-0 list-none max-h-40 overflow-y-auto">
+                            {[...service].reverse().map((entry, index) => {
+                                const place = strongholdById(entry.strongholdId);
+                                return (
+                                    <li key={index} className="font-mono text-[11px] flex gap-2 items-baseline">
+                                        <span className="text-zinc-600">{entry.at.slice(0, 10)}</span>
+                                        <span className="text-zinc-300">{worldById(place?.world ?? 0)?.name ?? ''} · {place?.name ?? entry.strongholdId}</span>
+                                        <span className={entry.outcome === 'victory' ? 'text-green-500' : 'text-red-400'}>{OUTCOME_LABELS[entry.outcome]}</span>
+                                        {entry.firstCapture && <span className="text-imperial-gold">首次收復</span>}
+                                    </li>
+                                );
+                            })}
+                        </ol>
+                    )}
+            </div>
+
             <div className="mt-3 font-mono text-[11px] text-zinc-600">
                 未配武器者徒手出戰。換裝立即生效，下一場行動就會採用。數值為未校準的候選值。
             </div>
@@ -292,7 +317,12 @@ const SoldierDossier = ({ character, items, authorized, busy, onAssign, onClose 
     );
 };
 
-export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: () => void }) => {
+export const RosterView = ({ visible, onClose, strongholdId: requestedStronghold }: {
+    visible: boolean;
+    onClose: () => void;
+    /** Chosen on the sector map; the squad departs for it. */
+    strongholdId?: string | null;
+}) => {
     const { getToken } = useAuth();
     const [characters, setCharacters] = useState<Character[]>([]);
     const [squads, setSquads] = useState<Squad[]>([]);
@@ -305,7 +335,8 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
     const [authorized, setAuthorized] = useState<string[]>([]);
     const [balance, setBalance] = useState(0);
     const [recruitName, setRecruitName] = useState('');
-    const [scenarioId, setScenarioId] = useState('standard');
+    const [strongholdId, setStrongholdId] = useState<string>(requestedStronghold ?? 'w1-n1');
+    const [campaign, setCampaign] = useState<CampaignView | null>(null);
     const [traineeIds, setTraineeIds] = useState<string[]>([]);
     const [items, setItems] = useState<EquipmentItem[]>([]);
     const [equipAuthorized, setEquipAuthorized] = useState<string[]>([]);
@@ -315,7 +346,8 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
         try {
             const token = await getToken();
             if (!token) return;
-            const [data, armoury] = await Promise.all([api.getRoster(token), api.getArmory(token)]);
+            const [data, armoury, sector] = await Promise.all([api.getRoster(token), api.getArmory(token), api.getCampaign(token)]);
+            setCampaign(sector);
             setCharacters(data.characters);
             setSquads(data.squads);
             setRecruits(data.recruits ?? []);
@@ -330,6 +362,10 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
     }, [getToken]);
 
     useEffect(() => { if (visible) void load(); }, [visible, load]);
+    useEffect(() => { if (visible && requestedStronghold) setStrongholdId(requestedStronghold); }, [visible, requestedStronghold]);
+
+    /** Strongholds a squad may depart for now: open ones and captured ones (a replay pays XP only). */
+    const targets = (campaign?.strongholds ?? []).filter(record => record.state === 'open' || record.state === 'captured');
 
     const activeSquad = squads.find(squad => squad.id === activeSquadId) ?? null;
     const dossier = dossierId ? characters.find(character => character.id === dossierId) ?? null : null;
@@ -371,7 +407,7 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
      * the server would fall back to. Shown rather than an empty state, so the
      * squad's stances are never a surprise at departure.
      */
-    const board = scenarioById(scenarioId)?.board;
+    const board = scenarioById(strongholdById(strongholdId)?.scenarioId ?? '')?.board;
     const placements = useMemo(() => {
         if (!activeSquad || !board) return [];
         const saved = activeSquad.placements ?? [];
@@ -419,7 +455,7 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
                 return;
             }
 
-            const started = await api.startOperation(activeSquad.id, scenarioId, traineeIds, token);
+            const started = await api.startOperation(activeSquad.id, strongholdId, traineeIds, token);
 
             const gained = started.awards.filter(a => a.role === 'deployed')[0]?.amount ?? 0;
             const base = started.operation.paysXp
@@ -427,10 +463,12 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
                 : `行動結束：${OUTCOME_LABELS[started.operation.outcome]}（本次不計 XP）`;
             const wounded = started.woundedIds?.length ?? 0;
             const earned = [...(started.unlocked?.equipment ?? []), ...(started.unlocked?.personnel ?? [])];
+            const place = strongholdById(strongholdId);
             const result = [
                 base,
+                started.firstCapture ? `首次收復${place ? ` ${place.name}` : ''}` : '',
                 wounded > 0 ? `${wounded} 人負傷，今日不得再出戰` : '',
-                earned.length > 0 ? `獲得嘉獎，解鎖 ${earned.map(id => catalogItem(id)?.name ?? RECRUIT_NAMES[id] ?? id).join('、')}` : '',
+                earned.length > 0 ? `開放 ${earned.map(id => catalogItem(id)?.name ?? RECRUIT_NAMES[id] ?? id).join('、')}` : '',
             ].filter(Boolean).join(' · ');
 
             // The summary rides along because this page is about to be left: the
@@ -441,6 +479,7 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
                 unmodelled: started.unmodelled,
                 squadName: activeSquad.name,
                 scenarioId: started.operation.scenarioId,
+                strongholdId,
                 seed: started.operation.seed,
                 outcome: started.operation.outcome,
                 rounds: started.operation.rounds,
@@ -573,8 +612,12 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
                         )}
 
                         <div className="mt-3 flex flex-wrap items-center gap-3">
-                            <Select size="small" value={scenarioId} onChange={setScenarioId} className="!w-36"
-                                options={SCENARIOS.map(s => ({ value: s.id, label: s.name }))} />
+                            <Select size="small" value={strongholdId} onChange={setStrongholdId} className="!min-w-[180px]"
+                                aria-label="攻打據點"
+                                options={targets.map(record => {
+                                    const place = strongholdById(record.id);
+                                    return { value: record.id, label: `${worldById(place?.world ?? 0)?.name ?? ''} · ${place?.name ?? record.id}${record.state === 'captured' ? '（已收復）' : ''}` };
+                                })} />
                             <Select size="small" mode="multiple" allowClear value={traineeIds} onChange={setTraineeIds}
                                 maxTagCount={2} placeholder={`備訓（最多 ${MAX_TRAINEES}）`} className="!min-w-[180px]"
                                 options={characters.filter(c => !activeSquad.memberIds.includes(c.id))
@@ -633,6 +676,7 @@ export const RosterView = ({ visible, onClose }: { visible: boolean; onClose: ()
                     items={items}
                     authorized={equipAuthorized}
                     busy={busy}
+                    service={campaign?.service[dossier.id] ?? []}
                     onAssign={(currentItemId, nextItemId) => assign(currentItemId, nextItemId, dossier.id)}
                     onClose={() => setDossierId(null)}
                 />

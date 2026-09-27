@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import type { Db } from '../db';
 import { EquipmentItem, assignmentError, catalogItem, purchaseError } from '../shared/armory';
+import { STARTING_CHARACTERS } from '../shared/roster';
 import { DEFAULT_TIME_ZONE, balance, dayKey, planRefund, planSpend } from '../shared/rewards';
 import { appendEntries } from '../rewards/store';
 import { loadWithStartingGrant } from '../rewards/service';
@@ -30,7 +31,44 @@ export async function loadAuthorizations(db: Db, userId: string): Promise<string
     return result.rows.map(row => row.catalog_id);
 }
 
+/** The starting issue: one lasgun and one laspistol per starting soldier. */
+const KIT = ['lasgun', 'laspistol'];
+const kitId = (userId: string, catalogId: string, n: number) => `kit-${userId}-${catalogId}-${n}`;
+export const isKitItem = (itemId: string) => itemId.startsWith('kit-');
+
+/**
+ * Design §14: the starting kit is free and cannot be sold, and nobody has to
+ * buy a gun before the first battle. It was never actually issued, so a fresh
+ * squad fought with its fists. Issued once per account with fixed ids (a retry
+ * inserts nothing), then handed to whoever has that slot empty. Existing
+ * accounts get it too; because it cannot be sold, it is never issued twice.
+ */
+export async function ensureStartingKit(db: Db, userId: string): Promise<void> {
+    const issued = await db.query("SELECT COUNT(*)::int AS count FROM equipment_items WHERE user_id = $1 AND id LIKE 'kit-%'", [userId]);
+    if ((issued.rows[0]?.count ?? 0) >= KIT.length * STARTING_CHARACTERS.length) return;
+
+    for (let n = 0; n < STARTING_CHARACTERS.length; n += 1) {
+        for (const catalogId of KIT) {
+            await db.query(
+                'INSERT INTO equipment_items (id, user_id, catalog_id, assigned_to, paid) VALUES ($1, $2, $3, NULL, $4) ON CONFLICT (id) DO NOTHING',
+                [kitId(userId, catalogId, n), userId, catalogId, 0],
+            );
+        }
+    }
+
+    // Hand each new piece to someone whose slot for it is empty, in roster order.
+    const [roster, authorized] = await Promise.all([loadCharacters(db, userId), loadAuthorizations(db, userId)]);
+    const items = await loadItems(db, userId);
+    for (const item of items.filter(i => isKitItem(i.id) && !i.assignedTo)) {
+        const taker = roster.find(character => !assignmentError(item, character, items, authorized));
+        if (!taker) continue;
+        item.assignedTo = taker.id;
+        await db.query('UPDATE equipment_items SET assigned_to = $1 WHERE id = $2 AND user_id = $3', [taker.id, item.id, userId]);
+    }
+}
+
 export async function readArmory(db: Db, userId: string, now: Date) {
+    await ensureStartingKit(db, userId);
     const [items, authorized, book] = await Promise.all([
         loadItems(db, userId), loadAuthorizations(db, userId), loadWithStartingGrant(db, userId, now),
     ]);
@@ -64,6 +102,7 @@ export async function sell(db: Db, userId: string, itemId: string, now: Date) {
     const items = await loadItems(db, userId);
     const item = items.find(candidate => candidate.id === itemId);
     if (!item) return { error: '找不到這件裝備。' };
+    if (isKitItem(itemId)) return { error: '起始配發不能賣出。' };
 
     const book = await loadWithStartingGrant(db, userId, now);
     const refund = planRefund(book, spendKey(itemId), refundKey(itemId), dayKey(now, timeZone), now, '回收裝備');

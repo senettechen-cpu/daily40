@@ -3,6 +3,7 @@ import { Task, Project, ArmyStrength, SectorHistory, Resources, CloseProjectResu
 import type { LedgerPreset, PresetFields, Suggestion } from '../../shared/ledger/presets';
 import type { Character, RecruitTemplate, Squad } from '../../shared/roster';
 import type { CatalogItem, EquipmentItem } from '../../shared/armory';
+import type { ServiceEntry, StrongholdRecord } from '../../shared/sector';
 
 export interface LedgerQuickMenuData { pinned: LedgerPreset[]; suggestions: Suggestion[] }
 
@@ -24,7 +25,7 @@ export interface XpAward { characterId: string; amount: number; role: 'deployed'
 /** The server's own result. The client replays it; it never reports one. */
 export interface StartedOperation {
     operation: {
-        id: string; scenarioId: string; seed: number; engine: 'v2';
+        id: string; scenarioId: string; strongholdId?: string; seed: number; engine: 'v2';
         crew: unknown[]; board: unknown; rounds: number; placements: unknown[];
         outcome: 'victory' | 'defeat' | 'timeout'; paysXp: boolean;
     };
@@ -33,8 +34,17 @@ export interface StartedOperation {
     unmodelled: string[];
     /** Who a defeat put out of action for the rest of the day. */
     woundedIds?: string[];
-    /** Authorizations this victory just earned. */
-    unlocked?: { equipment: string[]; personnel: string[]; victories?: number };
+    /** True when this victory was the stronghold's first capture. */
+    firstCapture?: boolean;
+    /** Authorizations the first capture just opened. */
+    unlocked?: { equipment: string[]; personnel: string[] };
+}
+
+/** The sector campaign as the server derives it from the account's operations. */
+export interface CampaignView {
+    strongholds: StrongholdRecord[];
+    service: Record<string, ServiceEntry[]>;
+    recovered: boolean;
 }
 
 export interface RequisitionSummary {
@@ -355,9 +365,15 @@ export const api = {
         return response.json();
     },
 
-    startOperation: async (squadId: string, scenarioId: string, traineeIds: string[], token?: string): Promise<StartedOperation> => {
+    getCampaign: async (token?: string): Promise<CampaignView> => {
+        const response = await fetch(`${API_URL}/operations/campaign`, { headers: getHeaders(token) });
+        if (!response.ok) throw new Error('Failed to read campaign');
+        return response.json();
+    },
+
+    startOperation: async (squadId: string, strongholdId: string, traineeIds: string[], token?: string): Promise<StartedOperation> => {
         const response = await fetch(`${API_URL}/operations`, {
-            method: 'POST', headers: getHeaders(token), body: JSON.stringify({ squadId, scenarioId, traineeIds }),
+            method: 'POST', headers: getHeaders(token), body: JSON.stringify({ squadId, strongholdId, traineeIds }),
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error || '無法出戰');

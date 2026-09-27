@@ -292,6 +292,10 @@ const initDb = async () => {
         await pool.query('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS project_id TEXT');
         await pool.query('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS sub_task_id TEXT');
 
+        // Sector campaign (2026-09-27): every operation is fought at a stronghold.
+        // Progress is derived from these rows, so there is no separate table to drift.
+        await pool.query('ALTER TABLE operations ADD COLUMN IF NOT EXISTS stronghold_id TEXT');
+
         console.log('Migrations applied.');
 
         // Initialize default game state if not exists

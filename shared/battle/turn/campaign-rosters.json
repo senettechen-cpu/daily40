@@ -1,0 +1,495 @@
+{
+  "schemaVersion": 1,
+  "status": "candidate",
+  "note": "Sector campaign strongholds (docs/campaign-and-operation-plans.md §2). Written by Claude 2026-09-27; win rates measured with scripts/sim-battles.cjs and recorded in docs/balance-decisions.md. Same entry format as enemy-rosters.json.",
+  "scenarios": [
+    {
+      "id": "w1-n1",
+      "board": "landing",
+      "enemies": [
+        {
+          "id": "w1n1-1",
+          "duty": "sergeant",
+          "maxHp": 70,
+          "accuracy": 0.62,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour"
+          },
+          "stance": "advance",
+          "at": {
+            "col": 5,
+            "row": 1
+          }
+        },
+        {
+          "id": "w1n1-2",
+          "duty": "rifleman",
+          "maxHp": 70,
+          "accuracy": 0.62,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour"
+          },
+          "stance": "advance",
+          "at": {
+            "col": 3,
+            "row": 1
+          }
+        },
+        {
+          "id": "w1n1-3",
+          "duty": "rifleman",
+          "maxHp": 70,
+          "accuracy": 0.62,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": null
+          },
+          "stance": "advance",
+          "at": {
+            "col": 7,
+            "row": 1
+          }
+        },
+        {
+          "id": "w1n1-4",
+          "duty": "rifleman",
+          "maxHp": 70,
+          "accuracy": 0.62,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": null
+          },
+          "stance": "hold",
+          "at": {
+            "col": 4,
+            "row": 0
+          }
+        },
+        {
+          "id": "w1n1-5",
+          "duty": "rifleman",
+          "maxHp": 70,
+          "accuracy": 0.62,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": null
+          },
+          "stance": "hold",
+          "at": {
+            "col": 6,
+            "row": 0
+          }
+        },
+        {
+          "id": "w1n1-6",
+          "duty": "rifleman",
+          "maxHp": 70,
+          "accuracy": 0.62,
+          "loadout": {
+            "primary": "shotgun",
+            "sidearm": "laspistol",
+            "armour": null
+          },
+          "stance": "flank",
+          "at": {
+            "col": 8,
+            "row": 1
+          }
+        },
+        {
+          "id": "w1n1-7",
+          "duty": "rifleman",
+          "maxHp": 70,
+          "accuracy": 0.62,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": null
+          },
+          "stance": "hold",
+          "at": {
+            "col": 2,
+            "row": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "w1-n2",
+      "board": "dockyard",
+      "enemies": [
+        {
+          "id": "w1n2-1",
+          "duty": "sergeant",
+          "maxHp": 80,
+          "accuracy": 0.64,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour"
+          },
+          "stance": "advance",
+          "at": {
+            "col": 5,
+            "row": 1
+          }
+        },
+        {
+          "id": "w1n2-2",
+          "duty": "rifleman",
+          "maxHp": 80,
+          "accuracy": 0.64,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour"
+          },
+          "stance": "advance",
+          "at": {
+            "col": 3,
+            "row": 1
+          }
+        },
+        {
+          "id": "w1n2-3",
+          "duty": "rifleman",
+          "maxHp": 80,
+          "accuracy": 0.64,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour"
+          },
+          "stance": "advance",
+          "at": {
+            "col": 7,
+            "row": 1
+          }
+        },
+        {
+          "id": "w1n2-4",
+          "duty": "rifleman",
+          "maxHp": 80,
+          "accuracy": 0.64,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour"
+          },
+          "stance": "hold",
+          "at": {
+            "col": 6,
+            "row": 0
+          }
+        },
+        {
+          "id": "w1n2-5",
+          "duty": "rifleman",
+          "maxHp": 80,
+          "accuracy": 0.64,
+          "loadout": {
+            "primary": "shotgun",
+            "sidearm": "laspistol",
+            "armour": null
+          },
+          "stance": "flank",
+          "at": {
+            "col": 1,
+            "row": 1
+          }
+        },
+        {
+          "id": "w1n2-6",
+          "duty": "marksman",
+          "maxHp": 70,
+          "accuracy": 0.64,
+          "loadout": {
+            "primary": "precision-lasgun",
+            "sidearm": "laspistol",
+            "armour": null
+          },
+          "stance": "hold",
+          "at": {
+            "col": 4,
+            "row": 0
+          }
+        },
+        {
+          "id": "w1n2-7",
+          "duty": "rifleman",
+          "maxHp": 80,
+          "accuracy": 0.64,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": null
+          },
+          "stance": "hold",
+          "at": {
+            "col": 8,
+            "row": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "w1-n3",
+      "board": "vox-tower",
+      "enemies": [
+        {
+          "id": "w1n3-1",
+          "duty": "sergeant",
+          "maxHp": 80,
+          "accuracy": 0.62,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour"
+          },
+          "stance": "advance",
+          "at": {
+            "col": 5,
+            "row": 1
+          }
+        },
+        {
+          "id": "w1n3-2",
+          "duty": "rifleman",
+          "maxHp": 80,
+          "accuracy": 0.62,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour"
+          },
+          "stance": "advance",
+          "at": {
+            "col": 3,
+            "row": 1
+          }
+        },
+        {
+          "id": "w1n3-3",
+          "duty": "rifleman",
+          "maxHp": 80,
+          "accuracy": 0.62,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour"
+          },
+          "stance": "advance",
+          "at": {
+            "col": 7,
+            "row": 1
+          }
+        },
+        {
+          "id": "w1n3-4",
+          "duty": "rifleman",
+          "maxHp": 80,
+          "accuracy": 0.62,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": null
+          },
+          "stance": "hold",
+          "at": {
+            "col": 2,
+            "row": 0
+          }
+        },
+        {
+          "id": "w1n3-5",
+          "duty": "marksman",
+          "maxHp": 70,
+          "accuracy": 0.64,
+          "loadout": {
+            "primary": "precision-lasgun",
+            "sidearm": "laspistol",
+            "armour": null
+          },
+          "stance": "hold",
+          "at": {
+            "col": 5,
+            "row": 0
+          }
+        },
+        {
+          "id": "w1n3-6",
+          "duty": "marksman",
+          "maxHp": 70,
+          "accuracy": 0.64,
+          "loadout": {
+            "primary": "precision-lasgun",
+            "sidearm": "laspistol",
+            "armour": null
+          },
+          "stance": "hold",
+          "at": {
+            "col": 8,
+            "row": 0
+          }
+        },
+        {
+          "id": "w1n3-7",
+          "duty": "rifleman",
+          "maxHp": 80,
+          "accuracy": 0.62,
+          "loadout": {
+            "primary": "shotgun",
+            "sidearm": "laspistol",
+            "armour": null
+          },
+          "stance": "flank",
+          "at": {
+            "col": 9,
+            "row": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "w1-n4",
+      "board": "orbital-lift",
+      "enemies": [
+        {
+          "id": "w1n4-1",
+          "duty": "sergeant",
+          "maxHp": 90,
+          "accuracy": 0.64,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour"
+          },
+          "stance": "advance",
+          "at": {
+            "col": 5,
+            "row": 1
+          }
+        },
+        {
+          "id": "w1n4-2",
+          "duty": "heavy",
+          "maxHp": 90,
+          "accuracy": 0.64,
+          "loadout": {
+            "primary": "heavy-weapon",
+            "sidearm": "laspistol",
+            "armour": "flak-armour"
+          },
+          "stance": "hold",
+          "at": {
+            "col": 5,
+            "row": 0
+          }
+        },
+        {
+          "id": "w1n4-3",
+          "duty": "rifleman",
+          "maxHp": 80,
+          "accuracy": 0.62,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour"
+          },
+          "stance": "guard",
+          "at": {
+            "col": 6,
+            "row": 0
+          }
+        },
+        {
+          "id": "w1n4-4",
+          "duty": "rifleman",
+          "maxHp": 80,
+          "accuracy": 0.62,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour"
+          },
+          "stance": "advance",
+          "at": {
+            "col": 3,
+            "row": 1
+          }
+        },
+        {
+          "id": "w1n4-5",
+          "duty": "rifleman",
+          "maxHp": 80,
+          "accuracy": 0.62,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour"
+          },
+          "stance": "advance",
+          "at": {
+            "col": 7,
+            "row": 1
+          }
+        },
+        {
+          "id": "w1n4-6",
+          "duty": "rifleman",
+          "maxHp": 80,
+          "accuracy": 0.62,
+          "loadout": {
+            "primary": "shotgun",
+            "sidearm": "laspistol",
+            "armour": null
+          },
+          "stance": "flank",
+          "at": {
+            "col": 1,
+            "row": 1
+          }
+        },
+        {
+          "id": "w1n4-7",
+          "duty": "marksman",
+          "maxHp": 70,
+          "accuracy": 0.64,
+          "loadout": {
+            "primary": "precision-lasgun",
+            "sidearm": "laspistol",
+            "armour": null
+          },
+          "stance": "hold",
+          "at": {
+            "col": 9,
+            "row": 0
+          }
+        },
+        {
+          "id": "w1n4-8",
+          "duty": "rifleman",
+          "maxHp": 70,
+          "accuracy": 0.6,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": null
+          },
+          "stance": "hold",
+          "at": {
+            "col": 4,
+            "row": 0
+          }
+        }
+      ]
+    }
+  ]
+}

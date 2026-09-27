@@ -294,7 +294,10 @@ const MainDashboard = ({ currentUser, onLogout }: { currentUser: any, onLogout: 
     setIsAscensionOpen(false);
   };
 
-  const openShop = () => {
+  // The stronghold picked on the sector map, handed to the roster's departure.
+  const [rosterStronghold, setRosterStronghold] = useState<string | null>(null);
+  const openShop = (strongholdId?: string) => {
+    if (typeof strongholdId === 'string') setRosterStronghold(strongholdId);
     setIsShopOpen(true);
     setIsArmoryOpen(false);
     setIsLedgerOpen(false);
@@ -391,7 +394,7 @@ const MainDashboard = ({ currentUser, onLogout }: { currentUser: any, onLogout: 
                 ghost
                 className="!border-imperial-gold/50 !text-imperial-gold hover:!bg-imperial-gold/20 font-mono"
                 icon={<Users size={16} />}
-                onClick={openShop}
+                onClick={() => openShop()}
               >
                 名冊
               </Button>
@@ -457,7 +460,7 @@ const MainDashboard = ({ currentUser, onLogout }: { currentUser: any, onLogout: 
             </div>
           </>
         ) : (
-          <SectorMap />
+          <SectorMap onDeploy={openShop} />
         )}
 
         {/* Tactical FAB - Quick Add Task (Mobile Only) */}
@@ -507,7 +510,7 @@ const MainDashboard = ({ currentUser, onLogout }: { currentUser: any, onLogout: 
         onLogout={onLogout}
       />
 
-      <RosterView visible={isShopOpen} onClose={() => setIsShopOpen(false)} />
+      <RosterView visible={isShopOpen} onClose={() => setIsShopOpen(false)} strongholdId={rosterStronghold} />
 
       <AddTaskModal
         visible={isAddModalOpen}
