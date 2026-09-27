@@ -264,3 +264,34 @@ test('server: the starting kit is issued once, armed on the starting squad, and 
     assert.equal(sold.code, 400);
     assert.match(sold.body.error, /起始配發/);
 });
+
+test('campaign: worlds 2 and 3 field enemy medics and engineers with their kits', () => {
+    const support = s.STRONGHOLDS.filter(x => x.world >= 2 && x.scenarioId)
+        .flatMap(x => turn.scenarioById(x.scenarioId).enemies)
+        .filter(e => (e.duty === 'medic' && (e.tools ?? []).includes('medicae-kit')) || (e.duty === 'engineer' && (e.tools ?? []).includes('engineering-kit')));
+    assert.ok(support.some(e => e.duty === 'medic'), 'no enemy medic carries a medicae kit');
+    assert.ok(support.some(e => e.duty === 'engineer'), 'no enemy engineer carries an engineering kit');
+    const world1 = s.STRONGHOLDS.filter(x => x.world === 1).flatMap(x => turn.scenarioById(x.scenarioId).enemies);
+    assert.ok(world1.every(e => !(e.tools ?? []).length), 'world 1 stays without enemy support');
+});
+
+/** The six starters in lasgun and flak, placed and crewed the way the server does it. */
+function fieldCrew(scenario) {
+    const { STARTING_CHARACTERS } = loadTs('shared/roster/characters.ts');
+    const members = STARTING_CHARACTERS.map((c, i) => ({ id: 'c' + i, name: c.name, origin: c.origin, duty: c.duty, xp: 0, health: 'fit', recruitedAt: '' }));
+    const items = members.flatMap(m => ['lasgun', 'laspistol', 'flak-armour'].map((catalogId, k) => ({ id: m.id + k, catalogId, assignedTo: m.id, paid: 0, acquiredAt: '' })));
+    const built = turn.crewFor(members, items, turn.placementsFor(scenario.board, members, undefined));
+    return turn.assignHeavyCrew(turn.resolveGuards(built.units));
+}
+
+test('campaign: an enemy medic with a kit actually patches up an ally', () => {
+    const w = turn.scenarioById('w2-n3');
+    const medic = w.enemies.find(e => e.duty === 'medic');
+    assert.ok(medic, 'w2-n3 has no medic');
+    let healed = false;
+    for (let seed = 1; seed <= 40 && !healed; seed += 1) {
+        const result = turn.runBattle({ board: w.board, units: [...w.enemies, ...fieldCrew(w)], seed, objective: w.objective });
+        healed = result.activations.some(a => a.unitId === medic.id && a.activities.some(x => x.kind === 'heal'));
+    }
+    assert.ok(healed, 'the enemy medic never healed anyone in 40 battles');
+});

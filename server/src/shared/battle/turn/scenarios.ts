@@ -217,6 +217,10 @@ function traitorFrom(entry: RosterEntry, index: number): UnitSpec {
 
     const primary = weaponOf(entry.loadout.primary);
     const sidearm = weaponOf(entry.loadout.sidearm);
+    // Tools work for the enemy exactly as for the squad (2026-09-27): a rebel
+    // medic with a medicae kit patches up, an engineer with a kit fortifies.
+    // Before, the field was read and dropped, so no enemy ever used one.
+    const tools = (entry.loadout.tools ?? []).filter(Boolean);
 
     return {
         id: entry.id,
@@ -236,6 +240,7 @@ function traitorFrom(entry: RosterEntry, index: number): UnitSpec {
         sidearm: primary ? sidearm : undefined,
         stance: entry.stance as Stance,
         at: entry.at as Hex,
+        ...(tools.length > 0 ? { tools } : {}),
     };
 }
 

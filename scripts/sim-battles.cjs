@@ -55,6 +55,14 @@ const PRESETS = {
         items.push(gear('c3', 'carapace-armour'));
         return { members: roster.map(c => ({ ...c, xp: 700 })), items };
     },
+    // Veteran, rearranged for the two-man rule (2026-09-27): the third rifleman
+    // swaps the precision rifle for a plain lasgun and feeds the heavy weapon,
+    // so neither the plasma gunner nor the engineer has to.
+    crewed: () => {
+        const base = PRESETS.veteran();
+        const items = base.items.map(i => (i.assignedTo === 'c3' && i.catalogId === 'precision-lasgun' ? { ...i, catalogId: 'lasgun' } : i));
+        return { members: base.members, items };
+    },
 };
 
 // A stage mission is fought by a squad the candidate is in: the rifleman c3
@@ -115,4 +123,4 @@ for (const scenario of scenarios) {
     });
     console.log(`| ${scenario.id} ${scenario.name} | ${cells.join(' | ')} |`);
 }
-console.log('\n預設隊伍：fresh 起始配發（雷射槍＋手槍、無甲）；flak 再加防破片甲；mix 入門混編（霰彈、精準、三種工具、全防破片甲）；armed 世界 1 解鎖後（mix＋甲殼甲×2＋電漿槍）；veteran 進世界 3（armed＋重武器組＋甲殼甲×3、全員 Lv5）');
+console.log('\n預設隊伍：fresh 起始配發（雷射槍＋手槍、無甲）；flak 再加防破片甲；mix 入門混編（霰彈、精準、三種工具、全防破片甲）；armed 世界 1 解鎖後（mix＋甲殼甲×2＋電漿槍）；veteran 進世界 3（armed＋重武器組＋甲殼甲×3、全員 Lv5）；crewed 是 veteran 但第三名步槍兵改拿普通雷射槍當重武器助手');

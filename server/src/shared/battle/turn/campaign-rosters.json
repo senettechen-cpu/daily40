@@ -749,6 +749,26 @@
             "col": 4,
             "row": 0
           }
+        },
+        {
+          "id": "w2n2-engineer",
+          "duty": "engineer",
+          "maxHp": 84,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour",
+            "tools": [
+              "engineering-kit"
+            ]
+          },
+          "stance": "hold",
+          "at": {
+            "col": 6,
+            "row": 1
+          },
+          "note": "Added 2026-09-27 when enemy tools started working."
         }
       ]
     },
@@ -889,6 +909,26 @@
             "row": 1
           },
           "name": "叛軍哨兵步行機"
+        },
+        {
+          "id": "w2n3-medic",
+          "duty": "medic",
+          "maxHp": 84,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour",
+            "tools": [
+              "medicae-kit"
+            ]
+          },
+          "stance": "hold",
+          "at": {
+            "col": 4,
+            "row": 1
+          },
+          "note": "Added 2026-09-27 when enemy tools started working."
         }
       ]
     },
@@ -993,6 +1033,26 @@
             "row": 0
           },
           "name": "叛軍哨兵步行機 乙"
+        },
+        {
+          "id": "w2n4-medic",
+          "duty": "medic",
+          "maxHp": 84,
+          "accuracy": 0.65,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour",
+            "tools": [
+              "medicae-kit"
+            ]
+          },
+          "stance": "hold",
+          "at": {
+            "col": 5,
+            "row": 0
+          },
+          "note": "Added 2026-09-27 when enemy tools started working."
         }
       ]
     },
@@ -1401,6 +1461,26 @@
             "col": 9,
             "row": 0
           }
+        },
+        {
+          "id": "w3n2-medic",
+          "duty": "medic",
+          "maxHp": 88,
+          "accuracy": 0.68,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour",
+            "tools": [
+              "medicae-kit"
+            ]
+          },
+          "stance": "hold",
+          "at": {
+            "col": 6,
+            "row": 0
+          },
+          "note": "Added 2026-09-27 when enemy tools started working."
         }
       ]
     },
@@ -1576,6 +1656,26 @@
             "col": 10,
             "row": 0
           }
+        },
+        {
+          "id": "w3n3-engineer",
+          "duty": "engineer",
+          "maxHp": 88,
+          "accuracy": 0.68,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour",
+            "tools": [
+              "engineering-kit"
+            ]
+          },
+          "stance": "hold",
+          "at": {
+            "col": 5,
+            "row": 1
+          },
+          "note": "Added 2026-09-27 when enemy tools started working."
         }
       ]
     },
@@ -1766,6 +1866,26 @@
             "col": 10,
             "row": 1
           }
+        },
+        {
+          "id": "w3n4-medic",
+          "duty": "medic",
+          "maxHp": 88,
+          "accuracy": 0.68,
+          "loadout": {
+            "primary": "lasgun",
+            "sidearm": "laspistol",
+            "armour": "flak-armour",
+            "tools": [
+              "medicae-kit"
+            ]
+          },
+          "stance": "hold",
+          "at": {
+            "col": 5,
+            "row": 1
+          },
+          "note": "Added 2026-09-27 when enemy tools started working."
         }
       ]
     }
