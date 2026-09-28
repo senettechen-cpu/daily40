@@ -13,6 +13,14 @@
 // whole-number median cannot show at all, and the first run of this matrix
 // reported the tools at exactly zero because of it.
 //
+// The baseline preset must own NONE of the items below, or the matrix measures
+// the wrong thing: against `veteran`, which already carries the heavy weapon,
+// the carapace, the plasma gun and every tool, each of those reads as exactly
+// zero, and a flamer reads as -15 because it is replacing the heavy weapon
+// rather than being added. `trained` exists for this - flak's kit at level ten,
+// so the squad survives long enough for an item to show its work while owning
+// nothing under test.
+//
 //   node scripts/sim-value.cjs [battles] [preset]
 //
 // Reads through scripts/sim-battles.cjs with FORMAT=json so both scripts agree

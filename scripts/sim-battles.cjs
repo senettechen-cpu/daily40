@@ -30,6 +30,16 @@ const PRESETS = {
     fresh: () => ({ members: roster, items: kit(() => []) }),
     // The starting issue plus a flak vest each: 360 requisition, a first purchase.
     flak: () => ({ members: roster, items: kit(c => [gear(c.id, 'flak-armour')]) }),
+    // flak's kit, but everyone at level 10. The value matrix needs a squad that
+    // survives long enough for an item to show its work while owning none of the
+    // items under test: measured against `veteran`, which already carries the
+    // heavy weapon, the carapace, the plasma gun and all three tools, every one
+    // of them reads as exactly zero, and a flamer reads as -15 because it is
+    // replacing the heavy weapon rather than being added (2026-09-28).
+    trained: () => ({
+        members: roster.map(c => ({ ...c, xp: 2700 })),
+        items: kit(c => [gear(c.id, 'flak-armour')]),
+    }),
     // The handoff's entry mix: tools where they belong, one shotgun, one precision rifle, all flak.
     mix: () => {
         const items = roster.flatMap(c => {
