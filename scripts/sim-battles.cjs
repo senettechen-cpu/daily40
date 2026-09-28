@@ -183,7 +183,7 @@ console.log(`| --- | ${presets.map(() => '---:').join(' | ')} |`);
 for (const scenario of scenarios) {
     const cells = presets.map(name => {
         const r = measure(scenario, name, battles);
-        return `${pct(r.win)}（超時 ${pct(r.timeout)}，${r.rounds} 回合，存活 ${r.survivors}）`;
+        return `${pct(r.win)}（超時 ${pct(r.timeout)}，${r.rounds} 回合，勝時存活 ${r.survivors}，每場倒下 ${Math.round(r.downed * 10) / 10}）`;
     });
     console.log(`| ${scenario.id} ${scenario.name} | ${cells.join(' | ')} |`);
 }
