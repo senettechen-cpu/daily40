@@ -42,7 +42,8 @@ test('deployed soldiers all get the same xp, regardless of who shot', () => {
     const awards = xp.awardsFor('victory', six, []);
     assert.equal(awards.length, 6);
     assert.ok(awards.every(a => a.amount === 60 && a.role === 'deployed'));
-    assert.deepEqual([...new Set(xp.awardsFor('defeat', six, []).map(a => a.amount))], [40]);
+    // Defeat was 40 until 2026-09-28; halved so losing stops outpacing gear.
+    assert.deepEqual([...new Set(xp.awardsFor('defeat', six, []).map(a => a.amount))], [20]);
     assert.deepEqual([...new Set(xp.awardsFor('timeout', six, []).map(a => a.amount))], [20]);
 });
 

@@ -140,22 +140,49 @@ export function resolveGuards(units: UnitSpec[]): UnitSpec[] {
     ));
 }
 
+/** What a soldier costs the squad while they feed a gun instead of fighting. */
+const MATE_PREFERENCE: Record<string, number> = {
+    // A plain rifleman gives up the least: the value matrix has the heavy weapon
+    // at +10 win points when one feeds it, and negative when the plasma gunner
+    // or the engineer does (docs/pacing-and-value.md).
+    rifleman: 0,
+    engineer: 1,
+    vox: 2,
+    medic: 3,
+    marksman: 4,
+    flamer: 5,
+    plasma: 6,
+};
+
 /**
- * Binds a mate to every heavy weapon. Choosing the assistant belongs in the
- * deployment screen, which does not exist yet; until it does, the nearest
- * unbound rifleman or engineer is picked, deterministically by placement order,
- * so a heavy weapon is never silently left to feed itself.
+ * Binds a mate to every heavy weapon. A chosen `assistantId` that is still a
+ * valid mate is kept - the deployment screen lets the player pick (2026-09-28).
+ * Otherwise the cheapest duty to spare is drafted, deterministically, rather
+ * than whoever happened to be placed first: taking the engineer or the plasma
+ * gunner turns the gun from the best buy in the game into a liability, and the
+ * screen never said so.
  */
 export function assignHeavyCrew(units: UnitSpec[]): UnitSpec[] {
     const taken = new Set<string>();
+    const gunners = units.filter(u => u.duty === 'heavy' && u.weapon.name.includes('重武器'));
+
+    // Honour the player's picks first, so an automatic choice cannot take them.
+    for (const gunner of gunners) {
+        const chosen = gunner.assistantId
+            && units.find(u => u.id === gunner.assistantId && u.side === gunner.side && u.id !== gunner.id && u.duty !== 'heavy');
+        if (chosen) taken.add(chosen.id);
+    }
+
     return units.map(unit => {
-        if (unit.duty !== 'heavy' || !unit.weapon.name.includes('重武器')) return unit;
-        const mate = units.find(other =>
-            other.id !== unit.id
-            && other.side === unit.side
-            && !taken.has(other.id)
-            && other.duty !== 'heavy'
-            && (other.duty === 'rifleman' || other.duty === 'engineer'));
+        if (!gunners.some(g => g.id === unit.id)) return unit;
+        if (unit.assistantId && taken.has(unit.assistantId)) return unit;
+
+        const mate = units
+            .filter(other => other.id !== unit.id && other.side === unit.side
+                && !taken.has(other.id) && other.duty !== 'heavy'
+                && other.duty in MATE_PREFERENCE)
+            .sort((a, b) => MATE_PREFERENCE[a.duty] - MATE_PREFERENCE[b.duty]
+                || (a.id < b.id ? -1 : 1))[0];
         if (!mate) return unit;
         taken.add(mate.id);
         return { ...unit, assistantId: mate.id };

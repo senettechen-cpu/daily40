@@ -5,8 +5,11 @@ import { LEVEL_XP } from '../roster';
 
 export type Outcome = 'victory' | 'defeat' | 'timeout';
 
-export const DEPLOYED_XP: Record<Outcome, number> = { victory: 60, defeat: 40, timeout: 20 };
-export const TRAINEE_XP: Record<Outcome, number> = { victory: 30, defeat: 20, timeout: 10 };
+// Defeat paid 40 until 2026-09-28, two thirds of a win with no limit on how
+// many times a day you could try. The pacing model had levels running well
+// ahead of gear because of it; the user halved it to 20.
+export const DEPLOYED_XP: Record<Outcome, number> = { victory: 60, defeat: 20, timeout: 20 };
+export const TRAINEE_XP: Record<Outcome, number> = { victory: 30, defeat: 10, timeout: 10 };
 
 export const MAX_TRAINEES = 4;
 

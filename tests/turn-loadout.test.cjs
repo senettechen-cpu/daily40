@@ -198,3 +198,49 @@ test('a heavy weapon always leaves with someone to feed it', () => {
     const bound = twoGuns.filter(u => u.duty === 'heavy').map(u => u.assistantId).filter(Boolean);
     assert.equal(new Set(bound).size, bound.length, 'one mate was bound to two guns');
 });
+
+test('a heavy weapon draws the soldier who costs the squad least, not the first placed', () => {
+    // Before 2026-09-28 the mate was whoever came first among riflemen and
+    // engineers, so a placement that put the engineer first handed the gun the
+    // wrong pair of hands - and the value matrix turns negative when it does.
+    const gun = { name: '星界軍重武器組', hits: 5 };
+    const squad = [
+        { id: 'c0', side: 'crew', duty: 'heavy', weapon: gun },
+        { id: 'c1', side: 'crew', duty: 'engineer', weapon: { name: '雷射槍' } },
+        { id: 'c2', side: 'crew', duty: 'plasma', weapon: { name: '電漿槍' } },
+        { id: 'c3', side: 'crew', duty: 'rifleman', weapon: { name: '雷射槍' } },
+        { id: 'c4', side: 'crew', duty: 'medic', weapon: { name: '雷射槍' } },
+    ];
+    const mate = units => l.assignHeavyCrew(units).find(u => u.id === 'c0').assistantId;
+    assert.equal(mate(squad), 'c3', 'the plain rifleman, though the engineer was placed first');
+
+    // With no rifleman left, it falls to the next cheapest duty rather than giving up.
+    const noRifleman = squad.filter(u => u.id !== 'c3');
+    assert.equal(mate(noRifleman), 'c1', 'the engineer before the plasma gunner or the medic');
+});
+
+test("the player's chosen mate is kept, and never stolen by another gun", () => {
+    const gun = { name: '星界軍重武器組', hits: 5 };
+    const squad = [
+        { id: 'c0', side: 'crew', duty: 'heavy', weapon: gun, assistantId: 'c4' },
+        { id: 'c1', side: 'crew', duty: 'engineer', weapon: { name: '雷射槍' } },
+        { id: 'c3', side: 'crew', duty: 'rifleman', weapon: { name: '雷射槍' } },
+        { id: 'c4', side: 'crew', duty: 'medic', weapon: { name: '雷射槍' } },
+    ];
+    const crewed = l.assignHeavyCrew(squad);
+    assert.equal(crewed.find(u => u.id === 'c0').assistantId, 'c4', 'the medic the player picked');
+
+    // A second gun must take somebody else, not the mate already spoken for.
+    const twoGuns = l.assignHeavyCrew([...squad, { id: 'c5', side: 'crew', duty: 'heavy', weapon: gun }]);
+    assert.equal(twoGuns.find(u => u.id === 'c0').assistantId, 'c4');
+    assert.equal(twoGuns.find(u => u.id === 'c5').assistantId, 'c3');
+});
+
+test('a chosen mate that is gone from the squad falls back to an automatic pick', () => {
+    const gun = { name: '星界軍重武器組', hits: 5 };
+    const squad = [
+        { id: 'c0', side: 'crew', duty: 'heavy', weapon: gun, assistantId: 'left-the-squad' },
+        { id: 'c3', side: 'crew', duty: 'rifleman', weapon: { name: '雷射槍' } },
+    ];
+    assert.equal(l.assignHeavyCrew(squad).find(u => u.id === 'c0').assistantId, 'c3');
+});
