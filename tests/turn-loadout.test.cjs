@@ -244,3 +244,15 @@ test('a chosen mate that is gone from the squad falls back to an automatic pick'
     ];
     assert.equal(l.assignHeavyCrew(squad).find(u => u.id === 'c0').assistantId, 'c3');
 });
+
+test('the mate chosen in the deployment screen reaches the battle', () => {
+    // The pick rides on the placement, the way a guard's target does, so it
+    // survives the round trip through the saved formation.
+    const p = require('./helpers/load-ts.cjs').loadTs('shared/battle/turn/placement.ts');
+    const kept = p.normalizePlacements([
+        { characterId: 'c0', at: { col: 1, row: 1 }, stance: 'hold', assistantId: 'c3' },
+        { characterId: 'c3', at: { col: 2, row: 1 }, stance: 'advance', assistantId: 42 },
+    ]);
+    assert.equal(kept[0].assistantId, 'c3');
+    assert.equal(kept[1].assistantId, undefined, 'a non-string pick is dropped, not stored');
+});

@@ -91,6 +91,7 @@ export function normalizePlacements(value: unknown): Placement[] {
             at: { col: at.col, row: at.row },
             stance: isStance(row.stance) ? row.stance : 'advance',
             guardTargetId: typeof row.guardTargetId === 'string' ? row.guardTargetId : undefined,
+            assistantId: typeof row.assistantId === 'string' ? row.assistantId : undefined,
         }];
     });
 }

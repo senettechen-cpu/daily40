@@ -21,6 +21,8 @@ export interface SquadPlacement {
     at: { col: number; row: number };
     stance: 'hold' | 'advance' | 'flank' | 'guard';
     guardTargetId?: string;
+    /** Who feeds this soldier's heavy weapon; ignored for anyone else. */
+    assistantId?: string;
 }
 
 export type SquadResult = { squad: Squad } | { error: string };

@@ -17,6 +17,8 @@ export interface Placement {
     stance: Stance;
     /** Who a 'guard' stance follows. */
     guardTargetId?: string;
+    /** Who feeds this soldier's heavy weapon; ignored for anyone else. */
+    assistantId?: string;
 }
 
 export interface CrewDeployment {
@@ -110,6 +112,8 @@ function specFor(character: Character, carried: EquipmentItem[], placement: Plac
         tools,
         stance: placement.stance,
         guardTargetId: placement.guardTargetId,
+        // The player's chosen mate; assignHeavyCrew keeps it when it is valid.
+        assistantId: placement.assistantId,
         at: placement.at,
         ...(effects.length > 0 ? { effects } : {}),
     };

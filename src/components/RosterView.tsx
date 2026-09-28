@@ -161,6 +161,45 @@ const StancePicker = ({ value, disabled, onChange }: {
     </div>
 );
 
+/**
+ * Who feeds a heavy weapon (2026-09-28). The mate gives up their whole round, so
+ * the choice matters: the value matrix has the gun at +10 win points when a
+ * plain rifleman feeds it and negative when the plasma gunner or the engineer
+ * does, and until now the squad was picked for you by placement order.
+ */
+const AssistantPicker = ({ value, candidates, disabled, onChange }: {
+    value?: string;
+    candidates: Character[];
+    disabled: boolean;
+    onChange: (next: string | undefined) => void;
+}) => (
+    <div className="flex flex-col gap-1 border border-amber-700/40 bg-amber-950/20 p-1.5">
+        <span className="font-mono text-[10px] text-amber-300">重武器助手 · 該員本回合不攻擊</span>
+        <div className="flex flex-wrap gap-1">
+            <button
+                type="button" disabled={disabled} aria-pressed={!value}
+                onClick={e => { e.stopPropagation(); onChange(undefined); }}
+                className={`px-1.5 py-1 border font-mono text-[10px] transition-colors ${!value
+                    ? 'border-imperial-gold text-imperial-gold bg-imperial-gold/10'
+                    : 'border-zinc-700 text-zinc-500 hover:border-imperial-gold/50'}`}
+            >
+                自動（步槍兵優先）
+            </button>
+            {candidates.map(mate => (
+                <button
+                    key={mate.id} type="button" disabled={disabled} aria-pressed={value === mate.id}
+                    onClick={e => { e.stopPropagation(); onChange(mate.id); }}
+                    className={`px-1.5 py-1 border font-mono text-[10px] transition-colors ${value === mate.id
+                        ? 'border-imperial-gold text-imperial-gold bg-imperial-gold/10'
+                        : 'border-zinc-700 text-zinc-500 hover:border-imperial-gold/50'}`}
+                >
+                    {mate.name}
+                </button>
+            ))}
+        </div>
+    </div>
+);
+
 /** Catalogue art for one item; every catalogue entry has a delivered image. */
 const ItemArt = ({ catalogId, size = 28 }: { catalogId: string; size?: number }) => {
     const src = equipmentArt(catalogId, 96);
@@ -527,6 +566,19 @@ export const RosterView = ({ visible, onClose, strongholdId: requestedStronghold
         void run(token => api.updateSquad(activeSquad.id, { placements: next }, token).then(() => undefined));
     };
 
+    /** Who carries the heavy weapon, and so needs a mate chosen for them. */
+    const carriesHeavyWeapon = (characterId: string) =>
+        items.some(item => item.assignedTo === characterId && item.catalogId === 'heavy-weapon');
+
+    const assistantOf = (characterId: string) =>
+        placements.find(p => p.characterId === characterId)?.assistantId;
+
+    const setAssistant = (characterId: string, assistantId: string | undefined) => {
+        if (!activeSquad) return;
+        const next = placements.map(p => (p.characterId === characterId ? { ...p, assistantId } : p));
+        void run(token => api.updateSquad(activeSquad.id, { placements: next }, token).then(() => undefined));
+    };
+
     const setMembers = (memberIds: string[]) => {
         if (!activeSquad) return;
         void run(token => api.updateSquad(activeSquad.id, { memberIds }, token).then(() => undefined));
@@ -723,6 +775,14 @@ export const RosterView = ({ visible, onClose, strongholdId: requestedStronghold
                                             onAction={() => setMembers(activeSquad.memberIds.filter(id => id !== member.id))} />
                                         <StancePicker value={stanceOf(member.id)} disabled={busy}
                                             onChange={stance => setStance(member.id, stance)} />
+                                        {carriesHeavyWeapon(member.id) && (
+                                            <AssistantPicker
+                                                value={assistantOf(member.id)}
+                                                candidates={members.filter(other =>
+                                                    other.id !== member.id && !carriesHeavyWeapon(other.id))}
+                                                disabled={busy}
+                                                onChange={mate => setAssistant(member.id, mate)} />
+                                        )}
                                     </div>
                                 ) : (
                                     <div key={`empty-${index}`} className="flex items-center justify-center h-[68px] border border-dashed border-zinc-800 text-zinc-700 font-mono text-xs">

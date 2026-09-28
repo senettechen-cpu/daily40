@@ -157,6 +157,18 @@ const presets = (presetArg || 'fresh,flak,mix,armed,veteran').split(',');
 const battles = Number(battlesArg || 200);
 
 const pct = x => `${Math.round(x * 100)}%`;
+
+// FORMAT=json prints the raw cells instead of the table, so the value matrix can
+// read win rate and survivors together rather than parsing the prose.
+if (process.env.FORMAT === 'json') {
+    const rows = scenarios.map(scenario => ({
+        id: scenario.id,
+        name: scenario.name,
+        cells: Object.fromEntries(presets.map(name => [name, measure(scenario, name, battles)])),
+    }));
+    console.log(JSON.stringify({ battles, rows }));
+    process.exit(0);
+}
 console.log(`# 戰鬥模擬（每格 ${battles} 場，種子 i × 7919）\n`);
 console.log(`| 情境 | ${presets.join(' | ')} |`);
 console.log(`| --- | ${presets.map(() => '---:').join(' | ')} |`);
