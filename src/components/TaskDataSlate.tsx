@@ -105,30 +105,37 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
     };
 
     /**
-     * On a phone a protocol's times are chips, not eight full cards: the same
-     * "one press per time" the desktop rows give, in a tenth of the scrolling.
+     * A protocol's times, one row each, the way the desktop table lists them
+     * (user decision 2026-09-28). They were a wrap of chips, which scrolled less
+     * but made it hard to tell at a glance which time still wants doing.
      */
-    const renderSlotChips = (task: Task) => {
+    const renderSlotRows = (task: Task) => {
         const { slots, done } = slotsOf(task);
         const nowMinutes = minutesSinceMidnight();
         return (
-            <div className="flex flex-wrap gap-1.5 mt-2">
+            <div className="flex flex-col gap-1.5 mt-3">
                 {slots.map(time => {
                     const state = slotState(slots, done, time, nowMinutes);
                     const key = `${task.id}@${time}`;
                     const purging = purgingKeys.has(key);
+                    const look = SLOT_LOOK[state];
                     return (
                         <button
                             key={time}
                             type="button"
                             disabled={state === 'done' || purging}
                             onClick={(e) => handlePurge({ key, task, slot: time, state, first: false }, e)}
-                            className={`font-mono text-xs px-2.5 py-2 border tracking-widest transition-colors ${purging ? 'border-imperial-gold text-imperial-gold bg-imperial-gold/20 animate-pulse'
-                                : state === 'done' ? 'border-green-500/40 text-green-500 bg-green-900/20'
-                                    : state === 'late' ? 'border-amber-500/50 text-amber-400 bg-amber-900/10 active:bg-amber-500 active:text-black'
-                                        : 'border-cyan-500/40 text-cyan-400 bg-cyan-900/10 active:bg-cyan-500 active:text-black'}`}
+                            className={`flex items-center justify-between w-full px-3 py-2.5 border transition-colors ${purging ? 'border-imperial-gold bg-imperial-gold/20 animate-pulse'
+                                : state === 'done' ? 'border-green-500/40 bg-green-900/20'
+                                    : state === 'late' ? 'border-amber-500/50 bg-amber-900/10 active:bg-amber-500/30'
+                                        : 'border-cyan-500/40 bg-cyan-900/10 active:bg-cyan-500/30'}`}
                         >
-                            {state === 'done' ? `✓ ${time}` : time}
+                            <span className={`font-mono text-sm tracking-widest ${purging ? 'text-imperial-gold' : look.text}`}>
+                                {state === 'done' ? `✓ ${time}` : time}
+                            </span>
+                            <span className={`font-mono text-[10px] tracking-widest ${purging ? 'text-imperial-gold' : look.text}`}>
+                                {purging ? 'PURGING...' : look.note}
+                            </span>
                         </button>
                     );
                 })}
@@ -583,10 +590,40 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
                                                 </Button>
                                             );
                                         })()}
+
+                                        {/* Delete and void were desktop-only until 2026-09-28: on a
+                                            phone there was no way to remove a task at all. */}
+                                        {task.isRecurring && onDelete && (
+                                            <Button
+                                                size="middle"
+                                                aria-label={`刪除 ${task.title}`}
+                                                className="!bg-red-900/10 !border-red-900/40 !text-red-800 !h-10 !w-10 flex items-center justify-center p-0"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (confirm('確認刪除此每日協議？')) onDelete(task.id);
+                                                }}
+                                            >
+                                                <Trash2 size={16} />
+                                            </Button>
+                                        )}
+
+                                        {!task.isRecurring && onVoid && (
+                                            <Button
+                                                size="middle"
+                                                aria-label={`作廢 ${task.title}`}
+                                                className="!bg-red-900/20 !border-red-500/50 !text-red-500 !h-10 !w-10 flex items-center justify-center p-0"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (confirm(`作廢「${task.title}」？\n不算完成：不發軍需、不勾選連動的子計畫、不記成長紀錄。若它是今日核心，會空出一格。`)) onVoid(task.id);
+                                                }}
+                                            >
+                                                <Trash2 size={16} />
+                                            </Button>
+                                        )}
                                     </div>
                                 </div>
 
-                                {cardProgress.total > 0 && renderSlotChips(task)}
+                                {cardProgress.total > 0 && renderSlotRows(task)}
                             </motion.div>
                         );
                     })}
