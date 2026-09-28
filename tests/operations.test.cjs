@@ -147,15 +147,22 @@ test('a defeat puts the squad out of action for the rest of the day', async () =
     const today = TODAY();
     const barred = db.tables.roster_characters.filter(c => c.wounded_day === today).map(c => c.id);
 
+    const wounded = [...first.body.woundedIds].sort();
+    assert.deepEqual(barred.sort(), wounded, 'the roster is barred exactly as reported');
+
     if (first.body.operation.outcome === 'defeat') {
-        assert.deepEqual([...first.body.woundedIds].sort(), [...squads[0].memberIds].sort());
-        assert.deepEqual(barred.sort(), [...squads[0].memberIds].sort());
+        assert.deepEqual(wounded, [...squads[0].memberIds].sort(), 'a defeat takes the whole squad');
         const again = await ops('POST', '/', { body: { squadId: squads[0].id, strongholdId: 'w1-n1' } });
         assert.match(again.body.error, /負傷/);
     } else {
-        // A battle that was not lost costs nobody their day.
-        assert.deepEqual([...first.body.woundedIds], []);
-        assert.deepEqual(barred, []);
+        // Since 2026-09-28 going down costs the day even in a win, so the list is
+        // exactly the soldiers the engine left on the ground, and nobody else.
+        // Spread it: arrays from the loader sandbox carry their own prototype,
+        // which a strict deep-equal rejects on its own.
+        const fell = [...first.body.replay.result.units]
+            .filter(u => u.down && squads[0].memberIds.includes(u.id)).map(u => u.id).sort();
+        assert.deepEqual(wounded, fell, 'the fallen, whatever the outcome');
+        assert.ok(wounded.every(id => squads[0].memberIds.includes(id)), 'nobody outside the squad');
     }
 
     // Whatever happened today, tomorrow's roster is clear again.

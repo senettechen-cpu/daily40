@@ -173,9 +173,15 @@ export async function startOperation(db: Db, userId: string, request: StartReque
     // The first win of an escort brings the Ultramarines' candidate onto the roster.
     const aspirant = mission && outcome === 'victory' ? await bringAspirant(db, userId, mission, now) : undefined;
 
-    // A defeat puts the squad that fought it out of action for the rest of the
-    // day. Trainees stayed behind, so they are untouched.
-    const woundedIds = outcome === 'defeat' ? squad.memberIds : [];
+    // Who is out of action for the rest of the day. A defeat still takes the
+    // whole squad; since 2026-09-28 anyone who went down is wounded whatever the
+    // outcome, so winning with four of six on the ground costs something. Until
+    // then going down was free on a win, which is why a medic's kit measured at
+    // +0.2 win points: keeping someone up changed nothing the game could see.
+    // Trainees stayed behind, so they are untouched.
+    const deployed = new Set(squad.memberIds);
+    const fell = finished.units.filter(u => u.down && deployed.has(u.id)).map(u => u.id);
+    const woundedIds = [...new Set(outcome === 'defeat' ? [...squad.memberIds, ...fell] : fell)];
     if (woundedIds.length > 0) {
         await db.query(
             'UPDATE roster_characters SET wounded_day = $1 WHERE user_id = $2 AND id = ANY($3::text[])',
