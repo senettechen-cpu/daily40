@@ -135,18 +135,26 @@ const median = values => {
 
 function measure(scenario, presetName, battles) {
     const crew = crewFor(scenario, presetName);
-    let won = 0, timeouts = 0;
+    let won = 0, timeouts = 0, downed = 0;
     const rounds = [], survivors = [];
     for (let i = 1; i <= battles; i += 1) {
         const result = turn.runBattle({ board: scenario.board, units: [...crew, ...scenario.enemies], seed: i * 7919, objective: scenario.objective });
         rounds.push(result.rounds);
+        // Mean fallen over every battle. The median of survivors among wins is
+        // too coarse to see a tool's work: the medic's kit saves about four
+        // tenths of a soldier a battle, which never moves a whole-number median,
+        // and the tools read as worthless for it (2026-09-28).
+        downed += result.units.filter(u => u.side === 'crew' && u.down).length;
         if (result.outcome === 'victory') {
             won += 1;
             survivors.push(result.units.filter(u => u.side === 'crew' && !u.down).length);
         }
         if (result.outcome === 'timeout') timeouts += 1;
     }
-    return { win: won / battles, timeout: timeouts / battles, rounds: median(rounds), survivors: median(survivors) };
+    return {
+        win: won / battles, timeout: timeouts / battles, rounds: median(rounds),
+        survivors: median(survivors), downed: downed / battles,
+    };
 }
 
 const [scenarioArg, presetArg, battlesArg] = process.argv.slice(2);

@@ -5,8 +5,13 @@
 // Two numbers per item since 2026-09-28, not one. Win rate was the only measure
 // while going down on a win cost nothing, which is why every tool read as
 // worthless: keeping a soldier standing changed nothing the game could see. Now
-// the fallen are out for the day, so survivors are the second half of an item's
-// value - they are the squad you still have for the next fight.
+// the fallen are out for the day, so the soldiers still standing are the other
+// half of an item's value - they are the squad you have for the next fight.
+//
+// The second number is the MEAN fallen per battle, not the median survivors of
+// a win: a medic's kit saves about four tenths of a soldier a battle, which a
+// whole-number median cannot show at all, and the first run of this matrix
+// reported the tools at exactly zero because of it.
 //
 //   node scripts/sim-value.cjs [battles] [preset]
 //
@@ -47,15 +52,16 @@ const base = run(null);
 const round1 = x => Math.round(x * 10) / 10;
 
 console.log(`# 裝備價值矩陣（每格 ${battles} 場，隊伍 ${preset}，種子 i × 7919）\n`);
-console.log('勝率為百分點差；存活為勝仗中的中位存活人數差（滿編 6）。\n');
-console.log(`| 裝備 | 價格 | ${SCENARIOS.join(' | ')} | 平均勝率 | 平均存活 | 每 100 軍需勝率 |`);
+console.log('勝率為百分點差；少倒為每場平均倒下人數的減少（滿編 6），正值代表這件裝備保住了人。\n');
+console.log(`| 裝備 | 價格 | ${SCENARIOS.join(' | ')} | 平均勝率 | 平均少倒 | 每 100 軍需勝率 |`);
 console.log(`| --- | ---: | ${SCENARIOS.map(() => '---:').join(' | ')} | ---: | ---: | ---: |`);
-console.log(`| 基準：${preset} | — | ${SCENARIOS.map(id => `${Math.round(base[id].win * 100)}%／${base[id].survivors}`).join(' | ')} | — | — | — |`);
+console.log(`| 基準：${preset} | — | ${SCENARIOS.map(id => `${Math.round(base[id].win * 100)}%／倒 ${round1(base[id].downed)}`).join(' | ')} | — | — | — |`);
 
 for (const item of ITEMS) {
     const got = run(item.gear);
     const winDeltas = SCENARIOS.map(id => (got[id].win - base[id].win) * 100);
-    const lifeDeltas = SCENARIOS.map(id => got[id].survivors - base[id].survivors);
+    // Negated, so a positive number always means the item helped.
+    const lifeDeltas = SCENARIOS.map(id => base[id].downed - got[id].downed);
     const avgWin = winDeltas.reduce((a, b) => a + b, 0) / winDeltas.length;
     const avgLife = lifeDeltas.reduce((a, b) => a + b, 0) / lifeDeltas.length;
     const cells = SCENARIOS.map((id, i) => `${winDeltas[i] > 0 ? '+' : ''}${Math.round(winDeltas[i])}／${lifeDeltas[i] > 0 ? '+' : ''}${round1(lifeDeltas[i])}`);
