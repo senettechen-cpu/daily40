@@ -6,7 +6,7 @@ import { Task } from '../types';
 import { DOMAIN_LABELS } from '../../shared/ascension';
 import { lookOf } from '../data/domainLook';
 import { useRequisition } from '../contexts/RequisitionContext';
-import { minutesOf, minutesSinceMidnight, normalizeMonthDays, normalizeSlots, occursOn, slotProgress, slotState, type SlotState } from '../../shared/tasks';
+import { daysLeft, deadlineLabel, minutesOf, minutesSinceMidnight, normalizeMonthDays, normalizeSlots, slotProgress, slotState, type SlotState } from '../../shared/tasks';
 import { dayKey } from '../../shared/time';
 
 /** Today's settled times for a task, ignoring a day that has already rolled over. */
@@ -43,10 +43,17 @@ const DomainTag = ({ task }: { task: Task }) => {
  * protocol without times whose last completion is today. Used both to hide the
  * line and to swap its purge button for a COMPLETED tag, so the two agree.
  */
-const isSettled = ({ task, slot, state }: Pick<SlateRow, 'task' | 'slot' | 'state'>): boolean => slot
-    ? state === 'done'
-    : Boolean(task.isRecurring && task.lastCompletedAt
-        && new Date(task.lastCompletedAt).toLocaleDateString() === new Date().toLocaleDateString());
+const isSettled = ({ task, slot, state }: Pick<SlateRow, 'task' | 'slot' | 'state'>): boolean => {
+    if (slot) return state === 'done';
+    if (!task.isRecurring || !task.lastCompletedAt) return false;
+    const done = new Date(task.lastCompletedAt);
+    const now = new Date();
+    // A monthly protocol is settled for the whole month: finishing it on the 3rd
+    // must not put it back on the slate on the 4th.
+    return normalizeMonthDays(task.monthDays).length > 0
+        ? done.getFullYear() === now.getFullYear() && done.getMonth() === now.getMonth()
+        : done.toLocaleDateString() === now.toLocaleDateString();
+};
 
 /**
  * How often a recurring protocol comes round. A monthly one says which days
@@ -54,7 +61,13 @@ const isSettled = ({ task, slot, state }: Pick<SlateRow, 'task' | 'slot' | 'stat
  */
 const cadenceLabel = (task: Task): string => {
     const days = normalizeMonthDays(task.monthDays);
-    return days.length > 0 ? `每月 ${days.join('、')} 號` : '每日';
+    return days.length > 0 ? deadlineLabel(days, new Date()) : '每日';
+};
+
+/** A monthly protocol past its date is overdue, whatever the clock says. */
+const monthlyOverdue = (task: Task): boolean => {
+    const left = daysLeft(normalizeMonthDays(task.monthDays), new Date());
+    return left !== null && left < 0;
 };
 
 /** A slot's own clock time, coloured by where it stands today. */
@@ -179,14 +192,10 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
     };
 
     const sortedTasks = useMemo(() => {
-        // A monthly protocol (2026-09-28) is only on the slate on its own days.
-        // The user chose "gone at midnight": a missed day is not carried over,
-        // it comes back next month, so there is nothing to show in between.
-        const now = new Date();
-        let filtered = tasks.filter(task => {
-            const days = normalizeMonthDays(task.monthDays);
-            return days.length === 0 || occursOn(days, now);
-        });
+        // A monthly protocol is a deadline for the month, not an appointment on
+        // one day (user revision 2026-09-28), so it is on the slate all month and
+        // stays past its date marked overdue. Nothing to filter out here.
+        let filtered = [...tasks];
 
         if (showTodayOnly) {
             const todayStr = new Date().toLocaleDateString();
@@ -360,9 +369,15 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
                             <span className={`font-mono text-xs ${SLOT_LOOK[state ?? 'open'].text}`}>
                                 {slot} · {SLOT_LOOK[state ?? 'open'].note}
                             </span>
+                        ) : normalizeMonthDays(task.monthDays).length > 0 ? (
+                            // A monthly deadline speaks in days, not in the hour of
+                            // the day: "5 號前 · 還有 3 天" says what is left to do.
+                            <span className={`font-mono text-xs ${monthlyOverdue(task) ? 'text-red-400' : 'text-cyan-400'}`}>
+                                {cadenceLabel(task)}
+                            </span>
                         ) : (
                             <span className={`font-mono text-xs ${plainLate ? 'text-amber-400' : 'text-cyan-400'}`}>
-                                {cadenceLabel(task)} {plainTime} {plainLate ? '· 已逾時 · 仍可補' : '截止'}
+                                每日 {plainTime} {plainLate ? '· 已逾時 · 仍可補' : '截止'}
                             </span>
                         )}
                         {first && (
@@ -628,7 +643,9 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
                                                 <span className="font-mono text-sm text-cyan-400">
                                                     {cardProgress.total > 0
                                                         ? `今日 ${cardProgress.done}/${cardProgress.total}`
-                                                        : `${cadenceLabel(task)} ${task.dueTime || new Date(task.dueDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}`}
+                                                        : normalizeMonthDays(task.monthDays).length > 0
+                                                            ? cadenceLabel(task)
+                                                            : `每日 ${task.dueTime || new Date(task.dueDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}`}
                                                 </span>
                                                 <div className={`flex items-center gap-1 mt-1 ${(task.streak || 0) > 0 ? 'animate-pulse' : 'opacity-50'}`}>
                                                     <Flame size={12} className={(task.streak || 0) > 0 ? "text-orange-500 fill-orange-500" : "text-zinc-600"} />

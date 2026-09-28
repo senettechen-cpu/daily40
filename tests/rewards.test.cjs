@@ -92,14 +92,25 @@ test('daily core: completed tasks cannot be added, completed cores are locked', 
     assert.match(r.replaceCore(plan, 't1', 't9', ctx('2026-09-21T10:00', ['t1'])).error, /已鎖定/);
 });
 
-test('daily core: +10 only for a committed task completed on its day, once', () => {
+test('every completed task pays +10, once a day, core or not (2026-09-28)', () => {
     const plan = { day: '2026-09-21', taskIds: ['t1'] };
     let book = r.emptyBook();
     book = apply(book, r.onTaskCompleted(book, plan, 't1', taipei('2026-09-21', '18:00')));
     assert.equal(r.balance(book), 10);
+    // The same task, the same day: already paid.
     assert.equal(r.onTaskCompleted(book, plan, 't1', taipei('2026-09-21', '18:01')), null);
-    assert.equal(r.onTaskCompleted(book, plan, 't2', taipei('2026-09-21', '18:00')), null);
-    assert.equal(r.onTaskCompleted(r.emptyBook(), plan, 't1', taipei('2026-09-22', '08:00')), null);
+
+    // A task nobody designated: paid too, and the ledger says which kind it was.
+    const other = r.onTaskCompleted(book, plan, 't2', taipei('2026-09-21', '18:00'));
+    assert.equal(other.amount, 10);
+    assert.equal(other.reason, '完成任務');
+    book = apply(book, other);
+    assert.equal(r.balance(book), 20, 'no daily cap on the number of tasks');
+
+    // A day with no plan at all still pays.
+    const noPlan = r.onTaskCompleted(r.emptyBook(), { day: '2026-09-21', taskIds: [] }, 't9', taipei('2026-09-22', '08:00'));
+    assert.equal(noPlan.amount, 10);
+    assert.equal(noPlan.day, '2026-09-22', 'and it lands on its own day');
 });
 
 const project = (over = {}) => ({

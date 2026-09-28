@@ -104,15 +104,26 @@ test('a core with several times of day pays only when every slot is done', async
     assert.equal(balanceOf(db), 40 + 10);
 });
 
-test('completing a task that is not a core pays nothing', async () => {
+test('completing a task that is not a core pays the same, and there is no daily cap', async () => {
+    // Until 2026-09-28 only a designated core paid; the user asked for every
+    // completed task to pay, with no daily total.
     const { db, rewards, tasks } = setup();
-    seedTask(db, 't1');
-    seedTask(db, 't2');
+    for (const id of ['t1', 't2', 't3', 't4', 't5']) seedTask(db, id);
     await rewards('POST', '/core', { body: { day: TOMORROW, action: 'add', taskId: 't1' } });
 
     const res = await completeTask(tasks, 't2', TOMORROW);
-    assert.equal(res.body.requisition, 0);
-    assert.equal(balanceOf(db), 40);
+    assert.equal(res.body.requisition, 10, 'a task nobody designated still pays');
+
+    for (const id of ['t1', 't3', 't4', 't5']) await completeTask(tasks, id, TOMORROW);
+    assert.equal(balanceOf(db), 40 + 5 * 10, 'five tasks paid, past the three-core limit');
+});
+
+test('one task pays once a day however many times it is reported done', async () => {
+    const { db, tasks } = setup();
+    seedTask(db, 't1');
+    assert.equal((await completeTask(tasks, 't1', TOMORROW)).body.requisition, 10);
+    assert.equal((await completeTask(tasks, 't1', TOMORROW)).body.requisition, 0);
+    assert.equal(balanceOf(db), 40 + 10);
 });
 
 test('a fourth core is refused and the plan is left unchanged', async () => {

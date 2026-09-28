@@ -65,8 +65,26 @@ export function replaceCore(plan: CorePlan, oldTaskId: string, newTaskId: string
     return addCore(removed.plan, newTaskId, ctx);
 }
 
+/**
+ * What finishing a task pays (user decision 2026-09-28). Every completed task
+ * pays, not only the day's designated cores, and there is no daily total: the
+ * user asked for the designation to stop being the price of being paid.
+ *
+ * The source key still carries the day and the task, so one task pays once a
+ * day however many times it is toggled, and it is the same key the core grants
+ * already used - a task paid before this change is not paid again.
+ *
+ * Designating a core still means something: it is what opens the day's
+ * deployment gate (G1).
+ */
 export function onTaskCompleted(book: RewardBook, plan: CorePlan, taskId: string, completedAt: Date, timeZone = DEFAULT_TIME_ZONE): PlannedEntry | null {
     const day = dayKey(completedAt, timeZone);
-    if (day !== plan.day || !plan.taskIds.includes(taskId)) return null;
-    return planGrant(book, { sourceKey: coreKey(day, taskId), amount: CORE_REWARD, day, at: completedAt, reason: '完成今日核心' });
+    const isCore = day === plan.day && plan.taskIds.includes(taskId);
+    return planGrant(book, {
+        sourceKey: coreKey(day, taskId),
+        amount: CORE_REWARD,
+        day,
+        at: completedAt,
+        reason: isCore ? '完成今日核心' : '完成任務',
+    });
 }

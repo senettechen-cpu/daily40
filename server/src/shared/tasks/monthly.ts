@@ -2,9 +2,10 @@ import { dayKey, DEFAULT_TIME_ZONE } from '../time';
 
 /**
  * Monthly protocols (2026-09-28). A recurring task used to mean "every day";
- * one that carries days of the month falls only on those days instead. The
- * user's rules: pick one or more dates 1-31, and a missed date is gone at
- * midnight rather than waiting for you - it comes back next month.
+ * one that carries days of the month is a deadline instead: the user revised
+ * the rule to "finish it before the Nth of the month". So it is on the slate
+ * from the first of the month, counting down; past its day it stays, marked
+ * overdue, until the month ends and the next one starts it over.
  *
  * Kept as days of the month rather than "the second Friday": the user chose the
  * simpler rule, and everything here reads the date out of `dayKey`, so a later
@@ -47,4 +48,34 @@ export function monthDayLabel(days: number[], at: Date, timeZone = DEFAULT_TIME_
     return days
         .map(day => (day > end ? `${day} 號（本月只到 ${end}，順延至月底）` : `${day} 號`))
         .join('、');
+}
+
+/** The deadline this month, as a day of the month; the earliest when several. */
+export const deadlineDay = (days: number[], at: Date, timeZone = DEFAULT_TIME_ZONE): number | null => {
+    if (days.length === 0) return null;
+    const [year, month] = dayKey(at, timeZone).split('-').map(Number);
+    return Math.min(...days.map(day => landsOn(day, year, month)));
+};
+
+/**
+ * Days left before the deadline: 0 on the day itself, negative once it has
+ * passed. Null when the protocol has no days, which means it is not monthly.
+ */
+export const daysLeft = (days: number[], at: Date, timeZone = DEFAULT_TIME_ZONE): number | null => {
+    const deadline = deadlineDay(days, at, timeZone);
+    if (deadline === null) return null;
+    const date = Number(dayKey(at, timeZone).split('-')[2]);
+    return deadline - date;
+};
+
+/** How a monthly deadline reads on a row: the date, then how it stands today. */
+export function deadlineLabel(days: number[], at: Date, timeZone = DEFAULT_TIME_ZONE): string {
+    const left = daysLeft(days, at, timeZone);
+    if (left === null) return '';
+    const deadline = deadlineDay(days, at, timeZone);
+    const when = left > 1 ? `還有 ${left} 天`
+        : left === 1 ? '明天截止'
+            : left === 0 ? '今天截止'
+                : `已逾期 ${-left} 天`;
+    return `${deadline} 號前 · ${when}`;
 }

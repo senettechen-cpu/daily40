@@ -274,7 +274,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ visible, onClose, on
                         <div className="flex gap-2">
                             {[
                                 { value: false, label: '每天', note: '每天都出現' },
-                                { value: true, label: '每月', note: '只在指定日期出現' },
+                                { value: true, label: '每月', note: '這個月要在指定日期前做完' },
                             ].map(option => (
                                 <button
                                     key={String(option.value)}
@@ -291,7 +291,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ visible, onClose, on
                         </div>
                         <div className="text-[10px] text-cyan-400 font-mono">
                             {monthly
-                                ? '只在選定的日期出現；當天沒做完就要等下個月，不會累積。'
+                                ? '整個月都會在清單上倒數；過了期限仍留著標「已逾期」，直到月底重新開始。'
                                 : '任務將在每天 00:00 自動重置並重新開放。'}
                         </div>
                     </>
@@ -300,7 +300,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ visible, onClose, on
                 {isRecurring && monthly && (
                     <div>
                         <label className="text-imperial-gold/70 font-mono block mb-2 text-xs">
-                            每月執行日 (DAYS OF MONTH)
+                            每月截止日 (DUE BY)
                         </label>
                         <div className="grid grid-cols-7 gap-1">
                             {Array.from({ length: MAX_MONTH_DAYS }, (_, i) => i + 1).map(day => {
@@ -323,8 +323,8 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ visible, onClose, on
                         </div>
                         <div className="text-[10px] font-mono text-zinc-500 mt-2">
                             {monthDays.length === 0
-                                ? '選至少一天，否則這個任務永遠不會出現。'
-                                : `本月：${monthDayLabel(monthDays, new Date())}`}
+                                ? '選一個截止日，否則這個任務永遠不會出現。'
+                                : `本月要在 ${monthDayLabel(monthDays, new Date())}前完成`}
                         </div>
                     </div>
                 )}

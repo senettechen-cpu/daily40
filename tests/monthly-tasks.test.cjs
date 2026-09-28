@@ -84,6 +84,38 @@ test('the label says when a chosen day is being moved to the month end', () => {
     assert.equal(m.monthDayLabel([], taipei(2026, 9, 1)), '');
 });
 
+// ---- the deadline, not the day ---------------------------------------------
+
+test('the deadline is the earliest chosen day as it lands this month', () => {
+    assert.equal(m.deadlineDay([5], taipei(2026, 9, 1)), 5);
+    assert.equal(m.deadlineDay([20, 5], taipei(2026, 9, 1)), 5, 'the earliest of several');
+    assert.equal(m.deadlineDay([31], taipei(2026, 9, 1)), 30, 'slid to the month end');
+    assert.equal(m.deadlineDay([], taipei(2026, 9, 1)), null, 'not monthly at all');
+});
+
+test('days left counts down, hits zero on the day, and goes negative after', () => {
+    assert.equal(m.daysLeft([5], taipei(2026, 9, 1)), 4);
+    assert.equal(m.daysLeft([5], taipei(2026, 9, 4)), 1);
+    assert.equal(m.daysLeft([5], taipei(2026, 9, 5)), 0, 'due today');
+    assert.equal(m.daysLeft([5], taipei(2026, 9, 6)), -1, 'one day over');
+    assert.equal(m.daysLeft([5], taipei(2026, 9, 30)), -25, 'still counted at month end');
+    assert.equal(m.daysLeft([], taipei(2026, 9, 5)), null);
+});
+
+test('the deadline reads plainly on every day of its month', () => {
+    const on = day => m.deadlineLabel([5], taipei(2026, 9, day));
+    assert.equal(on(1), '5 號前 · 還有 4 天');
+    assert.equal(on(4), '5 號前 · 明天截止');
+    assert.equal(on(5), '5 號前 · 今天截止');
+    assert.equal(on(7), '5 號前 · 已逾期 2 天');
+    assert.match(m.deadlineLabel([31], taipei(2026, 9, 28)), /^30 號前/, 'a slid deadline says the real date');
+});
+
+test('a new month starts the count over', () => {
+    assert.equal(m.daysLeft([5], taipei(2026, 9, 30)), -25, 'September: long overdue');
+    assert.equal(m.daysLeft([5], taipei(2026, 10, 1)), 4, 'October: four days to go again');
+});
+
 // ---- server round trip -----------------------------------------------------
 
 const { createFakeDb } = require('./helpers/fake-db.cjs');

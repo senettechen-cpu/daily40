@@ -62,10 +62,14 @@ export async function editPlan(db: Db, userId: string, day: string, edit: CoreEd
     return result;
 }
 
-/** Grants +10 when a completed task is one of that day's cores. Idempotent by source key. */
+/**
+ * Grants for a completed task. Since 2026-09-28 every task pays, not only the
+ * day's cores, so a day with no plan at all still pays; the plan is loaded only
+ * to tell a core apart from the rest in the ledger's reason. Idempotent by
+ * source key, so one task pays once a day.
+ */
 export async function rewardCoreCompleted(db: Db, userId: string, taskId: string, completedAt: Date): Promise<number> {
     const plan = await loadPlan(db, userId, dayKey(completedAt, timeZone));
-    if (plan.taskIds.length === 0) return 0;
 
     const book = await loadWithStartingGrant(db, userId, completedAt);
     const entry = onTaskCompleted(book, plan, taskId, completedAt, timeZone);

@@ -56,10 +56,16 @@ const SHOPPING = [
     { tier: 'veteran-gear', items: ['heavy-weapon', 'carapace-armour'], needs: 'w2-n2' },
 ];
 
+// `cores` is what the G1 deployment gate needs; `tasks` is how many tasks the
+// day finishes. They were the same number until 2026-09-28, when every completed
+// task started paying and the three-core cap stopped being the income ceiling.
+// TASKS=<n> overrides tasks-per-day for every profile, to see what a longer list
+// does to the pace.
+const perDay = Number(process.env.TASKS);
 const PROFILES = {
-    light: { cores: 1.5, ledger: 1, battles: 1, planDays: 21, growth: 1.0 },
-    steady: { cores: 2.5, ledger: 2, battles: 2, planDays: 14, growth: 1.5 },
-    max: { cores: 3, ledger: 3, battles: 4, planDays: 10, growth: 2.0 },
+    light: { cores: 1.5, tasks: perDay || 1.5, ledger: 1, battles: 1, planDays: 21, growth: 1.0 },
+    steady: { cores: 2.5, tasks: perDay || 2.5, ledger: 2, battles: 2, planDays: 14, growth: 1.5 },
+    max: { cores: 3, tasks: perDay || 3, ledger: 3, battles: 4, planDays: 10, growth: 2.0 },
 };
 
 const order = STRONGHOLDS.map(s => s.id);
@@ -84,7 +90,7 @@ function simulate(profile, random, maxDays = 400) {
     for (s.day = 1; s.day <= maxDays; s.day += 1) {
         // Income: cores, the ledger, a plan's three milestones spread over it.
         const cores = fractional(profile.cores);
-        s.balance += cores * CORE_REWARD + fractional(profile.ledger) * LEDGER_REWARD;
+        s.balance += fractional(profile.tasks) * CORE_REWARD + fractional(profile.ledger) * LEDGER_REWARD;
         if (s.day % Math.round(profile.planDays / 3) === 0) s.balance += MILESTONE_REWARD;
 
         // Shopping.
@@ -155,7 +161,7 @@ const MILESTONES = [
 const median = xs => { const a = xs.filter(x => x !== undefined).sort((p, q) => p - q); return a.length < runs / 2 ? null : a[Math.floor(a.length / 2)]; };
 
 console.log(`# 節奏模型（每種玩家 ${runs} 次，400 天上限）\n`);
-console.log('| 里程碑 | ' + Object.keys(PROFILES).map(p => `${p}（核心 ${PROFILES[p].cores}／記帳 ${PROFILES[p].ledger}／出戰 ${PROFILES[p].battles}／成長 ${PROFILES[p].growth} 每天）`).join(' | ') + ' |');
+console.log('| 里程碑 | ' + Object.keys(PROFILES).map(p => `${p}（任務 ${PROFILES[p].tasks}／記帳 ${PROFILES[p].ledger}／出戰 ${PROFILES[p].battles}／成長 ${PROFILES[p].growth} 每天）`).join(' | ') + ' |');
 console.log('| --- |' + ' ---: |'.repeat(Object.keys(PROFILES).length));
 const results = {};
 for (const [name, profile] of Object.entries(PROFILES)) {
