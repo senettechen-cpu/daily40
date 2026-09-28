@@ -27,6 +27,16 @@ const DomainTag = ({ task }: { task: Task }) => task.domain
     ? <span className="text-[11px] font-mono px-1 border border-emerald-800/60 text-emerald-300">{DOMAIN_LABELS[task.domain]}</span>
     : <span className="text-[11px] font-mono text-zinc-600">—</span>;
 
+/**
+ * Whether this line is done for today: a slot that has been pressed, or a
+ * protocol without times whose last completion is today. Used both to hide the
+ * line and to swap its purge button for a COMPLETED tag, so the two agree.
+ */
+const isSettled = ({ task, slot, state }: Pick<SlateRow, 'task' | 'slot' | 'state'>): boolean => slot
+    ? state === 'done'
+    : Boolean(task.isRecurring && task.lastCompletedAt
+        && new Date(task.lastCompletedAt).toLocaleDateString() === new Date().toLocaleDateString());
+
 /** A slot's own clock time, coloured by where it stands today. */
 const SLOT_LOOK: Record<SlotState, { text: string; note: string }> = {
     done: { text: 'text-green-500', note: '已完成' },
@@ -87,6 +97,10 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
     onEdit, viewMode = 'active', onToggleView
 }) => {
     const [showTodayOnly, setShowTodayOnly] = React.useState(false);
+    // Done lines leave the slate (user decision 2026-09-28): what is left is what
+    // still wants doing. The toggle brings them back, which is also the only way
+    // to reach the edit and delete of a protocol finished for the day.
+    const [showDone, setShowDone] = React.useState(false);
     // Keyed by row, not by task: purging the 10:00 glass of water must not light
     // up the other seven rows of the same protocol.
     const [purgingKeys, setPurgingKeys] = useState<Set<string>>(new Set());
@@ -112,9 +126,10 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
     const renderSlotRows = (task: Task) => {
         const { slots, done } = slotsOf(task);
         const nowMinutes = minutesSinceMidnight();
+        const shown = showDone ? slots : slots.filter(time => slotState(slots, done, time, nowMinutes) !== 'done');
         return (
             <div className="flex flex-col gap-1.5 mt-3">
-                {slots.map(time => {
+                {shown.map(time => {
                     const state = slotState(slots, done, time, nowMinutes);
                     const key = `${task.id}@${time}`;
                     const purging = purgingKeys.has(key);
@@ -243,14 +258,17 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
         // Equal times keep the order the tasks themselves were sorted into.
         lines.sort((a, b) => a.rank - b.rank || a.order - b.order);
 
+        const visible = showDone ? lines : lines.filter(line => !isSettled(line));
+
         // `first` marks a task's earliest line, which carries its edit and delete.
+        // Computed after the filter, so those controls land on a line still shown.
         const seen = new Set<string>();
-        return lines.map(({ rank: _rank, order: _order, ...row }) => {
+        return visible.map(({ rank: _rank, order: _order, ...row }) => {
             const first = !seen.has(row.task.id);
             seen.add(row.task.id);
             return { ...row, first };
         });
-    }, [sortedTasks]);
+    }, [sortedTasks, showDone]);
 
     const columns = useMemo(() => [
         {
@@ -340,12 +358,9 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
             key: 'actions',
             width: 140,
             render: (_: unknown, row: SlateRow) => {
-                const { task, slot, state, first } = row;
+                const { task, slot, first } = row;
                 const purging = purgingKeys.has(row.key);
-                const settledToday = slot
-                    ? state === 'done'
-                    : Boolean(task.isRecurring && task.lastCompletedAt &&
-                        new Date(task.lastCompletedAt).toLocaleDateString() === new Date().toLocaleDateString());
+                const settledToday = isSettled(row);
 
                 return (
                     <div className="flex gap-2 items-center">
@@ -443,6 +458,14 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
                         [ {showTodayOnly ? 'TODAY ONLY' : 'SHOW ALL'} ]
                     </div>
 
+                    {/* Done lines are out of the way by default; this brings them back. */}
+                    <div
+                        className={`cursor-pointer px-2 py-1 text-[10px] font-mono tracking-[0.1em] border transition-all ml-2 ${showDone ? 'border-green-500 text-green-500 bg-green-900/10' : 'border-imperial-gold/20 text-imperial-gold/40 hover:border-imperial-gold/50'}`}
+                        onClick={() => setShowDone(!showDone)}
+                    >
+                        [ {showDone ? '含已完成' : '隱藏已完成'} ]
+                    </div>
+
                     {onOpenAddModal && (
                         <Button
                             size="small"
@@ -482,7 +505,15 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
             {/* Mobile Card View */}
             <div className="md:hidden flex flex-col gap-3 p-4 pb-20">
                 <AnimatePresence mode='popLayout'>
-                    {sortedTasks.map(task => {
+                    {/* A protocol finished for the day leaves the list with its lines,
+                        unless the toggle is on; the desktop table hides them the same way. */}
+                    {sortedTasks.filter(task => {
+                        if (showDone) return true;
+                        const { slots, done } = slotsOf(task);
+                        return slots.length > 0
+                            ? slotProgress(slots, done).done < slots.length
+                            : !isSettled({ task });
+                    }).map(task => {
                         const isOverdue = new Date(task.dueDate) < new Date();
                         const isPurging = purgingKeys.has(task.id);
                         const cardSlots = slotsOf(task);
