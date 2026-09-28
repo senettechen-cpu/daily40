@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Task } from '../types';
 import { DOMAIN_LABELS } from '../../shared/ascension';
 import { useRequisition } from '../contexts/RequisitionContext';
-import { minutesSinceMidnight, normalizeSlots, slotProgress, slotState, type SlotState } from '../../shared/tasks';
+import { minutesOf, minutesSinceMidnight, normalizeSlots, slotProgress, slotState, type SlotState } from '../../shared/tasks';
 import { dayKey } from '../../shared/time';
 
 /** Today's settled times for a task, ignoring a day that has already rolled over. */
@@ -198,21 +198,57 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
     }, [tasks, showTodayOnly]);
 
     /**
-     * The slate's lines. A protocol with times of day becomes one line per time,
-     * kept contiguous and in clock order under the protocol it belongs to.
+     * The slate's lines, as one timeline for the whole day (user decision
+     * 2026-09-28). A protocol with times of day becomes one line per time, and
+     * every line is then sorted by its own clock time, so 拜拜 08:00 sits between
+     * 喝水 06:00 and 喝水 08:00 instead of after all eight of them. Lines used to
+     * be kept contiguous under their protocol, which buried what came next.
+     *
+     * A day that is not today has no place on the clock: anything left over from
+     * an earlier day sorts to the top, anything due later sorts to the bottom.
      */
     const rows = useMemo<SlateRow[]>(() => {
         const nowMinutes = minutesSinceMidnight();
-        return sortedTasks.flatMap<SlateRow>(task => {
+        const today = new Date().toLocaleDateString();
+        const BEFORE_TODAY = -1;
+        const AFTER_TODAY = 24 * 60 + 1;
+
+        /** Where a line sits on today's clock, in minutes since midnight. */
+        const rank = (task: Task, slot?: string): number => {
+            if (slot) return minutesOf(slot);
+            const due = new Date(task.dueDate);
+            if (task.isRecurring) return task.dueTime ? minutesOf(task.dueTime) : due.getHours() * 60 + due.getMinutes();
+            const day = due.toLocaleDateString();
+            if (day < today || due < new Date(new Date().setHours(0, 0, 0, 0))) return BEFORE_TODAY;
+            if (day !== today) return AFTER_TODAY;
+            return due.getHours() * 60 + due.getMinutes();
+        };
+
+        const lines = sortedTasks.flatMap<SlateRow & { rank: number; order: number }>((task, order) => {
             const { slots, done } = slotsOf(task);
-            if (!task.isRecurring || slots.length === 0) return [{ key: task.id, task, first: true }];
-            return slots.map<SlateRow>((time, i) => ({
+            if (!task.isRecurring || slots.length === 0) {
+                return [{ key: task.id, task, first: true, rank: rank(task), order }];
+            }
+            return slots.map(time => ({
                 key: `${task.id}@${time}`,
                 task,
                 slot: time,
                 state: slotState(slots, done, time, nowMinutes),
-                first: i === 0,
+                first: false,
+                rank: rank(task, time),
+                order,
             }));
+        });
+
+        // Equal times keep the order the tasks themselves were sorted into.
+        lines.sort((a, b) => a.rank - b.rank || a.order - b.order);
+
+        // `first` marks a task's earliest line, which carries its edit and delete.
+        const seen = new Set<string>();
+        return lines.map(({ rank: _rank, order: _order, ...row }) => {
+            const first = !seen.has(row.task.id);
+            seen.add(row.task.id);
+            return { ...row, first };
         });
     }, [sortedTasks]);
 
@@ -221,11 +257,10 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
             title: '領域',
             key: 'domain',
             width: 100,
-            render: (_: unknown, { task, first }: SlateRow) => first ? (
-                <DomainTag task={task} />
-            ) : (
-                <span className="font-mono text-imperial-gold/20 text-xs pl-2">└</span>
-            ),
+            // Every line carries its own domain now that the lines of one protocol
+            // are no longer contiguous; the "└" continuation mark would point at
+            // whatever task happened to sort above it.
+            render: (_: unknown, { task }: SlateRow) => <DomainTag task={task} />,
         },
         {
             title: '目標內容',
