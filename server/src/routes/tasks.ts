@@ -4,7 +4,7 @@ import { query, withTransaction } from '../db';
 import { editPlan, rewardCoreCompleted } from '../rewards/coreService';
 import { v15EconomyEnabled } from '../rewards/service';
 import { DEFAULT_TIME_ZONE, dayKey } from '../shared/rewards';
-import { normalizeSlots, slotsMet } from '../shared/tasks';
+import { normalizeMonthDays, normalizeSlots, slotsMet } from '../shared/tasks';
 import { isDomain } from '../shared/ascension';
 import { recordGrowthForTask, releaseDesignation } from '../ascension/service';
 import { addDays } from '../shared/time';
@@ -49,6 +49,7 @@ router.get('/', async (req, res) => {
             dueTimes: normalizeSlots(row.due_times),
             slotsDone: normalizeSlots(row.slots_done),
             slotsDay: row.slots_day,
+            monthDays: normalizeMonthDays(row.month_days),
             projectId: row.project_id ?? undefined,
             subTaskId: row.sub_task_id ?? undefined,
             domain: isDomain(row.domain) ? row.domain : undefined,
@@ -68,14 +69,16 @@ router.post('/', async (req, res) => {
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
         const dueTimes = normalizeSlots(req.body.dueTimes);
+        // Days of the month; empty keeps is_recurring meaning every day.
+        const monthDays = normalizeMonthDays(req.body.monthDays);
         // Only a one-off task may stand for a subtask: a daily one would tick it
         // the first time and then keep recurring with nothing left to tick.
         const linked = !isRecurring && typeof req.body.projectId === 'string' && typeof req.body.subTaskId === 'string';
         await query(
-            `INSERT INTO tasks (id, title, faction, difficulty, due_date, created_at, status, is_recurring, streak, due_time, due_times, user_id, project_id, sub_task_id, domain)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+            `INSERT INTO tasks (id, title, faction, difficulty, due_date, created_at, status, is_recurring, streak, due_time, due_times, month_days, user_id, project_id, sub_task_id, domain)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
             [id, title, faction, difficulty, dueDate, createdAt, status, isRecurring || false, 0,
-                req.body.dueTime, JSON.stringify(dueTimes), userId,
+                req.body.dueTime, JSON.stringify(dueTimes), JSON.stringify(monthDays), userId,
                 linked ? req.body.projectId : null, linked ? req.body.subTaskId : null,
                 isDomain(req.body.domain) ? req.body.domain : null]
         );
@@ -108,6 +111,7 @@ router.put('/:id', async (req, res) => {
     if (updates.dueTimes !== undefined) { fields.push(`due_times = $${idx++}`); values.push(JSON.stringify(normalizeSlots(updates.dueTimes))); }
     if (updates.slotsDone !== undefined) { fields.push(`slots_done = $${idx++}`); values.push(JSON.stringify(normalizeSlots(updates.slotsDone))); }
     if (updates.slotsDay !== undefined) { fields.push(`slots_day = $${idx++}`); values.push(updates.slotsDay); }
+    if (updates.monthDays !== undefined) { fields.push(`month_days = $${idx++}`); values.push(JSON.stringify(normalizeMonthDays(updates.monthDays))); }
     if (updates.domain !== undefined) { fields.push(`domain = $${idx++}`); values.push(isDomain(updates.domain) ? updates.domain : null); }
 
     if (fields.length === 0) return res.status(400).json({ error: 'No fields to update' });

@@ -1,19 +1,19 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Button, message } from 'antd';
-import { Task, Resources, Faction, Project, ArmyStrength, SectorTrait, PlanetaryTraitType, BattleResult, SectorHistory, UnitType, AstartesState, AstartesResources, AscensionCategory, RitualActivity, CloseProjectResult } from '../types';
+import { Task, Resources, Faction, Project, ArmyStrength, SectorTrait, PlanetaryTraitType, BattleResult, SectorHistory, UnitType, AstartesState, AstartesResources, AscensionCategory, RitualActivity, CloseProjectResult, TaskDraft } from '../types';
 import { api } from '../services/api';
 import { RITUAL_ACTIVITIES } from '../data/astartesData';
 import { getRecruitmentCost, UNIT_POWER } from '../data/unitVisuals';
 import { useCampaign } from '../game/useCampaign';
 import { LEGACY_PENALTIES_FROZEN } from '../game/legacyFreeze';
 import { localDay, type CampaignState, type Site, type Tactic } from '../game/campaign';
-import { completeNextSlot, completeSlot, normalizeSlots, slotsMet } from '../../shared/tasks';
+import { completeNextSlot, completeSlot, normalizeMonthDays, normalizeSlots, slotsMet } from '../../shared/tasks';
 import { dayKey } from '../../shared/time';
 import type { Domain } from '../../shared/ascension';
 
 /** Where a one-off task came from, when it was deployed from an operation plan. */
-export interface SubTaskLink { projectId: string; subTaskId: string }
+export type { SubTaskLink } from '../types';
 
 export interface GameContextType {
     campaign: CampaignState;
@@ -24,7 +24,7 @@ export interface GameContextType {
     corruption: number;
     ownedUnits: string[];
     isPenitentMode: boolean;
-    addTask: (title: string, faction: Faction, difficulty: number, dueDate: Date, isRecurring?: boolean, dueTime?: string, domain?: Domain, subCategory?: string, dueTimes?: string[], link?: SubTaskLink) => void;
+    addTask: (draft: TaskDraft) => void;
     updateTask: (id: string, updates: Partial<Task>) => void;
     purgeTask: (id: string, slot?: string) => void;
     /** Voids a one-off task: it leaves the list and counts as nothing. */
@@ -575,21 +575,24 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }, [corruption, isPenitentMode]);
 
     // Actions
-    const addTask = async (title: string, faction: Faction, difficulty: number, dueDate: Date, isRecurring: boolean = false, dueTime?: string, domain?: Domain, subCategory?: string, dueTimes?: string[], link?: SubTaskLink) => {
+    const addTask = async (draft: TaskDraft) => {
+        const { title, dueDate, isRecurring, dueTime, domain, subCategory } = draft;
         // Only a one-off task stands for a subtask; the server enforces the same.
-        const linked = !isRecurring && link ? link : undefined;
+        const linked = !isRecurring && draft.link ? draft.link : undefined;
         const newTask: Task = {
             id: Date.now().toString(36) + Math.random().toString(36).substr(2),
             title,
-            faction,
-            difficulty,
+            // Faction and difficulty are dead columns kept NOT NULL by the schema.
+            faction: 'default',
+            difficulty: 1,
             dueDate,
             createdAt: new Date(),
             status: 'active',
             isRecurring,
             streak: 0,
             dueTime,
-            dueTimes: normalizeSlots(dueTimes),
+            dueTimes: normalizeSlots(draft.dueTimes),
+            monthDays: normalizeMonthDays(draft.monthDays),
             domain,
             subCategory,
             projectId: linked?.projectId,

@@ -6,7 +6,7 @@ import { Task } from '../types';
 import { DOMAIN_LABELS } from '../../shared/ascension';
 import { lookOf } from '../data/domainLook';
 import { useRequisition } from '../contexts/RequisitionContext';
-import { minutesOf, minutesSinceMidnight, normalizeSlots, slotProgress, slotState, type SlotState } from '../../shared/tasks';
+import { minutesOf, minutesSinceMidnight, normalizeMonthDays, normalizeSlots, occursOn, slotProgress, slotState, type SlotState } from '../../shared/tasks';
 import { dayKey } from '../../shared/time';
 
 /** Today's settled times for a task, ignoring a day that has already rolled over. */
@@ -47,6 +47,15 @@ const isSettled = ({ task, slot, state }: Pick<SlateRow, 'task' | 'slot' | 'stat
     ? state === 'done'
     : Boolean(task.isRecurring && task.lastCompletedAt
         && new Date(task.lastCompletedAt).toLocaleDateString() === new Date().toLocaleDateString());
+
+/**
+ * How often a recurring protocol comes round. A monthly one says which days
+ * it falls on, so a row appearing today is not mistaken for a daily habit.
+ */
+const cadenceLabel = (task: Task): string => {
+    const days = normalizeMonthDays(task.monthDays);
+    return days.length > 0 ? `每月 ${days.join('、')} 號` : '每日';
+};
 
 /** A slot's own clock time, coloured by where it stands today. */
 const SLOT_LOOK: Record<SlotState, { text: string; note: string }> = {
@@ -170,7 +179,14 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
     };
 
     const sortedTasks = useMemo(() => {
-        let filtered = [...tasks];
+        // A monthly protocol (2026-09-28) is only on the slate on its own days.
+        // The user chose "gone at midnight": a missed day is not carried over,
+        // it comes back next month, so there is nothing to show in between.
+        const now = new Date();
+        let filtered = tasks.filter(task => {
+            const days = normalizeMonthDays(task.monthDays);
+            return days.length === 0 || occursOn(days, now);
+        });
 
         if (showTodayOnly) {
             const todayStr = new Date().toLocaleDateString();
@@ -346,7 +362,7 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
                             </span>
                         ) : (
                             <span className={`font-mono text-xs ${plainLate ? 'text-amber-400' : 'text-cyan-400'}`}>
-                                每日 {plainTime} {plainLate ? '· 已逾時 · 仍可補' : '截止'}
+                                {cadenceLabel(task)} {plainTime} {plainLate ? '· 已逾時 · 仍可補' : '截止'}
                             </span>
                         )}
                         {first && (
@@ -612,7 +628,7 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
                                                 <span className="font-mono text-sm text-cyan-400">
                                                     {cardProgress.total > 0
                                                         ? `今日 ${cardProgress.done}/${cardProgress.total}`
-                                                        : `每日 ${task.dueTime || new Date(task.dueDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}`}
+                                                        : `${cadenceLabel(task)} ${task.dueTime || new Date(task.dueDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}`}
                                                 </span>
                                                 <div className={`flex items-center gap-1 mt-1 ${(task.streak || 0) > 0 ? 'animate-pulse' : 'opacity-50'}`}>
                                                     <Flame size={12} className={(task.streak || 0) > 0 ? "text-orange-500 fill-orange-500" : "text-zinc-600"} />

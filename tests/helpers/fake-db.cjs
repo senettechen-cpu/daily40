@@ -78,9 +78,13 @@ function createFakeDb() {
             const rows = tables.tasks.filter(t => t.user_id === p[0]);
             return { rows, rowCount: rows.length };
         }
-        if (s.startsWith('INSERT INTO tasks (id, title, faction, difficulty, due_date, created_at, status, is_recurring, streak, due_time, due_times, user_id, project_id, sub_task_id, domain)')) {
-            const [id, title, faction, difficulty, due_date, created_at, status, is_recurring, streak, due_time, due_times, user_id, project_id, sub_task_id, domain] = p;
-            tables.tasks.push({ id, title, faction, difficulty, due_date, created_at, status, is_recurring, streak, due_time, due_times: JSON.parse(due_times), user_id, project_id, sub_task_id, domain });
+        if (s.startsWith('INSERT INTO tasks (id, title, faction, difficulty, due_date, created_at, status, is_recurring, streak, due_time, due_times, month_days, user_id, project_id, sub_task_id, domain)')) {
+            const [id, title, faction, difficulty, due_date, created_at, status, is_recurring, streak, due_time, due_times, month_days, user_id, project_id, sub_task_id, domain] = p;
+            tables.tasks.push({
+                id, title, faction, difficulty, due_date, created_at, status, is_recurring, streak, due_time,
+                due_times: JSON.parse(due_times), month_days: JSON.parse(month_days),
+                user_id, project_id, sub_task_id, domain,
+            });
             return { rows: [], rowCount: 1 };
         }
         if (s.startsWith('SELECT sub_tasks, milestone_ids, created_at, closed_at FROM projects')) {

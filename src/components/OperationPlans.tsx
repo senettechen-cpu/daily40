@@ -188,7 +188,7 @@ export const OperationPlans: React.FC = () => {
     const deployToday = (p: Project, subTaskId: string, title: string) => {
         const end = new Date();
         end.setHours(23, 59, 0, 0);
-        addTask(title, 'default', Math.min(5, Math.max(1, p.difficulty)), end, false, undefined, undefined, undefined, [], { projectId: p.id, subTaskId });
+        addTask({ title, dueDate: end, isRecurring: false, link: { projectId: p.id, subTaskId } });
         message.success(`已部署到今日任務：${title}`);
     };
 

@@ -1,5 +1,30 @@
 export type Faction = 'nurgle' | 'khorne' | 'tzeentch' | 'slaanesh' | 'orks' | 'necrons' | 'default';
 
+/** Where a one-off task stands for a subtask of an operation plan. */
+export interface SubTaskLink { projectId: string; subTaskId: string }
+
+/**
+ * What the add/edit dialog hands back (2026-09-28). It replaced ten positional
+ * arguments threaded through three layers: the ninth and tenth were being
+ * dropped silently by a handler that only named eight, which cost a multi-slot
+ * task its slots. Faction and difficulty are not here at all - they mean
+ * nothing now and the store fills its own placeholders.
+ */
+export interface TaskDraft {
+    title: string;
+    dueDate: Date;
+    isRecurring: boolean;
+    /** The day's nominal deadline; the first slot when there are several. */
+    dueTime?: string;
+    /** Times of day for a daily task. */
+    dueTimes?: string[];
+    /** Days of the month, 1-31; set makes a recurring task monthly, not daily. */
+    monthDays?: number[];
+    domain?: import('../../shared/ascension').Domain;
+    subCategory?: string;
+    link?: SubTaskLink;
+}
+
 export interface Task {
     id: string;
     title: string;
@@ -17,6 +42,12 @@ export interface Task {
     /** Times already completed for `slotsDay`; earlier days are stale and ignored. */
     slotsDone?: string[];
     slotsDay?: string; // YYYY-MM-DD
+    /**
+     * Days of the month a recurring task falls on, 1-31 (2026-09-28).
+     * Absent or empty keeps the old meaning of isRecurring: every day.
+     * A day past the end of a short month lands on its last day.
+     */
+    monthDays?: number[];
     ascensionCategory?: AscensionCategory;
     subCategory?: string; // 子項目描述 (e.g. "跑步 5km")
     /**

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Input, DatePicker, Select, Button, Typography, Checkbox, Radio, Drawer, Grid } from 'antd';
-import { Task, Faction } from '../types';
+import { Task, TaskDraft } from '../types';
 import { useGame } from '../contexts/GameContext';
 import { DOMAINS, Domain } from '../../shared/ascension';
 import dayjs from 'dayjs';
-import { MAX_SLOTS, generateSlots, isTime, normalizeSlots } from '../../shared/tasks';
+import { MAX_MONTH_DAYS, MAX_SLOTS, generateSlots, isTime, monthDayLabel, normalizeMonthDays, normalizeSlots } from '../../shared/tasks';
 
 const { useBreakpoint } = Grid;
 const { Option } = Select;
@@ -12,7 +12,7 @@ const { Option } = Select;
 interface AddTaskModalProps {
     visible: boolean;
     onClose: () => void;
-    onAdd: (title: string, faction: Faction, difficulty: number, dueDate: Date, isRecurring: boolean, dueTime?: string, domain?: Domain, subCategory?: string, dueTimes?: string[], link?: { projectId: string; subTaskId: string }) => void;
+    onAdd: (draft: TaskDraft) => void;
     initialKeyword?: string;
     initialTask?: Task | null;
 }
@@ -62,6 +62,10 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ visible, onClose, on
     const [slotEnd, setSlotEnd] = useState('22:00');
     const [slotEvery, setSlotEvery] = useState(120);
     const [subCategory, setSubCategory] = useState<string>('');
+    // Monthly protocols (2026-09-28): a recurring task falls on these days of
+    // the month instead of every day. `monthly` is the radio, `monthDays` the pick.
+    const [monthly, setMonthly] = useState(false);
+    const [monthDays, setMonthDays] = useState<number[]>([]);
     // @ts-ignore
     const [dueDate, setDueDate] = useState<dayjs.Dayjs>(dayjs().add(12, 'hour'));
 
@@ -87,6 +91,8 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ visible, onClose, on
                 setDomainTouched(true);
                 setIsRecurring(initialTask.isRecurring || false);
                 setDueTimes(normalizeSlots(initialTask.dueTimes));
+                setMonthDays(normalizeMonthDays(initialTask.monthDays));
+                setMonthly(normalizeMonthDays(initialTask.monthDays).length > 0);
                 setSubCategory(initialTask.subCategory || '');
                 // @ts-ignore
                 setDueDate(dayjs(initialTask.dueDate));
@@ -98,6 +104,8 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ visible, onClose, on
                 setDomainTouched(false);
                 setIsRecurring(false);
                 setDueTimes([]);
+                setMonthDays([]);
+                setMonthly(false);
                 setSubCategory('');
                 // @ts-ignore
                 setDueDate(dayjs().add(12, 'hour'));
@@ -124,13 +132,17 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ visible, onClose, on
         const link = inputMode === 'project' && !isRecurring && selectedProjectId && selectedSubTaskId
             ? { projectId: selectedProjectId, subTaskId: selectedSubTaskId }
             : undefined;
-        // Faction and difficulty no longer mean anything; the columns still exist
-        // and are required, so they get fixed placeholders.
-        onAdd(title, 'default', 1, dueDate.toDate(), isRecurring, dueTime, domain, subCategory, slots, link);
+        onAdd({
+            title, dueDate: dueDate.toDate(), isRecurring, dueTime,
+            dueTimes: slots, monthDays: isRecurring && monthly ? normalizeMonthDays(monthDays) : [],
+            domain, subCategory, link,
+        });
         setTitle('');
         setSelectedProjectId(undefined);
         setSelectedSubTaskId(undefined);
         setDueTimes([]);
+        setMonthDays([]);
+        setMonthly(false);
         setDomain(undefined);
         setDomainTouched(false);
         setSubCategory('');
@@ -255,15 +267,69 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ visible, onClose, on
                     </Checkbox>
                 </div>
 
-                {
-                    isRecurring && (
-                        <div className="text-[10px] text-cyan-400 font-mono animate-pulse">
-                            任務將在每天 00:00 自動重置並重新開放。
+                {isRecurring && (
+                    <>
+                        {/* Daily or monthly (2026-09-28). A monthly protocol shows only on
+                            its own days; a missed day is gone at midnight, as the user chose. */}
+                        <div className="flex gap-2">
+                            {[
+                                { value: false, label: '每天', note: '每天都出現' },
+                                { value: true, label: '每月', note: '只在指定日期出現' },
+                            ].map(option => (
+                                <button
+                                    key={String(option.value)}
+                                    type="button"
+                                    onClick={() => setMonthly(option.value)}
+                                    className={`flex-1 px-3 py-2 border font-mono text-xs transition-colors ${monthly === option.value
+                                        ? 'border-imperial-gold text-imperial-gold bg-imperial-gold/10'
+                                        : 'border-zinc-700 text-zinc-500 hover:border-imperial-gold/50'}`}
+                                >
+                                    {option.label}
+                                    <span className="block text-[10px] opacity-70 mt-0.5">{option.note}</span>
+                                </button>
+                            ))}
                         </div>
-                    )
-                }
+                        <div className="text-[10px] text-cyan-400 font-mono">
+                            {monthly
+                                ? '只在選定的日期出現；當天沒做完就要等下個月，不會累積。'
+                                : '任務將在每天 00:00 自動重置並重新開放。'}
+                        </div>
+                    </>
+                )}
 
-                {isRecurring ? (
+                {isRecurring && monthly && (
+                    <div>
+                        <label className="text-imperial-gold/70 font-mono block mb-2 text-xs">
+                            每月執行日 (DAYS OF MONTH)
+                        </label>
+                        <div className="grid grid-cols-7 gap-1">
+                            {Array.from({ length: MAX_MONTH_DAYS }, (_, i) => i + 1).map(day => {
+                                const picked = monthDays.includes(day);
+                                return (
+                                    <button
+                                        key={day}
+                                        type="button"
+                                        aria-pressed={picked}
+                                        onClick={() => setMonthDays(prev => normalizeMonthDays(
+                                            picked ? prev.filter(d => d !== day) : [...prev, day]))}
+                                        className={`font-mono text-xs py-2 border transition-colors ${picked
+                                            ? 'border-imperial-gold text-imperial-gold bg-imperial-gold/20'
+                                            : 'border-zinc-800 text-zinc-500 hover:border-imperial-gold/40'}`}
+                                    >
+                                        {day}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <div className="text-[10px] font-mono text-zinc-500 mt-2">
+                            {monthDays.length === 0
+                                ? '選至少一天，否則這個任務永遠不會出現。'
+                                : `本月：${monthDayLabel(monthDays, new Date())}`}
+                        </div>
+                    </div>
+                )}
+
+                {isRecurring && !monthly ? (
                     <div>
                         <label className="text-imperial-gold/70 font-mono block mb-2 text-xs">
                             每日執行時間 (DAILY TIMES)

@@ -119,6 +119,9 @@ const initDb = async () => {
         // Which slots have already been announced today, so a reminder fires once.
         await pool.query('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS reminded_slots JSONB');
         await pool.query('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS reminded_day TEXT');
+        // Days of the month a recurring task falls on (2026-09-28). Null or empty
+        // keeps the old meaning of is_recurring: every day.
+        await pool.query('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS month_days JSONB');
 
         // Multi-tenancy Migrations
         await pool.query('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS user_id TEXT');

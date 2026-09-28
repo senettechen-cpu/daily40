@@ -522,11 +522,17 @@ const MainDashboard = ({ currentUser, onLogout }: { currentUser: any, onLogout: 
       <AddTaskModal
         visible={isAddModalOpen}
         onClose={() => { setIsAddModalOpen(false); setEditingTask(null); setKeyword(''); }}
-        onAdd={(title, faction, diff, date, isRec, dueTime, domain, subCat, slots, link) => {
-          // The times of day and the plan link used to be dropped here, so a
-          // multi-slot task made in this dialog lost its slots (fixed 2026-09-27).
-          if (editingTask) { updateTask(editingTask.id, { title, faction, difficulty: diff, dueDate: date, isRecurring: isRec, dueTime, domain, subCategory: subCat, dueTimes: slots ?? [] }); }
-          else { addTask(title, faction, diff, date, isRec, dueTime, domain, subCat, slots, link); }
+        onAdd={draft => {
+          // This handler named eight of the dialog's ten arguments, so a
+          // multi-slot task made here lost its slots and its plan link. The
+          // dialog hands back one object now, and the compiler checks the shape.
+          if (editingTask) {
+            updateTask(editingTask.id, {
+              title: draft.title, dueDate: draft.dueDate, isRecurring: draft.isRecurring,
+              dueTime: draft.dueTime, domain: draft.domain, subCategory: draft.subCategory,
+              dueTimes: draft.dueTimes ?? [], monthDays: draft.monthDays ?? [],
+            });
+          } else { addTask(draft); }
         }}
         initialKeyword={keyword}
         initialTask={editingTask}
