@@ -3,18 +3,9 @@ import { motion } from 'framer-motion';
 import { Button, Tooltip } from 'antd';
 import { Radar } from 'lucide-react';
 import { Task } from '../types';
+import { blipAngle, lookOf } from '../data/domainLook';
 import { useGame } from '../contexts/GameContext';
 
-// 配置：勢力顏色
-const FACTION_COLORS = {
-    nurgle: '#10b981',   // 納垢綠
-    khorne: '#ef4444',   // 恐虐紅 (修正為紅)
-    tzeentch: '#3b82f6', // 奸奇藍 (修正為藍)
-    slaanesh: '#ec4899', // 色孽粉
-    orks: '#f97316',     // 獸人橘
-    necrons: '#94a3b8',  // 死靈銀
-    default: '#fbbf24',  // 帝國金
-};
 
 interface OrbitalRadarProps {
     tasks: Task[];
@@ -50,11 +41,8 @@ export const OrbitalRadar: React.FC<OrbitalRadarProps> = ({ tasks, onSelectKey, 
             else if (hoursRemaining < 24) distance = 20 + (hoursRemaining / 24) * 55; // Max ~75
             else distance = 82;
 
-            // 2. 計算角度 (Angle) - 分散避免重疊 + 勢力分區
-            // 為了視覺混亂美學，我們主要使用 hash 或隨機分佈，但稍微群聚
-            // 這裡採用隨機角度，模擬真實雷達的散亂感
-            // 也可以選擇根據 Faction 分區：Nurgle(0-90), Khorne(90-180)... 但全域掃描更有趣
-            const angle = Math.random() * 360;
+            // 2. 計算角度 (Angle): 領域決定方位，同領域以任務 ID 分散
+            const angle = blipAngle(task.domain, task.id);
 
             return {
                 ...task,
@@ -110,7 +98,9 @@ export const OrbitalRadar: React.FC<OrbitalRadarProps> = ({ tasks, onSelectKey, 
                     const x = 50 + rPercent * Math.cos(rad);
                     const y = 50 + rPercent * Math.sin(rad);
 
-                    const color = FACTION_COLORS[blip.faction as keyof typeof FACTION_COLORS] || FACTION_COLORS.default;
+                    // Blips wore the retired enemy faction's colour until 2026-09-28; they
+                    // now carry the task's growth domain, the same colour its tag wears.
+                    const color = lookOf(blip.domain).hex;
                     const isSelected = selectedId === blip.id;
                     const isOverdue = new Date().getTime() > new Date(blip.dueDate).getTime();
 

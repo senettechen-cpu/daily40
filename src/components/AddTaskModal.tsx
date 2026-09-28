@@ -19,7 +19,9 @@ interface AddTaskModalProps {
 
 /** A first guess at the domain from the title; the player can always change it. */
 export const guessDomain = (title: string): Domain | undefined =>
-    /打掃|家務|洗|煮|整理|倒垃圾/.test(title) ? 'care'
+    // 'care' was 生活照護 until the user renamed it 工作 on 2026-09-28; the chore
+    // words stay so old-style titles still land somewhere, with work words first.
+    /工作|上班|會議|報告|客戶|專案|簡報|信箱|郵件|加班|打掃|家務|洗|煮|整理|倒垃圾/.test(title) ? 'care'
         : /學|讀|程式|代碼|課|書/.test(title) ? 'learning'
             : /健身|運動|跑|走路|伸展|復健|睡/.test(title) ? 'health'
                 : /記帳|預算|財務|帳單|投資/.test(title) ? 'finance'

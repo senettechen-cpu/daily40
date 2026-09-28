@@ -4,6 +4,7 @@ import { Shield, Trash2, Plus, FileEdit, Flame } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Task } from '../types';
 import { DOMAIN_LABELS } from '../../shared/ascension';
+import { lookOf } from '../data/domainLook';
 import { useRequisition } from '../contexts/RequisitionContext';
 import { minutesOf, minutesSinceMidnight, normalizeSlots, slotProgress, slotState, type SlotState } from '../../shared/tasks';
 import { dayKey } from '../../shared/time';
@@ -22,10 +23,20 @@ const slotsOf = (task: Task) => {
  */
 type SlateRow = { key: string; task: Task; slot?: string; state?: SlotState; first: boolean };
 
-/** A task's growth domain (2026-09-27); it replaced the enemy faction and the difficulty bars. */
-const DomainTag = ({ task }: { task: Task }) => task.domain
-    ? <span className="text-[11px] font-mono px-1 border border-emerald-800/60 text-emerald-300">{DOMAIN_LABELS[task.domain]}</span>
-    : <span className="text-[11px] font-mono text-zinc-600">—</span>;
+/**
+ * A task's growth domain (2026-09-27); it replaced the enemy faction and the
+ * difficulty bars. Each domain wears its own colour (2026-09-28) so a column of
+ * tags reads as a mix rather than one green block.
+ */
+const DomainTag = ({ task }: { task: Task }) => {
+    if (!task.domain) return <span className="text-[11px] font-mono text-zinc-600">—</span>;
+    const look = lookOf(task.domain);
+    return (
+        <span className={`text-[11px] font-mono px-1 border ${look.border} ${look.bg} ${look.text}`}>
+            {DOMAIN_LABELS[task.domain]}
+        </span>
+    );
+};
 
 /**
  * Whether this line is done for today: a slot that has been pressed, or a

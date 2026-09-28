@@ -20,7 +20,7 @@ export type Domain = 'health' | 'learning' | 'care' | 'social' | 'finance';
 export const DOMAINS: { id: Domain; label: string }[] = [
     { id: 'health', label: '健康／復健' },
     { id: 'learning', label: '學習' },
-    { id: 'care', label: '生活照護' },
+    { id: 'care', label: '工作' },
     { id: 'social', label: '人際責任' },
     { id: 'finance', label: '財務回顧' },
 ];

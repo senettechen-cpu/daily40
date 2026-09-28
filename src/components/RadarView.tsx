@@ -1,17 +1,8 @@
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Task } from '../types';
+import { blipAngle, lookOf } from '../data/domainLook';
 
-// 定義敵軍勢力與顏色對應
-const FACTION_COLORS = {
-    nurgle: '#10b981',   // 納垢綠
-    khorne: '#ef4444',   // 恐虐紅
-    tzeentch: '#a855f7', // 奸奇紫/藍
-    slaanesh: '#ec4899', // 色孽粉
-    orks: '#f97316',     // 獸人橘
-    necrons: '#94a3b8',  // 死靈銀
-    default: '#fbbf24',  // 帝國金
-};
 
 interface RadarViewProps {
     tasks: Task[];
@@ -36,18 +27,8 @@ export const RadarView: React.FC<RadarViewProps> = ({ tasks, onSelectKey, select
             else if (hoursRemaining < 24) distance = 20 + (hoursRemaining / 24) * 70;
             else distance = 95;
 
-            // 2. 計算角度 (Angle)
-            // 根據勢力分配角度區間，避免重疊太嚴重加一點隨機
-            let baseAngle = 0;
-            switch (task.faction) {
-                case 'nurgle': baseAngle = 0; break;   // 右
-                case 'khorne': baseAngle = 90; break;  // 下
-                case 'tzeentch': baseAngle = 180; break; // 左
-                case 'orks': baseAngle = 270; break;   // 上
-                default: baseAngle = 45; break;
-            }
-            // 加入 +/- 30 度的隨機偏移
-            const angle = baseAngle + (Math.random() * 60 - 30);
+            // 2. 計算角度 (Angle): 領域決定方位，同領域以任務 ID 分散
+            const angle = blipAngle(task.domain, task.id);
 
             return {
                 ...task,
@@ -85,7 +66,9 @@ export const RadarView: React.FC<RadarViewProps> = ({ tasks, onSelectKey, select
                 const x = Math.cos((blip.radarAngle * Math.PI) / 180) * radius;
                 const y = Math.sin((blip.radarAngle * Math.PI) / 180) * radius;
 
-                const color = FACTION_COLORS[blip.faction as keyof typeof FACTION_COLORS] || FACTION_COLORS.default;
+                // Blips wore the retired enemy faction's colour until 2026-09-28; they
+                    // now carry the task's growth domain, the same colour its tag wears.
+                    const color = lookOf(blip.domain).hex;
                 const isSelected = selectedId === blip.id;
 
                 // Urgency Calculation
