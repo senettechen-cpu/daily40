@@ -151,46 +151,6 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
         }, 1500);
     };
 
-    /**
-     * A protocol's times, one row each, the way the desktop table lists them
-     * (user decision 2026-09-28). They were a wrap of chips, which scrolled less
-     * but made it hard to tell at a glance which time still wants doing.
-     */
-    const renderSlotRows = (task: Task) => {
-        const { slots, done } = slotsOf(task);
-        const nowMinutes = minutesSinceMidnight();
-        const shown = showDone ? slots : slots.filter(time => slotState(slots, done, time, nowMinutes) !== 'done');
-        return (
-            <div className="flex flex-col gap-1.5 mt-3">
-                {shown.map(time => {
-                    const state = slotState(slots, done, time, nowMinutes);
-                    const key = `${task.id}@${time}`;
-                    const purging = purgingKeys.has(key);
-                    const look = SLOT_LOOK[state];
-                    return (
-                        <button
-                            key={time}
-                            type="button"
-                            disabled={state === 'done' || purging}
-                            onClick={(e) => handlePurge({ key, task, slot: time, state, first: false }, e)}
-                            className={`flex items-center justify-between w-full px-3 py-2.5 border transition-colors ${purging ? 'border-imperial-gold bg-imperial-gold/20 animate-pulse'
-                                : state === 'done' ? 'border-green-500/40 bg-green-900/20'
-                                    : state === 'late' ? 'border-amber-500/50 bg-amber-900/10 active:bg-amber-500/30'
-                                        : 'border-cyan-500/40 bg-cyan-900/10 active:bg-cyan-500/30'}`}
-                        >
-                            <span className={`font-mono text-sm tracking-widest ${purging ? 'text-imperial-gold' : look.text}`}>
-                                {state === 'done' ? `✓ ${time}` : time}
-                            </span>
-                            <span className={`font-mono text-[10px] tracking-widest ${purging ? 'text-imperial-gold' : look.text}`}>
-                                {purging ? 'PURGING...' : look.note}
-                            </span>
-                        </button>
-                    );
-                })}
-            </div>
-        );
-    };
-
     const sortedTasks = useMemo(() => {
         // A monthly protocol is a deadline for the month, not an appointment on
         // one day (user revision 2026-09-28), so it is on the slate all month and
@@ -545,22 +505,30 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
             </div>
 
             {/* Mobile Card View */}
+            {/*
+                One card per line, in the same clock order as the desktop table
+                (user revision 2026-09-29). A protocol with times of day used to be
+                a single card holding all of them, so 運動 08:00 sat below 喝水 20:00
+                and the column stopped reading as the day. Each time is its own card
+                now, and `rows` already has them interleaved by clock time.
+            */}
             <div className="md:hidden flex flex-col gap-3 p-4 pb-20">
                 <AnimatePresence mode='popLayout'>
-                    {/* A protocol finished for the day leaves the list with its lines,
-                        unless the toggle is on; the desktop table hides them the same way. */}
-                    {sortedTasks.filter(task => {
-                        if (showDone) return true;
+                    {rows.map(row => {
+                        const { task, slot, state, first } = row;
+                        const isPurging = purgingKeys.has(row.key);
                         const { slots, done } = slotsOf(task);
-                        return slots.length > 0
-                            ? slotProgress(slots, done).done < slots.length
-                            : !isSettled({ task });
-                    }).map(task => {
-                        const isOverdue = new Date(task.dueDate) < new Date();
-                        const isPurging = purgingKeys.has(task.id);
-                        const cardSlots = slotsOf(task);
-                        const cardProgress = slotProgress(cardSlots.slots, cardSlots.done);
-                        const cardMet = cardProgress.total > 0 && cardProgress.done === cardProgress.total;
+                        const progress = slotProgress(slots, done);
+                        const look = state ? SLOT_LOOK[state] : null;
+                        const settled = isSettled(row);
+                        const isOverdue = task.isRecurring ? monthlyOverdue(task) : new Date(task.dueDate) < new Date();
+                        // A slot card wears its own state on the border, so the next
+                        // thing due is findable without reading every label.
+                        const edge = isPurging ? '#fbbf24'
+                            : task.id === selectedId ? '#22c55e'
+                                : state === 'late' ? 'rgba(245, 158, 11, 0.5)'
+                                    : state === 'open' ? 'rgba(34, 211, 238, 0.35)'
+                                        : '#27272a';
 
                         return (
                             <motion.div
@@ -569,7 +537,7 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
                                 animate={{
                                     opacity: 1,
                                     scale: 1,
-                                    borderColor: isPurging ? '#fbbf24' : (task.id === selectedId ? '#22c55e' : '#27272a'),
+                                    borderColor: edge,
                                     backgroundColor: isPurging ? 'rgba(251, 191, 36, 0.2)' : (task.id === selectedId ? 'rgba(20, 83, 45, 0.1)' : 'rgba(24, 24, 27, 0.4)'),
                                     boxShadow: isPurging ? '0 0 30px rgba(251, 191, 36, 0.6)' : 'none'
                                 }}
@@ -581,7 +549,7 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
                                     transition: { duration: 0.5 }
                                 }}
                                 transition={{ duration: 0.3 }}
-                                key={task.id} // Must be stable
+                                key={row.key} // Must be stable
                                 className={`relative p-4 border rounded-lg overflow-hidden`}
                                 onClick={() => !isPurging && onSelect(task.id === selectedId ? null : task.id)}
                             >
@@ -621,36 +589,50 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
                                     )}
                                 </AnimatePresence>
 
-                                <div className="flex justify-between items-start mb-2">
-                                    <div className="flex flex-col">
-                                        <span className={`font-mono text-lg font-bold ${task.id === selectedId ? 'text-green-400' : 'text-green-500'}`}>
+                                <div className="flex justify-between items-start mb-2 gap-3">
+                                    <div className="flex flex-col min-w-0">
+                                        <span className={`font-mono text-lg font-bold truncate ${task.id === selectedId ? 'text-green-400' : 'text-green-500'}`}>
                                             {task.title}
                                         </span>
                                         <div className="flex items-center gap-2 mt-1">
+                                            {/* Every card carries its own domain: the lines of one
+                                                protocol are no longer next to each other. */}
                                             <DomainTag task={task} />
-                                            <CoreBadge taskId={task.id} />
+                                            {first && <CoreBadge taskId={task.id} />}
                                         </div>
                                     </div>
-                                    <div className="flex flex-col items-end gap-1">
-                                    </div>
+                                    {slot && look && (
+                                        <div className="flex flex-col items-end shrink-0">
+                                            <span className={`font-mono text-xl tracking-widest ${isPurging ? 'text-imperial-gold' : look.text}`}>
+                                                {state === 'done' ? `✓ ${slot}` : slot}
+                                            </span>
+                                            <span className={`font-mono text-[10px] tracking-widest ${isPurging ? 'text-imperial-gold' : look.text}`}>
+                                                {isPurging ? 'PURGING...' : look.note}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
 
-                                <div className="flex justify-between items-end mt-4">
+                                <div className="flex justify-between items-end mt-4 gap-3">
                                     <div className="flex flex-col">
                                         <span className="text-[10px] text-zinc-500 font-mono">DEADLINE</span>
                                         {task.isRecurring ? (
                                             <div className="flex flex-col">
-                                                <span className="font-mono text-sm text-cyan-400">
-                                                    {cardProgress.total > 0
-                                                        ? `今日 ${cardProgress.done}/${cardProgress.total}`
+                                                <span className={`font-mono text-sm ${isOverdue ? 'text-red-500 font-bold' : 'text-cyan-400'}`}>
+                                                    {progress.total > 0
+                                                        ? `今日 ${progress.done}/${progress.total}`
                                                         : normalizeMonthDays(task.monthDays).length > 0
                                                             ? cadenceLabel(task)
                                                             : `每日 ${task.dueTime || new Date(task.dueDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}`}
                                                 </span>
-                                                <div className={`flex items-center gap-1 mt-1 ${(task.streak || 0) > 0 ? 'animate-pulse' : 'opacity-50'}`}>
-                                                    <Flame size={12} className={(task.streak || 0) > 0 ? "text-orange-500 fill-orange-500" : "text-zinc-600"} />
-                                                    <span className={`text-[10px] font-bold font-mono ${(task.streak || 0) > 0 ? "text-orange-400" : "text-zinc-600"}`}>STREAK: {task.streak || 0}</span>
-                                                </div>
+                                                {/* The streak belongs to the protocol, not to one of its
+                                                    times, so it is printed once, on its earliest card. */}
+                                                {first && (
+                                                    <div className={`flex items-center gap-1 mt-1 ${(task.streak || 0) > 0 ? 'animate-pulse' : 'opacity-50'}`}>
+                                                        <Flame size={12} className={(task.streak || 0) > 0 ? "text-orange-500 fill-orange-500" : "text-zinc-600"} />
+                                                        <span className={`text-[10px] font-bold font-mono ${(task.streak || 0) > 0 ? "text-orange-400" : "text-zinc-600"}`}>STREAK: {task.streak || 0}</span>
+                                                    </div>
+                                                )}
                                             </div>
                                         ) : (
                                             <span className={`font-mono text-sm ${isOverdue ? 'text-red-500 animate-pulse font-bold' : 'text-imperial-gold/80'}`}>
@@ -659,8 +641,10 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
                                         )}
                                     </div>
 
-                                    <div className="flex gap-2">
-                                        {onEdit && (
+                                    <div className="flex gap-2 shrink-0">
+                                        {/* Edit and delete sit on the protocol's earliest card, the
+                                            way `first` carries them in the desktop table. */}
+                                        {first && onEdit && (
                                             <Button
                                                 size="middle"
                                                 className="!bg-blue-900/20 !border-blue-500/50 !text-blue-500 !h-10 !w-10 flex items-center justify-center p-0"
@@ -673,37 +657,29 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
                                             </Button>
                                         )}
 
-                                        {(cardProgress.total > 0
-                                            ? cardMet
-                                            : Boolean(task.isRecurring && task.lastCompletedAt &&
-                                                new Date(task.lastCompletedAt).toLocaleDateString() === new Date().toLocaleDateString())) ? (
-                                            <Tag color="green" className="!bg-green-900/20 !border-green-500/50 !text-green-500 font-mono text-xs m-0 px-3 py-1 flex items-center animate-pulse">
+                                        {settled ? (
+                                            <Tag color="green" className="!bg-green-900/20 !border-green-500/50 !text-green-500 font-mono text-xs m-0 px-3 py-1 flex items-center">
                                                 COMPLETED
                                             </Tag>
-                                        ) : (() => {
-                                            // A protocol with times of day is pressed through its chips
-                                            // below, one time at a time. Nothing here expires: a slot that
-                                            // has passed is marked late and stays pressable all day.
-                                            if (cardProgress.total > 0) return null;
-
-                                            return (
-                                                <Button
-                                                    size="middle"
-                                                    className="!bg-green-600 !border-green-500 !text-white !h-10 !px-4 flex items-center gap-2 shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:!scale-105 active:!scale-95 transition-transform"
-                                                    disabled={isPurging}
-                                                    onClick={(e) => handlePurge({ key: task.id, task, first: true }, e)}
-                                                >
-                                                    <Shield size={18} className={isPurging ? 'animate-spin' : ''} />
-                                                    <span className="font-bold tracking-widest text-xs">
-                                                        {isPurging ? 'PURGING...' : '淨化'}
-                                                    </span>
-                                                </Button>
-                                            );
-                                        })()}
+                                        ) : (
+                                            // Nothing here expires: a time that has passed is marked
+                                            // late and stays pressable for the rest of the day.
+                                            <Button
+                                                size="middle"
+                                                className="!bg-green-600 !border-green-500 !text-white !h-10 !px-4 flex items-center gap-2 shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:!scale-105 active:!scale-95 transition-transform"
+                                                disabled={isPurging}
+                                                onClick={(e) => handlePurge(row, e)}
+                                            >
+                                                <Shield size={18} className={isPurging ? 'animate-spin' : ''} />
+                                                <span className="font-bold tracking-widest text-xs">
+                                                    {isPurging ? 'PURGING...' : '淨化'}
+                                                </span>
+                                            </Button>
+                                        )}
 
                                         {/* Delete and void were desktop-only until 2026-09-28: on a
                                             phone there was no way to remove a task at all. */}
-                                        {task.isRecurring && onDelete && (
+                                        {first && task.isRecurring && onDelete && (
                                             <Button
                                                 size="middle"
                                                 aria-label={`刪除 ${task.title}`}
@@ -717,7 +693,7 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
                                             </Button>
                                         )}
 
-                                        {!task.isRecurring && onVoid && (
+                                        {first && !task.isRecurring && onVoid && (
                                             <Button
                                                 size="middle"
                                                 aria-label={`作廢 ${task.title}`}
@@ -732,8 +708,6 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
                                         )}
                                     </div>
                                 </div>
-
-                                {cardProgress.total > 0 && renderSlotRows(task)}
                             </motion.div>
                         );
                     })}
