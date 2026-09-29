@@ -126,8 +126,11 @@ router.put('/:id', async (req, res) => {
 
         // A task that just completed may be one of the day's cores. Update and pay
         // in one transaction so a failed grant cannot leave the task marked done.
+        // Settling one time of day pays on its own since 2026-09-29, and the client
+        // reports it as `slotsDone` without a `lastCompletedAt`: the protocol is not
+        // finished for the day, but that one glass of water is.
         const completedAt = updates.lastCompletedAt ? new Date(updates.lastCompletedAt)
-            : updates.status === 'completed' ? new Date()
+            : updates.status === 'completed' || updates.slotsDone !== undefined ? new Date()
                 : null;
 
         const { requisition, growth } = await withTransaction(async db => {
@@ -138,20 +141,26 @@ router.put('/:id', async (req, res) => {
             }
             if (!completedAt || !v15EconomyEnabled()) return { requisition: 0, growth: null };
 
-            // A task with several times of day is only met when every one of them
-            // is done, so the client cannot claim the core by reporting the first.
+            // Read the times back from the row the transaction just wrote, so the
+            // client cannot claim a time it has not actually settled.
             const stored = await db.query('SELECT due_times, slots_done, slots_day FROM tasks WHERE id = $1 AND user_id = $2', [id, userId]);
             const row = stored.rows[0];
             const slots = normalizeSlots(row?.due_times);
-            if (slots.length > 0) {
-                const today = dayKey(completedAt, DEFAULT_TIME_ZONE);
-                const done = row?.slots_day === today ? row?.slots_done : [];
-                if (!slotsMet(slots, done)) return { requisition: 0, growth: null };
-            }
-            // A task designated for today's candidate also becomes a growth record.
+            const today = dayKey(completedAt, DEFAULT_TIME_ZONE);
+            const done = row?.slots_day === today ? normalizeSlots(row?.slots_done).filter(time => slots.includes(time)) : [];
+
+            // A protocol with times of day pays per time (user decision
+            // 2026-09-29); one without pays once, as before.
+            const requisition = slots.length > 0
+                ? await rewardCoreCompleted(db, userId, id, completedAt, done)
+                : await rewardCoreCompleted(db, userId, id, completedAt);
+
+            // The growth record is still the day's, not one time's: it waits for
+            // the last of them, and there is only one designation a day to fill.
+            const dayMet = slots.length === 0 || slotsMet(slots, done);
             return {
-                requisition: await rewardCoreCompleted(db, userId, id, completedAt),
-                growth: await recordGrowthForTask(db, userId, id, completedAt),
+                requisition,
+                growth: dayMet ? await recordGrowthForTask(db, userId, id, completedAt) : null,
             };
         });
 

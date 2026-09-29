@@ -155,10 +155,13 @@ test('server: a monthly protocol keeps its days through create, read and update'
     assert.deepEqual([...byId('water').monthDays], [], 'a daily protocol carries no days');
     assert.deepEqual([...byId('junk').monthDays], [], 'days outside 1-31 are dropped, not stored');
 
+    // The column is jsonb, so what is stored is the array itself, not its text.
+    const stored = () => [...db.tables.tasks.find(t => t.id === 'rent').month_days];
+
     await tasks('PUT', '/:id', { params: { id: 'rent' }, body: { monthDays: [1, 20] } });
-    assert.deepEqual(JSON.parse(db.tables.tasks.find(t => t.id === 'rent').month_days), [1, 20]);
+    assert.deepEqual(stored(), [1, 20]);
 
     // Clearing the days puts a protocol back to daily rather than making it vanish.
     await tasks('PUT', '/:id', { params: { id: 'rent' }, body: { monthDays: [] } });
-    assert.deepEqual(JSON.parse(db.tables.tasks.find(t => t.id === 'rent').month_days), []);
+    assert.deepEqual(stored(), []);
 });

@@ -1,7 +1,7 @@
 import type { Db } from '../db';
 import {
     addCore, corePhase, CorePlan, CORE_MAX, dayKey, DEFAULT_TIME_ZONE, emptyPlan,
-    onTaskCompleted, removeCore, replaceCore,
+    isCorePayment, onSlotCompleted, onTaskCompleted, removeCore, replaceCore,
 } from '../shared/rewards';
 import { appendEntries, loadBook } from './store';
 import { loadWithStartingGrant } from './service';
@@ -67,28 +67,40 @@ export async function editPlan(db: Db, userId: string, day: string, edit: CoreEd
  * day's cores, so a day with no plan at all still pays; the plan is loaded only
  * to tell a core apart from the rest in the ledger's reason. Idempotent by
  * source key, so one task pays once a day.
+ *
+ * `settledSlots` is the protocol's finished times of day, which since
+ * 2026-09-29 each pay on their own. Pass the whole list, not the one just
+ * pressed: every time has its own key, so replaying the list pays only for
+ * what is still unpaid and a dropped request costs nothing. Returns the total
+ * granted by this call.
  */
-export async function rewardCoreCompleted(db: Db, userId: string, taskId: string, completedAt: Date): Promise<number> {
+export async function rewardCoreCompleted(db: Db, userId: string, taskId: string, completedAt: Date, settledSlots?: string[]): Promise<number> {
     const plan = await loadPlan(db, userId, dayKey(completedAt, timeZone));
 
     const book = await loadWithStartingGrant(db, userId, completedAt);
-    const entry = onTaskCompleted(book, plan, taskId, completedAt, timeZone);
-    if (!entry) return 0;
-    await appendEntries(db, userId, book, [entry]);
-    return entry.amount;
+    const entries = settledSlots
+        ? settledSlots.map(slot => onSlotCompleted(book, plan, taskId, slot, completedAt, timeZone))
+        : [onTaskCompleted(book, plan, taskId, completedAt, timeZone)];
+
+    const paid = entries.filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+    if (paid.length === 0) return 0;
+    await appendEntries(db, userId, book, paid);
+    return paid.reduce((sum, entry) => sum + entry.amount, 0);
 }
 
 /** Plan plus the state the UI needs to enable or disable its controls. */
 export async function planView(db: Db, userId: string, day: string, now: Date) {
     const plan = await loadPlan(db, userId, day);
     const book = await loadBook(db, userId);
-    const paid = new Set(book.entries.filter(e => e.sourceKey.startsWith(`core:${day}:`)).map(e => e.sourceKey));
+    // A protocol's times pay under their own keys, so a core counts as paid once
+    // any of them has: the money is out, and swapping the core would hide that.
+    const paid = book.entries.filter(e => e.kind === 'grant').map(e => e.sourceKey);
     return {
         day,
         taskIds: plan.taskIds,
         phase: corePhase(day, now, timeZone),
         cap: CORE_MAX,
         max: CORE_MAX,
-        paidTaskIds: plan.taskIds.filter(id => paid.has(`core:${day}:${id}`)),
+        paidTaskIds: plan.taskIds.filter(id => paid.some(key => isCorePayment(key, day, id))),
     };
 }

@@ -75,7 +75,9 @@ test('completing a committed core pays +10 once, even if the update is retried',
     assert.equal(balanceOf(db), 40 + 10);
 });
 
-test('a core with several times of day pays only when every slot is done', async () => {
+test('a protocol with several times of day pays +10 for each one settled', async () => {
+    // Until 2026-09-29 the whole protocol paid +10, and only once every time was
+    // done; the user asked for each time to pay on its own.
     const { db, rewards, tasks } = setup();
     seedTask(db, 't1');
     const task = db.tables.tasks.find(t => t.id === 't1');
@@ -83,25 +85,52 @@ test('a core with several times of day pays only when every slot is done', async
 
     await rewards('POST', '/core', { body: { day: TOMORROW, action: 'add', taskId: 't1' } });
 
-    // Reporting a completion with only part of the day settled earns nothing, even
-    // though the client asked to be paid.
     task.slots_day = TOMORROW;
     task.slots_done = ['08:00', '10:00'];
     const early = await completeTask(tasks, 't1', TOMORROW);
-    assert.equal(early.body.requisition, 0);
-    // Nothing was written at all: not even the opening grant the reward path makes.
-    assert.equal(db.tables.reward_entries.length, 0);
+    assert.equal(early.body.requisition, 20, 'two glasses, two payments');
+
+    // Replaying the same list pays nothing more: each time has its own key.
+    assert.equal((await completeTask(tasks, 't1', TOMORROW)).body.requisition, 0);
 
     // Yesterday's finished day does not stand in for today's.
     task.slots_day = '2020-01-01';
     task.slots_done = ['08:00', '10:00', '12:00'];
-    const stale = await completeTask(tasks, 't1', TOMORROW);
-    assert.equal(stale.body.requisition, 0);
+    assert.equal((await completeTask(tasks, 't1', TOMORROW)).body.requisition, 0);
 
     task.slots_day = TOMORROW;
     const met = await completeTask(tasks, 't1', TOMORROW);
-    assert.equal(met.body.requisition, 10);
+    assert.equal(met.body.requisition, 10, 'only the third time is still unpaid');
+    assert.equal(balanceOf(db), 40 + 30);
+});
+
+test('settling one time pays without claiming the whole day', async () => {
+    // The client reports a single press as `slotsDone` with no `lastCompletedAt`:
+    // the glass of water is done, the protocol is not.
+    const { db, tasks } = setup();
+    seedTask(db, 't1');
+    const task = db.tables.tasks.find(t => t.id === 't1');
+    task.due_times = ['08:00', '10:00'];
+
+    const press = await tasks('PUT', '/:id', {
+        params: { id: 't1' },
+        body: { status: 'active', slotsDone: ['08:00'], slotsDay: time.dayKey(new Date()) },
+    });
+    assert.equal(press.body.requisition, 10);
+    assert.equal(task.last_completed_at, null, 'the day is not claimed by one time');
     assert.equal(balanceOf(db), 40 + 10);
+});
+
+test('a time the client did not settle is not paid for', async () => {
+    const { db, tasks } = setup();
+    seedTask(db, 't1');
+    const task = db.tables.tasks.find(t => t.id === 't1');
+    task.due_times = ['08:00', '10:00'];
+    // A client claiming a time the protocol does not have earns nothing for it.
+    task.slots_day = TOMORROW;
+    task.slots_done = ['08:00', '23:00'];
+    const res = await completeTask(tasks, 't1', TOMORROW);
+    assert.equal(res.body.requisition, 10);
 });
 
 test('completing a task that is not a core pays the same, and there is no daily cap', async () => {

@@ -356,7 +356,10 @@ function createFakeDb() {
 
     // Handles the routes' dynamically built "UPDATE <table> SET a = $1, b = $2
     // WHERE id = $n AND user_id = $n+1" by mapping each assignment to its param.
-    const JSON_COLUMNS = new Set(['sub_tasks', 'milestone_ids', 'member_ids', 'placements']);
+    // jsonb in the real schema, so an UPDATE writes a string and a SELECT reads
+    // back a value. Without this a task's times came back as '["08:00"]' and
+    // every rule that expects an array silently saw none.
+    const JSON_COLUMNS = new Set(['sub_tasks', 'milestone_ids', 'member_ids', 'placements', 'due_times', 'slots_done', 'month_days']);
     function applyUpdate(rows, sql, params) {
         const [, setClause, idIdx, userIdx] = sql.match(/^UPDATE \w+ SET (.+) WHERE id = \$(\d+) AND user_id = \$(\d+)$/) ?? [];
         if (!setClause) throw new Error(`fake-db: unsupported update: ${sql}`);

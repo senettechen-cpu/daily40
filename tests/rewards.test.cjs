@@ -113,6 +113,32 @@ test('every completed task pays +10, once a day, core or not (2026-09-28)', () =
     assert.equal(noPlan.day, '2026-09-22', 'and it lands on its own day');
 });
 
+test('core: a protocol pays +10 for each time of day, once each', () => {
+    // User decision 2026-09-29: eight glasses of water are eight payments, not
+    // one. Before this, a protocol with times paid +10 for the whole day.
+    let book = r.emptyBook();
+    const plan = { day: '2026-09-21', taskIds: ['water'] };
+    const at = taipei('2026-09-21', '08:00');
+
+    for (const slot of ['06:00', '08:00']) book = apply(book, r.onSlotCompleted(book, plan, 'water', slot, at));
+    assert.equal(r.balance(book), 20);
+
+    // Replaying a settled time pays nothing; a new one pays again.
+    assert.equal(r.onSlotCompleted(book, plan, 'water', '06:00', taipei('2026-09-21', '09:00')), null);
+    book = apply(book, r.onSlotCompleted(book, plan, 'water', '10:00', at));
+    assert.equal(r.balance(book), 30);
+
+    // The whole-task key is a different payment, so a protocol with times is
+    // never also paid as a whole. Tomorrow starts over.
+    assert.equal(
+        book.entries.map(e => e.sourceKey).join(' '),
+        'core:2026-09-21:water@06:00 core:2026-09-21:water@08:00 core:2026-09-21:water@10:00',
+    );
+    assert.ok(book.entries.every(e => r.isCorePayment(e.sourceKey, '2026-09-21', 'water')));
+    assert.ok(!r.isCorePayment('core:2026-09-21:water@06:00', '2026-09-22', 'water'));
+    assert.equal(r.onSlotCompleted(book, plan, 'water', '06:00', taipei('2026-09-22', '08:00')).amount, r.CORE_REWARD);
+});
+
 const project = (over = {}) => ({
     createdAt: taipei('2026-09-20'), closedAt: null, milestoneIds: ['s1', 's2', 's3'],
     subTasks: ['s1', 's2', 's3', 's4'].map(id => ({ id, completed: false })), ...over,
