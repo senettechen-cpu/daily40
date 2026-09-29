@@ -128,7 +128,10 @@ const relay = (id, over = {}) => unit(id, 'enemy', {
     duty: 'relay', maxHp: 100, armour: 40, armourType: 'vehicle', movement: 0, initiative: 0,
     weapon: r.FISTS, stance: 'hold', ...over,
 });
-const leader = (over = {}) => unit('boss-leader', 'enemy', { duty: 'sergeant', maxHp: 2000, stance: 'hold', at: at(5, 0), weapon: { ...LAS, damage: 1 }, ...over });
+// Pinned with movement 0, not merely told to hold: since 2026-09-29 a held unit
+// out of range closes to its own firing range, and these tests are about where
+// the barrage lands, not about where the leader chooses to stand.
+const leader = (over = {}) => unit('boss-leader', 'enemy', { duty: 'sergeant', maxHp: 2000, stance: 'hold', movement: 0, at: at(5, 0), weapon: { ...LAS, damage: 1 }, ...over });
 
 test('a broadcast relay never acts, but it is on the field to be destroyed', () => {
     const crew = [unit('c0', 'crew', { at: at(5, 8), maxHp: 2000, weapon: { ...LAS, damage: 1 }, stance: 'hold' })];
@@ -149,10 +152,11 @@ test('while a relay stands the enemy aims better', () => {
 });
 
 test('the leader marks a barrage on the tightest knot of the squad, and it lands a round later', () => {
+    // Pinned, so the knot the leader aims at is the one this test set up.
     const crew = [
-        unit('c0', 'crew', { at: at(5, 7), maxHp: 1000, stance: 'hold', weapon: { ...LAS, damage: 1 } }),
-        unit('c1', 'crew', { at: at(6, 7), maxHp: 1000, stance: 'hold', weapon: { ...LAS, damage: 1 } }),
-        unit('c2', 'crew', { at: at(1, 8), maxHp: 1000, stance: 'hold', weapon: { ...LAS, damage: 1 } }),
+        unit('c0', 'crew', { at: at(5, 7), maxHp: 1000, stance: 'hold', movement: 0, weapon: { ...LAS, damage: 1 } }),
+        unit('c1', 'crew', { at: at(6, 7), maxHp: 1000, stance: 'hold', movement: 0, weapon: { ...LAS, damage: 1 } }),
+        unit('c2', 'crew', { at: at(1, 8), maxHp: 1000, stance: 'hold', movement: 0, weapon: { ...LAS, damage: 1 } }),
     ];
     const result = e.runBattle({ board: board(), units: [...crew, leader(), relay('rl', { at: at(8, 1), maxHp: 100000 })], seed: 5, maxRounds: 2 });
     const marks = result.activations.filter(a => a.activities.some(x => x.kind === 'barrage-mark'));

@@ -14,14 +14,28 @@ const crew = () => ['sergeant', 'rifleman', 'rifleman', 'marksman', 'medic', 'en
     stance: i === 3 ? 'hold' : 'advance', at: { col: i + 2, row: 8 },
 }));
 
-test('replay: recording preserves all 69 pre-change outcomes, health and positions', () => {
+/**
+ * A tripwire, not a specification: it says the engine still resolves these 69
+ * battles exactly as it did, so a change meant to be invisible - recording a
+ * replay, refactoring the loadout - cannot quietly move an outcome.
+ *
+ * A deliberate balance change does move them, and then the hash is updated in
+ * the same commit as the numbers, never on its own. Read it as "battle outcomes
+ * changed, was that the intention?".
+ *
+ * 54516582… was the engine before the replay recording (2026-09-27).
+ * ef1abd15… is after the 2026-09-29 hold-stance change: a held soldier out of
+ * range now closes to its own firing range, and every board carries a parapet
+ * in each deployment band. Soldier 3 holds, so this crew feels both.
+ */
+test('replay: the engine still resolves all 69 battles the same way', () => {
     const rows = [];
     for (const s of SCENARIOS) for (const seed of [1, 42, 20260927]) {
         const r = runBattle({ board: s.board, units: [...crew(), ...s.enemies], seed, objective: s.objective });
         rows.push([s.id, seed, r.outcome, r.rounds, r.units.map(u => [u.id, u.hp, u.at, u.down])]);
     }
     assert.equal(rows.length, 69);
-    assert.equal(crypto.createHash('sha256').update(JSON.stringify(rows)).digest('hex'), '54516582aea30ba2c770fb9a94619958e5d54c310ec2c89e2792bb3e1d6df4e1');
+    assert.equal(crypto.createHash('sha256').update(JSON.stringify(rows)).digest('hex'), 'ef1abd15c833f5e9773f5663b7de493718a4f654b1116f1b52614cff91d0c08f');
 });
 
 test('replay: initial deployment, movement-before-impact and final authoritative state', () => {

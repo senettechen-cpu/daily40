@@ -17,8 +17,22 @@ import ASCENSION_ROSTERS from './ascension-rosters.json';
 export const BOARD_COLS = 11;
 export const BOARD_ROWS = 9;
 
+/**
+ * A firing position at the front of each deployment band (user decision
+ * 2026-09-29). Every board had both bands as bare open ground, so the `hold`
+ * stance's own preference for shelter could never fire: there was nothing in
+ * the band to step behind, and the nearest cover was one hex outside it.
+ *
+ * Kept symmetric, and applied under each board's own tiles rather than over
+ * them, so a scenario that needs that hex for its objective still wins.
+ */
+const PARAPETS: Record<string, string> = {
+    '3,1': 'cover', '7,1': 'cover', // enemy band, front rank
+    '3,7': 'cover', '7,7': 'cover', // crew band, front rank
+};
+
 const board = (tiles: Record<string, string>): Board =>
-    ({ cols: BOARD_COLS, rows: BOARD_ROWS, tiles: tiles as Board['tiles'] });
+    ({ cols: BOARD_COLS, rows: BOARD_ROWS, tiles: { ...PARAPETS, ...tiles } as Board['tiles'] });
 
 /** Terrain shared by the phase-one scenarios: a ruined street with two flanks. */
 const RUINS = board({

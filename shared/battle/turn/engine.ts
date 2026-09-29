@@ -284,11 +284,31 @@ function stanceBonus(battle: Battle, unit: Unit, tile: Hex, target: Unit | null)
     const sheltered = (ruleAt(board, tile).incoming ?? 1) < 1;
 
     switch (unit.stance) {
-        case 'hold':
-            // Hold the ground you were given: leaving the deployment zone is not
-            // a preference the score can outweigh, it is refused outright.
-            if (!battle.zones[unit.side].has(hexKey(tile))) return -Infinity;
-            return (sameHex(tile, unit.at) ? 8 : -distance(unit.at, tile) * 4) + (sheltered ? 10 : 0);
+        case 'hold': {
+            // Holding used to mean never leaving the deployment band, whatever
+            // the board looked like. The bands are two ranks of open ground six
+            // hexes from the enemy's, and a lasgun reaches five, so a squad told
+            // to hold stood in the open, out of range, until it was shot at:
+            // 63-81% of its activations were 'nothing to shoot, standing by'
+            // (user report 2026-09-29, measured in docs/balance-decisions.md).
+            //
+            // Out of range of everyone, close to the edge of our own range and
+            // stop there. That is the whole of the advance: the effective band
+            // 'advance' works to is nearer still, so this stays the defensive
+            // stance a player picked.
+            if (nearest && distance(unit.at, nearest.at) > unit.weapon.range) {
+                return -Math.abs(distance(tile, nearest.at) - unit.weapon.range) * 3 + (sheltered ? 6 : 0);
+            }
+            // In range: hold this ground. A step off the band is allowed only into
+            // cover, so the line can take the parapet beside it but cannot wander
+            // off it. The refusal is for someone standing ON the band: a soldier
+            // already off it - closed up last round, or placed there by the
+            // scenario - must not be dragged back, which had them oscillating
+            // between the band and their firing position, a round wasted each way.
+            const band = battle.zones[unit.side];
+            if (band.has(hexKey(unit.at)) && !band.has(hexKey(tile)) && !sheltered) return -Infinity;
+            return (sameHex(tile, unit.at) ? 8 : -distance(unit.at, tile) * 4) + (sheltered ? 16 : 0);
+        }
 
         case 'advance': {
             if (!nearest) return 0;

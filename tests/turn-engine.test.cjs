@@ -80,21 +80,57 @@ test('every activation says why, and leaves a snapshot of the whole field', () =
     }
 });
 
-test('a held position stays put; an advance closes the distance', () => {
-    const start = at(5, 8);
+test('a held position keeps its ground once the enemy is in range', () => {
+    const start = at(5, 5);
     const held = run([
+        // Three hexes apart, inside a five-hex rifle: there is nothing to close.
         unit('c0', 'crew', { at: start, stance: 'hold' }),
-        unit('e0', 'enemy', { at: at(5, 0), stance: 'hold', movement: 0 }),
+        unit('e0', 'enemy', { at: at(5, 2), stance: 'hold', movement: 0 }),
     ]);
     const heldAt = held.units.find(u => u.id === 'c0').at;
     assert.deepEqual([heldAt.col, heldAt.row], [start.col, start.row]);
 
     const advanced = run([
         unit('c0', 'crew', { at: start, stance: 'advance' }),
-        unit('e0', 'enemy', { at: at(5, 0), stance: 'hold', movement: 0 }),
+        unit('e0', 'enemy', { at: at(5, 2), stance: 'hold', movement: 0 }),
     ]);
     const movedTo = advanced.units.find(u => u.id === 'c0').at;
-    assert.ok(movedTo.row < start.row, 'an advancing soldier must have closed on the enemy');
+    assert.ok(movedTo.row < start.row, 'an advancing soldier works to its closer band');
+});
+
+test('a held position out of range closes to the edge of its own range, and no further', () => {
+    // Until 2026-09-29 holding meant never leaving the deployment band. The bands
+    // are six hexes apart and a lasgun reaches five, so a held squad stood in the
+    // open, out of range, until it was shot at. It now walks up to its own range
+    // and stops - which is still further out than an advance's effective band.
+    const result = run([
+        unit('c0', 'crew', { at: at(5, 8), stance: 'hold', movement: 3 }),
+        unit('e0', 'enemy', { at: at(5, 0), stance: 'hold', movement: 0, maxHp: 4000 }),
+    ]);
+    const mine = result.activations.filter(a => a.unitId === 'c0');
+    const reach = mine.map(a => a.snapshot.find(s => s.id === 'c0').at.row - 0);
+
+    // It stops at range, never closer, and never walks past the enemy's band.
+    assert.ok(Math.min(...reach) >= RIFLE.range, `closed to row ${Math.min(...reach)}, inside its own range`);
+    // And it did close: standing still at row 8 would be seven hexes away.
+    assert.ok(Math.min(...reach) < 8, 'a held soldier out of range must still take its firing position');
+});
+
+test('a held position steps off the band only into cover', () => {
+    // The parapet beside the line is worth taking; the open ground past it is not.
+    const covered = e.runBattle({
+        board: board({ '5,6': 'cover' }),
+        units: [
+            unit('c0', 'crew', { at: at(5, 7), stance: 'hold', movement: 3 }),
+            unit('e0', 'enemy', { at: at(5, 3), stance: 'hold', movement: 0, maxHp: 4000 }),
+        ],
+        seed: 12345,
+    });
+    const rows = covered.activations.filter(a => a.unitId === 'c0')
+        .map(a => a.snapshot.find(s => s.id === 'c0').at);
+    assert.ok(rows.every(p => p.row >= 7 || (p.col === 5 && p.row === 6)),
+        `a held soldier left the band for open ground: ${JSON.stringify(rows)}`);
+    assert.ok(rows.some(p => p.col === 5 && p.row === 6), 'the parapet beside the line was never taken');
 });
 
 test('a guard keeps station on whoever it was told to protect', () => {
@@ -224,16 +260,17 @@ test('a mirror match is a coin toss, not a first-mover win', () => {
     assert.ok(share > 0.35 && share < 0.65, `mirror win share was ${(share * 100).toFixed(1)}%`);
 });
 
-test('a held position never leaves its deployment zone, whatever the score says', () => {
-    // Put a juicy target far up the board: holding must still refuse to chase it.
+test('a held position never chases, however juicy the target', () => {
+    // A medic far up the board is worth killing, and an advance would go and do
+    // it. Holding stops at its own range and stays there.
     const result = run([
         unit('c0', 'crew', { at: at(5, 8), stance: 'hold', movement: 3 }),
-        unit('e0', 'enemy', { at: at(5, 0), duty: 'medic', stance: 'hold', movement: 0 }),
+        unit('e0', 'enemy', { at: at(5, 0), duty: 'medic', stance: 'hold', movement: 0, maxHp: 4000 }),
     ]);
     for (const step of result.activations) {
         if (step.unitId !== 'c0') continue;
         const me = step.snapshot.find(s => s.id === 'c0');
-        assert.ok(me.at.row >= 7, `a holding soldier walked to row ${me.at.row}`);
+        assert.ok(me.at.row >= RIFLE.range, `a holding soldier walked to row ${me.at.row}`);
     }
 });
 
