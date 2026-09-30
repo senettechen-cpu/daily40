@@ -737,13 +737,12 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             // user on 2026-09-27. A completion now pays only what the server
             // grants: a core's requisition and a designated growth record.
 
-            // A one-off task deployed from an operation plan ticks its subtask. The
-            // project PUT settles the milestone reward on the server as usual.
-            if (!task.isRecurring && updatedTask.status === 'completed' && task.projectId && task.subTaskId) {
-                const plan = projects.find(p => p.id === task.projectId);
-                const sub = plan?.subTasks.find(s => s.id === task.subTaskId);
-                if (plan && !plan.sealedAt && sub && !sub.completed) completeSubTask(plan.id, sub.id);
-            }
+            // A task deployed from an operation plan used to tick its subtask on
+            // completion. It no longer does (user decision 2026-09-30): a plan's
+            // subtask is usually worked several times before it is really done,
+            // and the first pass closing it was wrong every time but the last.
+            // The link is kept - it names the task and shows where it came from -
+            // and the player ticks the subtask in the plan when they mean it.
 
             // 5. Persist Task Update (Backend)
             getToken().then(token => {

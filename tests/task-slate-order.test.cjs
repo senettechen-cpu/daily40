@@ -1,0 +1,79 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const React = require('react');
+const { renderToStaticMarkup } = require('react-dom/server');
+const { loadTs } = require('./helpers/load-ts.cjs');
+
+// The slate is one timeline for the day: a protocol with times of day is drawn
+// as one line per time, and every line sorts by its own clock time. What is not
+// today has no place on that clock, so it goes to one end or the other.
+
+const defines = { 'import.meta.env.BASE_URL': "'/'" };
+const { default: TaskDataSlate } = loadTs('src/components/TaskDataSlate.tsx', {
+    defines,
+    mocks: {
+        // The loader compiles without esModuleInterop, so `import React from
+        // 'react'` reads `.default` off a CommonJS module that has none, and the
+        // component's `React.useState` is undefined. Hand it a module that has
+        // both shapes.
+        react: { ...React, default: React, __esModule: true },
+        // Hidden, so the core badge needs none of the rest of the context.
+        '../contexts/RequisitionContext': { useRequisition: () => ({ enabled: false }) },
+    },
+});
+
+const draw = tasks => renderToStaticMarkup(React.createElement(TaskDataSlate, {
+    tasks, selectedId: null, onSelect() { }, onPurge() { },
+}));
+
+/** The order the titles appear in, by first appearance; the table is drawn first. */
+function order(tasks, titles) {
+    const html = draw(tasks);
+    const seen = titles
+        .map(title => ({ title, at: html.indexOf('>' + title + '<') }))
+        .filter(entry => entry.at >= 0);
+    assert.equal(seen.length, titles.length, `missing from the slate: ${JSON.stringify(seen)}`);
+    return seen.sort((a, b) => a.at - b.at).map(entry => entry.title);
+}
+
+const base = { faction: 'default', difficulty: 1, createdAt: new Date(), status: 'active' };
+const today = (hour, minute = 0) => {
+    const d = new Date();
+    d.setHours(hour, minute, 0, 0);
+    return d;
+};
+const daysFromNow = days => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    d.setHours(12, 0, 0, 0);
+    return d;
+};
+
+test('slate: a one-off due later sorts to the bottom, whatever month it falls in', () => {
+    // '2026/10/22' < '2026/9/30' as text, because '1' sorts before '9'. Reading
+    // the locale date that way put every October deadline at the TOP of the
+    // slate, above things already overdue (user report 2026-09-30).
+    const tasks = [
+        { ...base, id: 'next-month', title: '下個月', dueDate: daysFromNow(22) },
+        { ...base, id: 'overdue', title: '早就逾期', dueDate: daysFromNow(-3) },
+        { ...base, id: 'noon', title: '今天中午', dueDate: today(12) },
+    ];
+    assert.deepEqual(order(tasks, ['早就逾期', '今天中午', '下個月']), ['早就逾期', '今天中午', '下個月']);
+});
+
+test('slate: a protocol\'s times interleave with everything else on the clock', () => {
+    const tasks = [
+        {
+            ...base, id: 'water', title: '喝水', dueDate: today(6), isRecurring: true,
+            dueTime: '06:00', dueTimes: ['06:00', '20:00'],
+        },
+        { ...base, id: 'gym', title: '運動', dueDate: today(8), isRecurring: true, dueTime: '08:00' },
+    ];
+    // 06:00 water, then the gym at 08:00, then the last glass at 20:00 - not all
+    // eight glasses in a block with the gym stranded underneath them.
+    const html = draw(tasks);
+    const water = [...html.matchAll(/>喝水</g)].map(m => m.index);
+    const gym = html.indexOf('>運動<');
+    assert.ok(water.length >= 2, 'both times of the protocol are drawn');
+    assert.ok(water[0] < gym && gym < water[1], `運動 must sit between the two 喝水 lines: ${water} vs ${gym}`);
+});

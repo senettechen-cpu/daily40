@@ -220,7 +220,12 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
      */
     const rows = useMemo<SlateRow[]>(() => {
         const nowMinutes = minutesSinceMidnight();
-        const today = new Date().toLocaleDateString();
+        // `dayKey` and not `toLocaleDateString`: the locale form is '2026/9/30',
+        // which compares as text, and '2026/10/22' < '2026/9/30' because '1'
+        // sorts before '9'. Every date in October read as already past and sorted
+        // to the top of the slate (user report 2026-09-30). The key is
+        // zero-padded ISO, so comparing it as text is the same as by date.
+        const today = dayKey(new Date());
         const BEFORE_TODAY = -1;
         const AFTER_TODAY = 24 * 60 + 1;
 
@@ -229,9 +234,9 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
             if (slot) return minutesOf(slot);
             const due = new Date(task.dueDate);
             if (task.isRecurring) return task.dueTime ? minutesOf(task.dueTime) : due.getHours() * 60 + due.getMinutes();
-            const day = due.toLocaleDateString();
-            if (day < today || due < new Date(new Date().setHours(0, 0, 0, 0))) return BEFORE_TODAY;
-            if (day !== today) return AFTER_TODAY;
+            const day = dayKey(due);
+            if (day < today) return BEFORE_TODAY;
+            if (day > today) return AFTER_TODAY;
             return due.getHours() * 60 + due.getMinutes();
         };
 

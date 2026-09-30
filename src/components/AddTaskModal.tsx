@@ -127,8 +127,10 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ visible, onClose, on
         // With a list of times the first one is the day's nominal deadline, so the
         // sorting and overdue checks that read dueTime keep working unchanged.
         const dueTime = isRecurring ? (slots[0] ?? dueDate.format('HH:mm')) : undefined;
-        // A task picked from an operation plan stays linked to that subtask, so
-        // completing it ticks the subtask. Only one-off tasks link.
+        // A task picked from an operation plan stays linked to that subtask. The
+        // link no longer completes it (2026-09-30): it names the task and marks
+        // the subtask as deployed, so the plan does not offer it twice. Only
+        // one-off tasks link.
         const link = inputMode === 'project' && !isRecurring && selectedProjectId && selectedSubTaskId
             ? { projectId: selectedProjectId, subTaskId: selectedSubTaskId }
             : undefined;
@@ -220,8 +222,8 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ visible, onClose, on
                     </div>
                     <p className="font-mono text-[11px] text-zinc-500 m-0">
                         {isRecurring
-                            ? '每日固定任務不會連動子計畫；要連動請取消勾選每日固定任務。'
-                            : '完成這個任務時，會自動勾掉對應的子計畫。'}
+                            ? '每日固定任務只會沿用子計畫的名稱，不會標記為已部署，也不會勾掉它。'
+                            : '完成這個任務不會勾掉子計畫——一個子計畫通常要做很多次。子計畫會標記為已部署，完成與否由你在作戰計畫裡自己勾。'}
                     </p>
                 </div>
             )}
