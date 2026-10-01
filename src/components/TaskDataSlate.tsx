@@ -216,7 +216,8 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
      * be kept contiguous under their protocol, which buried what came next.
      *
      * A day that is not today has no place on the clock: anything left over from
-     * an earlier day sorts to the top, anything due later sorts to the bottom.
+     * an earlier day sorts to the top, anything due later sorts to the bottom,
+     * and within each of those blocks the nearest deadline comes first.
      */
     const rows = useMemo<SlateRow[]>(() => {
         const nowMinutes = minutesSinceMidnight();
@@ -228,15 +229,39 @@ const TaskDataSlate: React.FC<TaskDataSlateProps> = ({
         const today = dayKey(new Date());
         const BEFORE_TODAY = -1;
         const AFTER_TODAY = 24 * 60 + 1;
+        const END_OF_DAY = 24 * 60 - 1;
 
-        /** Where a line sits on today's clock, in minutes since midnight. */
+        /** Whole calendar days from one zero-padded day key to another. */
+        const daysApart = (from: string, to: string): number => {
+            const [fy, fm, fd] = from.split('-').map(Number);
+            const [ty, tm, td] = to.split('-').map(Number);
+            return Math.round((Date.UTC(ty, tm - 1, td) - Date.UTC(fy, fm - 1, fd)) / 86400000);
+        };
+
+        /**
+         * Where a line sits on today's clock, in minutes since midnight. Days
+         * other than today fall outside that range, pushed further out the
+         * further away they are, so the later block reads nearest deadline
+         * first and the overdue block reads oldest first.
+         */
         const rank = (task: Task, slot?: string): number => {
             if (slot) return minutesOf(slot);
+            // A monthly protocol is a deadline, not an appointment: it has no
+            // time of day, and reading its 00:00 as a clock time put a meeting
+            // still 30 days out above every one of today's habits (user report
+            // 2026-10-01). It sorts by days left instead.
+            const monthDays = normalizeMonthDays(task.monthDays);
+            if (monthDays.length > 0) {
+                const left = daysLeft(monthDays, new Date()) ?? 0;
+                if (left < 0) return BEFORE_TODAY + left;
+                if (left > 0) return AFTER_TODAY + left;
+                return task.dueTime ? minutesOf(task.dueTime) : END_OF_DAY;
+            }
             const due = new Date(task.dueDate);
             if (task.isRecurring) return task.dueTime ? minutesOf(task.dueTime) : due.getHours() * 60 + due.getMinutes();
-            const day = dayKey(due);
-            if (day < today) return BEFORE_TODAY;
-            if (day > today) return AFTER_TODAY;
+            const away = daysApart(today, dayKey(due));
+            if (away < 0) return BEFORE_TODAY + away;
+            if (away > 0) return AFTER_TODAY + away;
             return due.getHours() * 60 + due.getMinutes();
         };
 

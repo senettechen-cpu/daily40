@@ -77,3 +77,58 @@ test('slate: a protocol\'s times interleave with everything else on the clock', 
     assert.ok(water.length >= 2, 'both times of the protocol are drawn');
     assert.ok(water[0] < gym && gym < water[1], `運動 must sit between the two 喝水 lines: ${water} vs ${gym}`);
 });
+
+/** A monthly protocol: a deadline on days of the month, with no time of day. */
+const monthly = (id, title, days) => ({
+    ...base, id, title, dueDate: today(0), isRecurring: true, monthDays: days,
+});
+
+/** The day of this month that is `offset` days from today, clamped to 1-28. */
+const dayOfMonth = offset => Math.min(28, Math.max(1, new Date().getDate() + offset));
+
+test('slate: a monthly deadline weeks away sits below today, not on top of it', () => {
+    // Its dueDate carries 00:00, which used to be read as a clock time and put
+    // a meeting still weeks out above every one of today's habits (user report
+    // 2026-10-01).
+    const tasks = [
+        monthly('mtg', '行銷會議', [28]),
+        { ...base, id: 'water', title: '喝水', dueDate: today(6), isRecurring: true, dueTime: '06:00' },
+        { ...base, id: 'gym', title: '運動', dueDate: today(20), isRecurring: true, dueTime: '20:00' },
+    ];
+    if (dayOfMonth(0) >= 28) return; // The 28th onwards has no "weeks away" left this month.
+    assert.deepEqual(order(tasks, ['喝水', '運動', '行銷會議']), ['喝水', '運動', '行銷會議']);
+});
+
+test('slate: among what is still to come, the nearest deadline comes first', () => {
+    const soon = dayOfMonth(2);
+    const later = dayOfMonth(6);
+    if (soon >= later) return; // Too close to the end of the month to tell them apart.
+    const tasks = [
+        monthly('far', '月底盤點', [later]),
+        monthly('near', '成控會議', [soon]),
+        { ...base, id: 'next-week', title: '下週交件', dueDate: daysFromNow(4) },
+    ];
+    assert.deepEqual(
+        order(tasks, ['成控會議', '下週交件', '月底盤點']),
+        ['成控會議', '下週交件', '月底盤點'],
+    );
+});
+
+test('slate: a monthly deadline due today keeps its place in today, above tomorrow', () => {
+    const tasks = [
+        monthly('due-today', '今天截止', [dayOfMonth(0)]),
+        { ...base, id: 'tomorrow', title: '明天', dueDate: daysFromNow(1) },
+        { ...base, id: 'morning', title: '早上', dueDate: today(6), isRecurring: true, dueTime: '06:00' },
+    ];
+    assert.deepEqual(order(tasks, ['早上', '今天截止', '明天']), ['早上', '今天截止', '明天']);
+});
+
+test('slate: an overdue monthly deadline stays at the top, oldest first', () => {
+    const tasks = [
+        { ...base, id: 'noon', title: '今天中午', dueDate: today(12) },
+        monthly('late-1', '遲一天', [dayOfMonth(-1)]),
+        monthly('late-5', '遲五天', [dayOfMonth(-5)]),
+    ];
+    if (dayOfMonth(-5) >= dayOfMonth(-1)) return; // Early in the month there is no room.
+    assert.deepEqual(order(tasks, ['遲五天', '遲一天', '今天中午']), ['遲五天', '遲一天', '今天中午']);
+});
